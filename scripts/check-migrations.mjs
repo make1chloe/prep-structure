@@ -19,7 +19,12 @@ const rows = (await c.query("select file, sha from v2.migration")).rows;
 const applied = new Map(rows.map(r => [r.file, r.sha]));
 await c.end();
 
-const never = files.filter(f => !applied.has(f));
+// 눌러보기 DB(127.0.0.1:55440 · up.sh)는 실 데이터를 단언하는 파일을 건너뛴다 — 목록은 scripts/e2e/skip-migrations.txt 한 곳.
+// 거기선 「안 돌린 것」이 아니라 「건너뜀」으로 센다(원장님 2026-09-15 「81실패는 뭐가 문제야?」 · 늘 빨간 검사는 진짜 빨간 것을 가린다). 실 DB 에서는 그대로 잰다.
+const isE2E = /127\.0\.0\.1:55440\//.test(url);
+const skipList = isE2E ? readFileSync("scripts/e2e/skip-migrations.txt", "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#")) : [];
+const skipped = files.filter(f => !applied.has(f) && skipList.includes(f));
+const never = files.filter(f => !applied.has(f) && !skipList.includes(f));
 const stale = files.filter(f => applied.has(f) && applied.get(f) !== sha(f));
 const ghost = [...applied.keys()].filter(n => !all.includes(n));
 const ranSwitch = SWITCH.filter(f => applied.has(f));
@@ -38,5 +43,6 @@ if (SWITCH.length) {
   console.log(`\n   ⏸️  전환일에 손으로 한 번 돌리는 파일 ${SWITCH.length}개 (지금 돌리면 안 된다)`);
   SWITCH.forEach(f => console.log(`        psql "$DATABASE_URL" -f supabase/migrations/${f}`));
 }
-console.log(`\n■ 마이그레이션 검사 3건 · 실패 ${fail}`);
+if (skipped.length) console.log(`\n   ⏭  눌러보기 DB 라 건너뜀 ${skipped.length}(실 데이터 단언 · 실 DB 에는 들어가 있다): ${skipped.join(" ")}`);
+console.log(`\n■ 마이그레이션 검사 ${4 - 1}건 · 실패 ${fail} · 건너뜀 ${skipped.length}`);
 process.exit(fail ? 1 : 0);

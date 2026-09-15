@@ -31,11 +31,11 @@ echo "  됐습니다"
 echo "== 표 만들기 (supabase/migrations 차례대로) =="
 # ⚠️ 0081_map_orphans 는 실제 DB 의 짝 없는 줄 19개를 단언하는 데이터 고침이라 빈 DB 에선 못 돈다 — 이름을 적어 건너뛴다(조용히 넘기지 않는다).
 #    9000·9001 전환일 파일은 전환 전엔 안 돌린다 — 실제와 같다.
-SKIP=${E2E_SKIP_MIGRATIONS:-"0081_map_orphans.sql"}
+SKIP=${E2E_SKIP_MIGRATIONS:-"$(grep -v '^#' scripts/e2e/skip-migrations.txt | tr '\n' ' ')"}   # 목록은 scripts/e2e/skip-migrations.txt 한 곳(check-migrations 도 같은 파일)
 # 실제와 같은 길로 — scripts/_ap.mjs 가 돌리고 v2.migration 에 sha 를 적는다(check-migrations 가 그것을 본다)
 files=""; skipped=""
 for f in $(ls supabase/migrations/0*.sql | sort); do b=$(basename "$f"); case " $SKIP " in *" $b "*) skipped="$skipped $b";; *) files="$files $b";; esac; done
-[ -n "$skipped" ] && echo "  ⏭$skipped (실제 데이터 단언 — 빈 DB 에선 못 돈다. check-migrations 가 이것 하나를 빨갛게 센다)"
+[ -n "$skipped" ] && echo "  ⏭$skipped (실제 데이터 단언 · 빈 DB 에선 못 돈다 · check-migrations 는 눌러보기 DB 에서 이것을 건너뜀으로 센다)"
 out=$(DATABASE_URL="postgres://postgres@127.0.0.1:$PORT/chloe" node scripts/_ap.mjs $files 2>&1) || { echo "$out" | grep "❌" | head -5; exit 1; }
 echo "  $(echo "$files" | wc -w)개 됐습니다 · $(echo "$out" | tail -1)"
 # ⚠️ v2·v3 의 권한은 마이그레이션(0005·0017·0100)이 정한다 — 여기서 덧씌우지 않는다(check-grants 가 실제와 같은 것을 재야 한다). 흉내 낸 auth·storage·public 만 연다
