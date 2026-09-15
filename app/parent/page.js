@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
+import { itemTitle, itemSub } from "@/lib/item-plan";
 import { decide, PARENT } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { myChildren, parentDay } from "@/lib/parent";
@@ -26,7 +27,6 @@ import NoticeCard from "../_shell/noticecard.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
 const Card = ({ emo, title, id, pill, pillCls = "", fold = null, folded = false, children }) => <div className="task" data-card={id} data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className={"pill " + pillCls}>{pill}</span>}{fold}</div>{children}</div>;
-const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}` : "";
 export default async function Parent({ searchParams }) {
   const { sb, me, user } = await guard();
   const q = await searchParams;
@@ -60,7 +60,7 @@ export default async function Parent({ searchParams }) {
       {d.lastLines.map((t) => <p key={t} className="note" style={{ margin: "4px 0 0" }} data-g="attached">{t}</p>)}
       {d.tags.length > 0 && <div className="tags" style={{ marginTop: 8 }}>{d.tags.map((t) => <span key={t.text} className={"tag" + (t.on ? " on" : "")}>{t.text}</span>)}</div>}</Card> },
     { id: 'homework', name: '다음 숙제', node: can(PARENT.homework) && d.last?.home.length > 0 && <Card emo="📘" title="다음 숙제" id="homework" {...fold("homework")} pill={String(d.last.home.length)}>
-      {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{it.learn_items?.name ?? it.range_note ?? ""}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null].filter(Boolean).join(" · ")}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
+      {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{itemTitle(it)}</b><small>{itemSub(it, { memo: false })}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
       {d.last.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ {b.home_memo}</p>)}</Card> },
     { id: 'videos', name: '영상', node: can(PARENT.homework) && d.videos.length > 0 && <Card emo="🎬" title="영상" id="videos" {...fold("videos")} pill={`${d.videos.filter((v) => v.status.key !== "done").length}개 남음`} pillCls={d.videos.some((v) => v.status.key !== "done") ? "warn" : "hw"}>
       {d.videos.map((v) => <div className="li" key={v.id} data-g="video-line" data-status={v.status.key}><div><b>{v.video?.title}</b><small>{[v.due || null, v.opens ? `${v.opens}번 열어봄` : null].filter(Boolean).join(" · ")}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
