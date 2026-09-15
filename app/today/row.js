@@ -4,7 +4,7 @@
 import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -28,7 +28,8 @@ import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* �
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
 import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
-import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel } from "@/lib/routine-plan";
+import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel, bookOrder } from "@/lib/routine-plan";
+import { timerText } from "@/lib/arrival-plan";   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
@@ -163,6 +164,8 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const [assign, setAssign] = useState(false);   // (어41) 배정한 교재가 없으면 「+ 교재 배정」 → 모달 · 배정하면 오늘 수업 일지에 바로 깔린다(원장님 9/15 「배정이 없으면 … 뭘 설정하라고 하든가」)   // (어13) 숙제 0 이면 「+ 숙제 주기」 → 모달(페이지는 안 늘어난다)
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
+  const ordered = bookOrder(books, [...sheet.class, ...sheet.home]);   // (어35) 교재 카드 차례 = 오늘 학습 줄의 차례(sort · 검사 먼저 끝난 교재부터 → 루틴 차례 → 시작한 줄 앞 · 07 과 같은 차례) · 줄 없는 교재는 뒤
+  const nOrder = ordered.filter((b) => [...sheet.class, ...sheet.home].some((it) => it.units?.book_id === b.book_id)).length;   // 줄 있는 교재 수 · ▲▼ 는 그 안에서만
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
   const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
@@ -187,7 +190,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       {giveSlot && <GiveModal sheet={sheet} slot={giveSlot} fail={fail} start={start} onClose={() => setGiveSlot(null)} />}
       {books.length === 0 && <div className="lf" data-g="no-book"><span className="ln">📕</span><div><b>배정한 교재 없음</b></div>{!closed && <button type="button" className="btn sm pri" data-act="assign-book" onClick={() => setAssign(true)}>+ 교재 배정</button>}</div>}
       {assign && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssign(false)} />}
-      {books.map((b) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} />)}
+      {ordered.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} pos={i} nOrder={nOrder} />)}
       <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">📝</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>고치기</button></div>
       {quizEdit && nextQuiz}
       <div className="folds wv" style={{ margin: "10px 0 0" }} data-g="folds">
@@ -222,7 +225,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   );
 }
 /** 교재 하나 · 머리(이름 · N회독 · 대단원 · 진행중/숙제 보류/교재 보류) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
-function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }) {
+function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, pos = 0, nOrder = 0 }) {
   const stop = stopOn(b, date);
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
@@ -240,6 +243,9 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
         <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
         <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절</button>
         <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크</button>
+        {!closed && pos < nOrder && <span className="wv" data-g="book-order" style={{ margin: 0, gap: 2 }}>{/* (어35) 교재 차례 ▲▼ · 선생님이 고친다(원장님 9/15 「배정 선생님이 고칠 수 있음」) · 줄 있는 교재끼리만 · 시작한 줄은 그대로 앞 */}
+          <button type="button" className="btn sm gho" data-act="book-up" aria-label="앞으로" disabled={pos === 0} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "up")); })}>▲</button>
+          <button type="button" className="btn sm gho" data-act="book-down" aria-label="뒤로" disabled={pos >= nOrder - 1} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "down")); })}>▼</button></span>}
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} api={progApi(sheet)} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
@@ -282,11 +288,11 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>오늘 단원</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{waveLabel(o)}</button>)}</div></div>}
-      <ItemTree rows={rows} book={false} unitHead={(g) => <>{/* (어42) 나무 한 벌 · 단원 머리의 손은 summary 안이라 preventDefault 로 접힘을 막는다 */}
+      <ItemTree rows={rows} book={false} bySort unitHead={(g) => <>{/* (어42) 나무 한 벌 · 단원 머리의 손은 summary 안이라 preventDefault 로 접힘을 막는다 */}
             {!closed && slot === "class" && g.rows.length > 0 && <span className="wv" data-g="unit-acts" style={{ margin: 0, gap: 4 }} onClick={(e) => e.preventDefault()}><button type="button" className="btn sm" data-act="unit-skip" onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>건너뛰기</button><button type="button" className="btn sm" data-act="unit-next" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>다음 시간으로</button><button type="button" className="btn sm" data-act="unit-home" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>숙제로</button></span>}
             {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={(e) => { e.preventDefault(); start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); }); }}>✕</button>}
           </>}
-        row={(it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}
+        row={(it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{it.started_at && <TimerTag it={it} />}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}
             {!closed && slot === "class" && <span className="wv" data-g="line-acts" style={{ margin: "4px 0 0", gap: 4 }}><button type="button" className="btn sm gho" data-act="line-skip" onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>건너뛰기</button><button type="button" className="btn sm gho" data-act="line-next" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>다음 시간으로</button><button type="button" className="btn sm gho" data-act="line-home" onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>숙제로</button></span>}</div>
             {!closed && slot === "home" && <button type="button" className="btn sm gho" data-act="line-class" style={{ flex: "0 0 auto" }} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>학습으로</button>}</div>; }} />
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
@@ -296,6 +302,12 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       {extra}
     </div>
   );
+}
+/** (어35) 학습 줄의 타이머 꼬리표 · 끝났으면 「⏱ N분」 · 하는 중이면 붙은 뒤에 「▶ m:ss」(처음 그릴 땐 「▶ 하는 중」 · 서버·브라우저 첫 글이 같아야 hydration 이 안 어긋난다) · 글은 07 과 같은 timerText 한 벌 */
+function TimerTag({ it }) {
+  const [now, setNow] = useState(null); useEffect(() => { setNow(Date.now()); }, []);
+  const over = Boolean(it.ended_at || it.said_done_at);
+  return <span className={"tag" + (over ? " on" : " act")} data-g="timer" style={{ marginLeft: 4 }}>{over ? timerText(it) : now ? timerText(it, now) : "▶ 하는 중"}</span>;
 }
 const lastFrom = (it) => { const d = String(it?.carry?.day_sheet?.date ?? ""); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))} 에서 넘어옴` : "지난 시간에서 넘어옴"; };   // (어37) 넘어온 줄의 꼬리
 const kindOf = (k) => KIND.find(([x]) => x === k) ?? ["", k, "?"];

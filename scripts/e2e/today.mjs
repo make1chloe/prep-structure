@@ -160,7 +160,7 @@ await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li but
 ok("미루면 숙제로 간다(지우지 않는다)", (await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li").count()) === 0 && (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2);
 console.log("■ 검사가 끝나면 오늘 학습·숙제가 저절로 깔린다(확정-⑨)");
 await pick(row, "work");
-ok("아직 안 깔렸다(검사 줄 하나 남음) · 교재 머리는 「검사 끝나면 채워집니다」", (await row.locator(".bk .stopnote", { hasText: "검사 끝나면" }).count()) === 1);
+ok("(어35) 문법책 검사 둘(워크북 △ · 그저께 ✕)이 끝났으니 검사 줄 하나(클카 문장훈련 · 교재 없음)가 남았어도 문법책은 이미 깔렸다(검사 먼저 끝난 교재부터 · 원장님 9/15 「숙제검사를 먼저 한 영역이 오늘학습에 먼저 배정」) · 「검사 끝나면 채워집니다」 0 · 교재 한 권 · 학습·숙제 반쪽 둘", (await row.locator(".bk .stopnote", { hasText: "검사 끝나면" }).count()) === 0 && (await row.locator(".bk").count()) === 1 && (await row.locator(".bk").first().locator(".half").count()) === 2, (await row.locator("[data-card=work]").textContent()).replace(/\s+/g, " ").slice(0, 240));
 await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);
 { const hw = row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }); const bg = async (v) => hw.locator(`.chk button[data-v=${v}]`).evaluate((el) => getComputedStyle(el).backgroundColor); const on = await bg("o"), off = await bg("x");   // (어23) 눌림이 눈에 보이나 — aria-pressed 만 재던 구멍(원장님 9/15 「숙제검사 ox는 표시가 안되는데」)
   ok("○ 를 누르면 그 단추가 색으로 눌린다(배경이 안 누른 단추와 다르다 · CSS data-v o·w·x = 앱 CHECK_KEY)", on !== off && (await hw.locator(".chk button[data-v=o]").getAttribute("aria-pressed")) === "true", `${on} / ${off}`); }
@@ -559,6 +559,8 @@ if (!(await two2.locator("[data-card=work]").count())) {   // 오늘 결석 예�
 await 펴기(two2);
 }
 ok("학생둘 · 결석 예정이었지만 왔다: 출결을 누르니 판이 선다", (await two2.locator("[data-card=work]").count()) === 1, (await two2.locator(".pill").allTextContents()).join(" | "));
+{ await pick(two2, "work"); const bks = two2.locator("[data-card=work] .bk");   // (어35) 교재 카드 차례 = 오늘 학습 줄의 차례(sort · 루틴 차례 = 영역 차례 문법 → 독해) · ▲▼ 는 줄이 있는 교재끼리만(독해책은 루틴이 없어 줄 0)
+  ok("(어35) 학생둘 · 교재 둘 · 문법책(줄 있음)이 앞 · 독해책(루틴 없음 · 줄 0)은 뒤 · 줄 있는 교재가 하나뿐이라 ▲▼ 잠김 · 줄 없는 교재엔 ▲▼ 없음", (await bks.count()) === 2 && (await bks.nth(0).getAttribute("data-book")) === "99999999-0000-4000-e000-000000000001" && (await bks.nth(0).locator("button[data-act=book-up]").isDisabled()) && (await bks.nth(0).locator("button[data-act=book-down]").isDisabled()) && (await bks.nth(1).locator("button[data-act=book-down]").count()) === 0, (await bks.allTextContents()).join(" | ").replace(/\s+/g, " ").slice(0, 200)); }
 await pick(two2, "late");
 await two2.locator("form.lategrid input[name=reason]").fill("문장훈련 녹음 남아서");
 await two2.locator("form.lategrid .seg button", { hasText: "+40분" }).click();
@@ -593,11 +595,20 @@ console.log("■ 아이 화면 07 · 마감 뒤: 「다 했어요」(학원 줄�
   const mm = cp.locator("main");
   const cls = mm.locator("[data-card=todo] .li");
   ok("(어42) 07 도 같은 나무 · 📕 교재 머리(tree-book) · ▸ 단원 머리(tree-head) · 줄은 그 아래 들여쓰기(.trr .li)", (await mm.locator("[data-card=todo] [data-g=tree-book]").count()) >= 1 && (await mm.locator("[data-card=todo] [data-g=tree-head]").count()) >= 1 && (await mm.locator("[data-card=todo] .trr .li").count()) === (await cls.count()), String(await mm.locator("[data-card=todo] [data-g=tree-book]").allTextContents()));
-  ok("학원 줄 · 첫 줄만 「다 했어요」, 다음 줄은 「앞엣것부터」(0084 ⑱)", (await cls.first().locator("button[data-act=said]").count()) === 1 && (await mm.locator("[data-card=todo] [data-g=locked]").count()) >= 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
-  await cls.first().locator("button[data-act=said]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
-  ok("누르면 「했어요 ✓ · 취소」 · 다음 줄이 열린다(마감 뒤에도 · 숙제는 저녁에 한다)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 1 && (await mm.locator("[data-card=todo] .li").nth(1).locator("button[data-act=said]").count()) === 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  ok("(어35) 학원 줄 · 첫 줄만 「▶ 시작」, 다음 줄은 「앞엣것부터」(0084 ⑱ · 원장님 9/15 「학생페이지 타이머 짓는다」)", (await cls.first().locator("button[data-act=start]").count()) === 1 && (await mm.locator("[data-card=todo] [data-g=locked]").count()) >= 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  await cls.first().locator("button[data-act=start]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  const tmr = () => cls.first().locator("[data-g=timer]");
+  ok("(어35) ▶ 시작 → 「▶ m:ss」 타이머 + 「■ 끝」 · 다음 줄은 아직 「앞엣것부터」(하는 중) · 시각은 서버가 찍는다(0167 문지기)", (await tmr().count()) === 1 && /^▶ \d+:\d\d$/.test((await tmr().textContent()).trim()) && (await cls.first().locator("button[data-act=end]").count()) === 1 && (await mm.locator("[data-card=todo] .li").nth(1).locator("[data-g=locked]").count()) === 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  { const t0 = (await tmr().textContent()).trim(); await cp.waitForTimeout(2100); const t1 = (await tmr().textContent()).trim();
+    ok("(어35) 초가 간다(1초마다 다시 센다 · 화면을 다시 안 불러도)", t0 !== t1 && t1 !== "▶ 0:00", `${t0} → ${t1}`); }
+  await cls.first().locator("button[data-act=end]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("(어35) ■ 끝 → 「⏱ N분」 + 「했어요 ✓ · 취소」(끝 = 다 했어요 · said_done_at) · 다음 줄이 열린다(▶ 시작)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 1 && /^⏱ \d+분$/.test((await tmr().textContent()).trim()) && (await mm.locator("[data-card=todo] .li").nth(1).locator("button[data-act=start]").count()) === 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  { const tp = await p.context().newPage(); await tp.goto(APP + "/today"); await tp.waitForLoadState("networkidle").catch(() => {});   // (어35) 원장 01 에도 같은 글(timerText 한 벌) · 마감 뒤라 읽기만
+    const trow = tp.locator(".row[data-student='99999999-0000-4000-9000-000000000001']"); if (!(await trow.locator(".panel").count())) await trow.locator("button.open").click(); await 펴기(trow); await pick(trow, "work");
+    ok("(어35) 원장 01 학습 줄에 「⏱ N분」 꼬리표(아이가 잰 시간 · 07 과 같은 글 · 마감 뒤에도 보인다)", (await trow.locator("[data-card=work] [data-g=timer]").count()) >= 1 && /^⏱ \d+분$/.test((await trow.locator("[data-card=work] [data-g=timer]").first().textContent()).trim()), (await trow.locator("[data-card=work]").textContent().catch(() => "?")).replace(/\s+/g, " ").slice(0, 200));
+    await tp.close(); }
   await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
-  ok("무르면 다시 「다 했어요」 · 문지기가 막지 않는다(답 ⑧ · 0115)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 0, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+  ok("(어35) 취소하면 다시 하는 중(타이머 이어짐 · ■ 끝) · 다음 줄은 다시 「앞엣것부터」 · 문지기가 막지 않는다(답 ⑧ · 0115 → 0167)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 0 && (await cls.first().locator("button[data-act=end]").count()) === 1 && (await mm.locator("[data-card=todo] .li").nth(1).locator("[data-g=locked]").count()) === 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
   // 4단계-5 — 숙제 줄 🔒: 화면 걷기가 문법책 교재 줄 「워크북 복습」에 걸어 둔 잠금 → 깔 때 day_item.gate_prev → 07 숙제 줄 「앞엣것부터」. 학원 줄은 ⑰ 대로 늘 차례대로
   // 소단원마다 줄이 선다(문장훈련 ×N → 워크북 ×N) — 숙제 줄은 「학원 N」 다음부터. 「앞엣것」은 앞 항목 전부(homeSteps)
   const homeRows = async () => { const t = await mm.locator("[data-card=todo]").textContent(); const nC = Number(/학원 (\d+)/.exec(t)?.[1] ?? 0); const all = mm.locator("[data-card=todo] .li"); const n = await all.count(); const out = []; for (let k = nC; k < n; k++) { const li = all.nth(k); out.push({ k, text: await li.textContent(), said: await li.locator("button[data-act=said]").count(), locked: await li.locator("[data-g=locked]").count(), pressed: await li.locator("button[data-act=said][aria-pressed=true]").count() }); } return out; };

@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
 import { db, serviceClient } from "@/lib/supabase";
+import { changed } from "@/lib/sqlError";
 import { today, rosterPeople } from "@/lib/day";
 import { myStudent, stamp } from "@/lib/arrival";
 import { clientIp, classChoice } from "@/lib/arrival-plan";
@@ -40,9 +41,12 @@ export const ask = done(async (body) => { const { sb, user } = await child(); co
 /** 「다 했어요」 — 켜고 무른다(답 ⑧). 시각은 DB 문지기가 서버 시계로 */
 export const said = done(async (itemId, on) => {
   const { sb } = await child();
-  const { error } = await db(sb).from("day_item").update({ said_done_at: on ? new Date().toISOString() : null }).eq("id", String(itemId));
+  const { error } = await db(sb).from("day_item").update(on ? { said_done_at: new Date().toISOString() } : { said_done_at: null, ended_at: null }).eq("id", String(itemId));   // (어35) 취소는 끝(ended_at)도 같이 비운다 · 타이머는 다시 하는 중
   if (error) throw new Error(`못 적음: ${error.message}`);
 });
+/** (어35) 학원 줄 타이머(원장님 9/15 「학생페이지 타이머 짓는다」) · 「▶ 시작」 · 「■ 끝」(끝 = 다 했어요도 같이) · 시각은 DB 문지기가 서버 시계로(0167 · 이미 찍힌 것은 안 바뀐다) · 취소는 said 가 끝도 같이 비운다 */
+export const startItem = done(async (itemId) => { const { sb } = await child(); changed(await db(sb).from("day_item").update({ started_at: new Date().toISOString() }, { count: "exact" }).eq("id", String(itemId)), "시작을 못 적음"); });
+export const endItem = done(async (itemId) => { const { sb } = await child(); const t = new Date().toISOString(); changed(await db(sb).from("day_item").update({ ended_at: t, said_done_at: t }, { count: "exact" }).eq("id", String(itemId)), "끝을 못 적음"); });
 /** 📈 내 성적 넣기 — 제 회차만 · 확인 전엔 다시 넣어 고친다(lib/score studentSubmit — RLS 도 같은 문) */
 export const submitScore = done(async (examId, raw, full, wrongs) => { const { sb, user } = await child(); return studentSubmit(sb, user, { examId, raw, full: full || 100, wrongs }, await today(sb)); });
 /** 🛤️ 로드맵 08 — 내 교재 진도를 찍는다(열려 있을 때 · 원장님 줄은 못 덮는다 · 확인 기다리는 중으로) · ❗ 이의(진도는 안 바뀐다). 판단은 lib/road 한 벌 */

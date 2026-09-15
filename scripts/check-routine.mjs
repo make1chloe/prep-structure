@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 올린 기록이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 보류 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, wavePlan, waveLabel, choiceOrder, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, wavePlan, waveLabel, choiceOrder, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits, readyBooks, bookRank, orderToday, bookOrder } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -136,5 +136,24 @@ console.log("■ (어41) 「교재 배정」 목록 차례(choiceOrder · 원장
   const r = choiceOrder(books, ["b1"], [{ book_id: "b3", status: "done" }, { book_id: "b3", status: "doing" }, { book_id: "b4", status: "doing" }]);
   ok("이미 배정된 교재(b1)는 빠진다 · 진도 체크된 교재부터(단어책 2줄 · 영작책 1줄) · 그 다음 영역 이름 차례(독해책)", r.map((x) => x.book_id).join() === "b3,b4,b2" && r[0].progressed && r[0].done === 1 && r[0].marks === 2 && !r[2].progressed);
   ok("배정할 것이 없으면 빈 목록 · 진도 없으면 영역·이름 차례", choiceOrder(books, ["b1", "b2", "b3", "b4"], []).length === 0 && choiceOrder(books, [], []).map((x) => x.book_id).join() === "b3,b2,b1,b4"); }
+console.log("■ (어35) 오늘 학습 차례 · 검사 먼저 끝난 교재부터 → 다 끝나면 루틴 차례 → 시작한 줄은 앞 · 선생님 ▲▼(원장님 9/15 「숙제검사를 먼저 한 영역이 오늘학습에 먼저 배정 … 학생페이지 타이머 짓는다」)");
+{ const R = (id, slot, book, sort, extra = {}) => ({ id, slot, sort, item_id: "i", unit_id: book ? `u-${book}` : null, units: book ? { book_id: book } : null, carry_of: null, off: false, ...extra });
+  const rows = [R("d1", "class", "독해", 1), R("d2", "class", "독해", 2), R("m1", "class", "문법", 3), R("m2", "class", "문법", 4), R("f", "class", null, 5, { item_id: null }), R("c", "class", "문법", -50, { carry_of: "x", carry: { slot: "next" } }), R("p", "class", "문법", 900, { carry_of: "y", carry: { slot: "check" } }), R("h1", "home", "독해", 1), R("h2", "home", "문법", 2)];
+  const books = [{ book_id: "독해", from_date: "2025-12-01", books: { area: "독해", name: "독해책" } }, { book_id: "문법", from_date: "2026-01-01", books: { area: "문법", name: "문법책" } }, { book_id: "단어", from_date: "2026-01-01", books: { area: "단어", name: "단어책" } }];
+  const rank = bookRank(books);
+  ok("교재 등수 · 영역 차례(문법 → 독해 → 단어) · 배정 시작일보다 영역이 먼저", rank.get("문법") === 0 && rank.get("독해") === 1 && rank.get("단어") === 2);
+  const apply = (rs, ups) => rs.map((r) => ({ ...r, sort: ups.find((u) => u.id === r.id)?.sort ?? r.sort }));
+  const seq = (rs, slot) => rs.filter((r) => r.slot === slot).sort((a, b) => a.sort - b.sort).map((r) => r.id).join();
+  const u1 = orderToday(rows, rank), a1 = apply(rows, u1);
+  ok("학원 · 넘어온 줄(c) → 문법(m1 m2) → 독해(d1 d2) → 그 밖에(손 줄 f · 검사 나머지 조각 p · 옛 차례) · 숙제도 같은 등수(h2 → h1) · 바뀐 줄만 · 1부터", seq(a1, "class") === "c,m1,m2,d1,d2,f,p" && seq(a1, "home") === "h2,h1" && u1.every((u) => rows.find((r) => r.id === u.id).sort !== u.sort) && a1.filter((r) => r.slot === "class").every((r) => r.sort >= 1), seq(a1, "class") + " | " + seq(a1, "home"));
+  ok("다시 돌려도 바뀌는 줄 0(멱등)", orderToday(a1, rank).length === 0);
+  const started = rows.map((r) => (r.id === "d2" ? { ...r, started_at: "2026-09-15T10:00:00Z" } : r.id === "d1" ? { ...r, started_at: "2026-09-15T10:05:00Z" } : r));
+  const a2 = apply(started, orderToday(started, rank));
+  ok("아이가 시작한 줄은 맨 앞 · 시작 차례(d2 → d1) · 그 뒤는 그대로(c → m1 m2 → f p)", seq(a2, "class") === "d2,d1,c,m1,m2,f,p", seq(a2, "class"));
+  ok("pin:false 면 시작한 줄도 제 교재 자리(판단만 둔다 · 손은 안 쓴다)", seq(apply(started, orderToday(started, rank, { pin: false })), "class") === "c,m1,m2,d1,d2,f,p");
+  ok("readyBooks · 그 교재의 검사 줄이 전부 검사됐을 때만 · 단원 없는 줄(교재 없음)은 어느 교재도 안 막는다 · 검사 줄 없는 교재는 안 나온다", readyBooks([{ status: "done", units: { book_id: "a" } }, { status: "none", units: { book_id: "b" } }, { status: "weak", units: { book_id: "b" } }, { status: null, units: null }, { status: "missing", units: { book_id: "c" } }]).join() === "a,c");
+  const bo = bookOrder(books, a1).map((b) => b.book_id).join();
+  ok("bookOrder · 01 교재 카드 차례 = 줄의 sort(문법 → 독해) · 줄 없는 교재(단어)는 뒤에 · 07 나무와 같은 차례", bo === "문법,독해,단어", bo);
+  ok("bookOrder · 시작한 줄이 앞이면 그 교재가 앞(독해 → 문법)", bookOrder(books, a2).map((b) => b.book_id).join() === "독해,문법,단어"); }
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

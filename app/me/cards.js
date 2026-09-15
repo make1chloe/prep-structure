@@ -1,14 +1,14 @@
 "use client";
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { arrive, said, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct } from "./actions.js";
+import { arrive, said, startItem, endItem, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct } from "./actions.js";
 import Upload from "../_shell/upload.js";
 import Photo from "../_shell/photo.js";
 import { myUploads } from "@/lib/files-plan";
 import { md } from "@/lib/dash-plan";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
-import { STEPS, LEAVE } from "@/lib/arrival-plan";
+import { STEPS, LEAVE, timerText } from "@/lib/arrival-plan";
 import { seoulTime } from "@/lib/day-plan";
 export function ArrivalCard({ arrival, choice, off }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [cls, setCls] = useState(choice.classId ?? null);
@@ -39,6 +39,24 @@ export function SaidButton({ item, state = "now" }) {   // 마감 뒤에도 누�
   if (state === "locked") return <span className="tag" data-g="locked">앞엣것부터</span>;
   return (<>
     <button type="button" className={"btn sm" + (on ? "" : " pri")} data-act="said" aria-pressed={on} disabled={pending} onClick={flip}>{on ? "했어요 ✓ · 취소" : "다 했어요"}</button>
+    {err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}
+  </>);
+}
+
+/** (어35) 학원 줄의 타이머(원장님 9/15 「학생페이지 타이머 짓는다」) · 차례대로(지금 할 것만) · 「▶ 시작」 → 「▶ m:ss · ■ 끝」 → 「⏱ N분 · 했어요 ✓ · 취소」 · 끝 = 다 했어요(said_done_at) · 취소하면 다시 하는 중(타이머는 이어진다) · 시각은 DB 문지기가 서버 시계로(0167) · 마감 뒤에도 누른다.
+ *  처음 그릴 땐 시작 시각으로 세고(서버·브라우저가 같은 글) 붙은 뒤에 1초마다 다시 센다 · 글은 lib/arrival-plan timerText 한 벌(01 도 같은 글) */
+export function TimerButton({ item, state = "now" }) {
+  const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [now, setNow] = useState(null);
+  const done = Boolean(item.said_done_at), running = Boolean(item.started_at) && !done;
+  useEffect(() => { if (!running) return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [running]);
+  const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r.ok) setErr(r.msg); });
+  if (state === "locked") return <span className="tag" data-g="locked">앞엣것부터</span>;
+  const base = item.started_at ? new Date(item.started_at).getTime() : 0;
+  return (<>
+    {item.started_at && <span className={"tag" + (done ? " on" : " act")} data-g="timer">{timerText(item, now ?? base)}</span>}
+    {done ? <button type="button" className="btn sm" data-act="said" aria-pressed={true} disabled={pending} onClick={() => run(() => said(item.id, false))}>했어요 ✓ · 취소</button>
+      : running ? <button type="button" className="btn sm pri" data-act="end" disabled={pending} onClick={() => run(() => endItem(item.id))}>■ 끝</button>
+      : <button type="button" className="btn sm pri" data-act="start" disabled={pending} onClick={() => run(() => startItem(item.id))}>▶ 시작</button>}
     {err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}
   </>);
 }

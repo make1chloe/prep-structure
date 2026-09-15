@@ -4,8 +4,8 @@
 import { itemForest } from "@/lib/day-plan";
 import { unitBits } from "@/lib/item-plan";
 import { areaEmo } from "@/lib/routine-plan";
-export function ItemTree({ rows = [], all = rows, row, unitHead = null, book = true, open = true }) {
-  const forest = itemForest(rows, all); if (!forest.length) return null;
+export function ItemTree({ rows = [], all = rows, row, unitHead = null, book = true, open = true, bySort = false }) {   // (어35) bySort · 오늘 학습·숙제는 sort 가 곧 차례
+  const forest = itemForest(rows, all, { bySort }); if (!forest.length) return null;
   return forest.map((b) => (
     <div key={b.key} className={"tr" + (book ? "" : " nob")} data-g="tree" data-area={book ? b.area ?? "" : ""}>
       {book && <div className="trb" data-g="tree-book">{b.book ? <><b>📕 {b.book}</b>{b.area && <span className="tra">{areaEmo(b.area)} {b.area}</span>}</> : <b>그 밖에</b>}</div>}

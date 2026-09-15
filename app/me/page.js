@@ -12,7 +12,7 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText, quizTag } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton, MaterialCard, ScoreCard, AttachLines, FilesCard } from "./cards.js";
+import { ArrivalCard, SaidButton, TimerButton, MaterialCard, ScoreCard, AttachLines, FilesCard } from "./cards.js";
 import { childLinks } from "@/lib/files-plan";
 import AskCard from "../_shell/askcard.js";
 import BellCard from "../_shell/bell.js";
@@ -56,9 +56,9 @@ export default async function Me({ searchParams }) {
     { id: 'todo', name: '오늘 할 것', node: can(ME.today) && (<Card emo="📋" title="오늘 할 것" id="todo" {...fold("todo")} pill={d.sheet ? `학원 ${d.classSteps.length} · 숙제 ${d.sheet.home.length}` : null}>
         {!d.sheet && <p className="note" style={{ margin: "8px 0 0" }}>아직 안 열렸어요</p>}
         {d.sheet && !d.classSteps.length && !d.sheet.home.length && <p className="note" style={{ margin: "8px 0 0" }}>검사 뒤에 떠요</p>}
-        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div><ItemTree rows={d.classSteps} row={(it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} />} />
+        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div><ItemTree rows={d.classSteps} bySort row={(it) => <Line key={it.id} it={it} right={<TimerButton item={it} state={it.state} />} />} />{/* (어35) 학원 줄은 타이머(▶ 시작 · ■ 끝) · 차례는 sort */}
           {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.class_memo}</p>)}</>}
-        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div><ItemTree rows={d.homeSteps} row={(it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />} />
+        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div><ItemTree rows={d.homeSteps} bySort row={(it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />} />
           {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.home_memo}</p>)}</>}
       </Card>) },
     { id: 'due', name: '오늘 낼 숙제', node: can(ME.today) && (<Card emo="📘" title="오늘 낼 숙제" id="due" {...fold("due")} pill={String(d.due.length)}>

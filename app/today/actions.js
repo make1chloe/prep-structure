@@ -12,7 +12,7 @@ import { ccSkip } from "@/lib/cc";
 import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
-import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
+import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, moveBook } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
@@ -48,6 +48,7 @@ export const mode = done(async (sheetId, m) => { const { sb } = await staff(); a
 export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });
 export const wave = done(async (sheetId, bookId, slot, unitIds) => { const { sb } = await staff(); await pickWave(sb, sheetId, bookId, slot, unitIds); });
 export const memo = done(async (form) => { const { sb } = await staff(); await setMemo(sb, String(form.get("sheetId")), String(form.get("bookId")), String(form.get("slot")), String(form.get("text") ?? "")); });
+export const bookMove = done(async (sheetId, bookId, dir) => { const { sb } = await staff(); return moveBook(sb, String(sheetId), String(bookId), String(dir)); });   // (어35) 교재 카드 ▲▼ · 오늘 학습·숙제의 교재 차례(원장님 9/15 「배정 선생님이 고칠 수 있음」)
 // 시험(🔤 오늘 볼 것 · 📝 다음 시간에 낼 것) — 판정은 SQL, 여기는 손만. 판단은 lib/quiz.js
 export const quizAdd = done(async (form) => { const { sb } = await staff(); const r = await addQuiz(sb, String(form.get("sheetId")), { kind: String(form.get("kind")), scopeId: String(form.get("scopeId") || "") || null, bookId: String(form.get("bookId") || "") || null, unitId: String(form.get("unitId") || "") || null, freeNote: String(form.get("freeNote") ?? ""), round: Number(form.get("round") || 1) }); return r; });
 export const quizSet = done(async (sheetId, quizId, patch) => { const { sb } = await staff(); await setQuiz(sb, sheetId, quizId, patch); });

@@ -1,5 +1,5 @@
 /** 등원·하원 검사(검사-㊺ · 목업 07 🕘 · 0078·0083) — 순수 판단 lib/arrival-plan.js: 걸음 셋 + 집에 가요 · 도착은 가장 이른 등원 걸음 · 지각 분은 반 시작과 견줘(유예 분) · 학원 회선(IPv4 그대로 · IPv6 앞 4덩어리 · ::ffff: · 빈 목록은 아무도 못 찍음) · 요청 주소 읽기 · 반 고르기(하나·둘·보강·없음) · 「앞으로」 줄 · 학원 줄의 차례 */
-import { STEPS, LEAVE, stepName, arrivalState, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps, homeSteps } from "../lib/arrival-plan.js";
+import { STEPS, LEAVE, stepName, arrivalState, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps, homeSteps, timerText } from "../lib/arrival-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 걸음");
@@ -25,5 +25,9 @@ const hs = (items) => homeSteps(items).map((s) => `${s.id}:${s.state}`).join(","
 ok("숙제 줄(확정-㉒ · 4단계-5) · 아무 때나 누른다 · 🔒(gate_prev) 줄만 바로 앞 숙제 줄을 끝내야 열린다 · 앞 줄을 끝내면 열린다 · 끝낸 🔒 줄은 done · 첫 줄의 🔒 는 뜻이 없다", hs([{ id: "a", sort: 1 }, { id: "b", sort: 2, gate_prev: true }, { id: "c", sort: 3 }]) === "a:now,b:locked,c:now" && hs([{ id: "a", sort: 1, said_done_at: "x" }, { id: "b", sort: 2, gate_prev: true }]) === "a:done,b:now" && hs([{ id: "b", sort: 2, gate_prev: true, said_done_at: "x" }, { id: "a", sort: 1 }]) === "a:now,b:done" && hs([{ id: "a", sort: 1, gate_prev: true }]) === "a:now", hs([{ id: "a", sort: 1 }, { id: "b", sort: 2, gate_prev: true }, { id: "c", sort: 3 }]));
 const G = (id, item, sort, extra = {}) => ({ id, item_id: item, sort, ...extra });
 ok("「앞엣것」은 앞 항목이다. 소단원마다 줄이 서도(문장훈련 ×2 → 워크북 ×2) 🔒 워크북 둘은 문장훈련 둘을 다 끝내야 열린다 · 하나만 끝내면 아직 · 같은 항목끼리는 서로 안 잠근다", hs([G("a1", "A", 1), G("a2", "A", 2), G("b1", "B", 3, { gate_prev: true }), G("b2", "B", 4, { gate_prev: true })]) === "a1:now,a2:now,b1:locked,b2:locked" && hs([G("a1", "A", 1, { said_done_at: "x" }), G("a2", "A", 2), G("b1", "B", 3, { gate_prev: true })]) === "a1:done,a2:now,b1:locked" && hs([G("a1", "A", 1, { said_done_at: "x" }), G("a2", "A", 2, { said_done_at: "x" }), G("b1", "B", 3, { gate_prev: true }), G("b2", "B", 4, { gate_prev: true })]) === "a1:done,a2:done,b1:now,b2:now", hs([G("a1", "A", 1, { said_done_at: "x" }), G("a2", "A", 2), G("b1", "B", 3, { gate_prev: true })]));
+console.log("■ (어35) 학원 줄 타이머(원장님 9/15 「학생페이지 타이머 짓는다」)");
+ok("타이머 글 · 하는 중 「▶ m:ss」 · 끝 「⏱ N분」(끝 − 시작 · 1분 미만은 1분 · 끝은 ended_at 없으면 said_done_at) · 시작 안 했으면 null · 시계가 뒤로 가도 0:00", timerText({ started_at: "2026-09-15T10:00:00Z" }, Date.parse("2026-09-15T10:03:07Z")) === "▶ 3:07" && timerText({ started_at: "2026-09-15T10:00:00Z", ended_at: "2026-09-15T10:12:20Z" }) === "⏱ 12분" && timerText({ started_at: "2026-09-15T10:00:00Z", said_done_at: "2026-09-15T10:00:10Z" }) === "⏱ 1분" && timerText({}) === null && timerText({ started_at: "2026-09-15T10:00:00Z" }, Date.parse("2026-09-15T09:59:00Z")) === "▶ 0:00");
+const ts = classSteps([{ id: "a", sort: 1, said_done_at: "x", started_at: "s" }, { id: "b", sort: 2, started_at: "s" }, { id: "c", sort: 3 }]);
+ok("classSteps · 시작했지만 안 끝낸 줄(b)은 now + running · 끝낸 줄은 done(running 아님) · 뒤는 locked", ts.map((s) => `${s.id}:${s.state}${s.running ? "*" : ""}`).join() === "a:done,b:now*,c:locked");
 console.log(`\n■ 등원·하원 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
