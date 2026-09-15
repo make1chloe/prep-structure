@@ -91,8 +91,12 @@ ok("(카) 줄 머리 「2일째 안 봄」 · 안 본 줄 중 가장 오래된 �
     ok("(어27) 검사 줄 밑에 교재 · 대단원 › 소단원 · 쪽 · 문항(zz_리허설 문법책 · CHAPTER 1 › PSS 1-3 · p.12 · 12문항) · 제목이 「(이름 없음)」·「(빈 줄)」인 줄 0", sub.includes("zz_리허설 문법책") && sub.includes("CHAPTER 1 › PSS 1-3") && sub.includes("p.12") && sub.includes("12문항") && titles.length >= 3 && titles.every((t) => t && !/\(이름 없음\)|\(빈 줄\)/.test(t)), `${sub} · ${titles.join("|")}`); }
   await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=x]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
-console.log("■ 출결 · 낙관적");
-await row.locator(".seg[data-g=att] button", { hasText: "지각" }).click(); await p.waitForTimeout(600);
+console.log("■ 출결 · 낙관적 · (어28)-② 고른 줄에 한 번에(원장님 2026-09-15 「ㅇㅇ넣음」)");
+{ const headTxt = await p.locator("main [data-g=pick-head] label.ckl").first().textContent();
+  ok("(어28)-② 01 머리에 「전체 N명」 네모(마감 안 한 줄만 센다) · 줄마다 앞에 네모 · 고른 것이 없으면 띠 없음", /^전체 \d+명$/.test(headTxt.trim()) && (await row.locator(".rowtop [data-g=pick]").count()) === 1 && (await p.locator("main [data-g=pickbar]").count()) === 0, headTxt);
+  await row.locator(".rowtop [data-g=pick]").check(); await p.waitForTimeout(150);
+  ok("(어28)-② 줄 네모를 고르면 띠 「고른 1명」 · 출결 다섯(왔음 · 지각 · 결석 · 조퇴 · 온라인) · 「마감 1」(판 있는 줄)", (await p.locator("main [data-g=pickbar] [data-g=picked]").textContent()) === "고른 1명" && (await p.locator("main [data-g=pickbar] [data-g=att-picked] button").allTextContents()).join(",") === "왔음,지각,결석,조퇴,온라인" && (await p.locator("main [data-g=pickbar] button[data-act=close-picked]").textContent()) === "마감 1");
+  await p.locator("main [data-g=pickbar] [data-g=att-picked] button", { hasText: "지각" }).click(); await p.waitForFunction(() => !document.querySelector("main [data-g=pickbar]"), null, { timeout: 15000 }); await p.waitForTimeout(600); }
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("지각이 저장돼 있다", (await row.locator(".seg[data-g=att] button", { hasText: "지각" }).getAttribute("aria-pressed")) === "true");
 console.log("■ 숙제 검사 △ → 어디까지 → 나머지는 다음 숙제로");
@@ -1846,6 +1850,14 @@ console.log("■ (어17) 아이 화면 PC 최대 너비 · 원장님 9/14 「아
   ok("달력 PC · 달력 왼쪽 · 그날 카드 오른쪽(grid 두 열)", (await p.locator("main .calpage").evaluate((el) => getComputedStyle(el).display)) === "grid" && (await p.locator("main .calpage [data-g=day]").evaluate((el) => getComputedStyle(el).gridColumnStart)) === "2", await p.locator("main .calpage").evaluate((el) => getComputedStyle(el).gridTemplateColumns));
   await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {}); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
+console.log("■ (어28)-② 01 「전체」 → 「마감 N」 · 판 있는 줄만 · 마감된 줄은 네모가 잠긴다");
+{ await p.goto(`${APP}/today`); await p.waitForLoadState("networkidle").catch(() => {});
+  const openBefore = await p.locator("main .row:not(.closed)").count(), closedBefore = await p.locator("main .row.closed").count();
+  await p.locator("main [data-g=pick-head] [data-g=pick-all]").check(); await p.waitForTimeout(200);
+  const pickedTxt = await p.locator("main [data-g=pickbar] [data-g=picked]").textContent(); const closeTxt = await p.locator("main [data-g=pickbar] button[data-act=close-picked]").textContent(); const m = Number((closeTxt.match(/\d+/) ?? [0])[0]);
+  ok(`「전체」 → 띠 「고른 ${openBefore}명」(마감 안 한 줄만) · 「마감 M」은 판 있는 줄 수 · 마감된 줄의 네모는 잠김`, pickedTxt === `고른 ${openBefore}명` && m >= 1 && m <= openBefore && (await p.locator("main .row.closed .rowtop [data-g=pick]:disabled").count()) === closedBefore, `${pickedTxt} · ${closeTxt} · 잠김 ${await p.locator("main .row.closed .rowtop [data-g=pick]:disabled").count()}/${closedBefore}`);
+  await p.locator("main [data-g=pickbar] button[data-act=close-picked]").click(); await p.waitForFunction(() => !document.querySelector("main [data-g=pickbar]"), null, { timeout: 20000 }); await p.waitForTimeout(1200);
+  ok(`「마감 M」 → 판 있던 줄 M개가 닫힌다(저장된 글 그대로 · 판 없는 줄은 그대로 열림) · 띠 사라짐`, (await p.locator("main .row.closed").count()) === closedBefore + m && (await p.locator("main .row:not(.closed)").count()) === openBefore - m && (await p.locator("main [data-g=pickbar]").count()) === 0, `닫힘 ${await p.locator("main .row.closed").count()} (전 ${closedBefore} + ${m})`); }
 await b.close();
 ok(`화면 안 JS 오류 0 · ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

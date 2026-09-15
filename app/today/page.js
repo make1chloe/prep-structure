@@ -41,12 +41,10 @@ export default async function Today({ searchParams }) {
         : "고칠 수 있습니다. 이미 마감한 판은 읽기만 됩니다(마감이 곧 부모님께 나간 글입니다)."}
       {" "}판이 없는 아이는 <b>출결을 누르면</b> 그 날 판이 섭니다. 저절로는 안 섭니다.</p>}
     <Band band={band} />
-    <div className="wv" style={{ marginBottom: 8 }}>
+    <Board initial={firstOpen} date={date} future={future} rows={r.classes.flatMap((c) => c.students.map((s) => ({ id: s.id, classId: c.id ?? null, sheetId: s.sheet?.id ?? null, closed: Boolean(s.sheet?.closed) })))} head={<>{/* (어28)-② 머리 「전체」 네모 + 날짜·반 알약 한 줄 */}
       <span className="pill">{date}</span>
       {r.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <span key={c.id ?? "makeup"} className="pill">{classLabel(c)} · {c.students.length}명{c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}</span>; })}
-      {unchecked > 0 && <span className="pill warn">검사 안 본 것 {unchecked}</span>}
-    </div>
-    <Board initial={firstOpen}>{r.classes.map((c) => (
+      {unchecked > 0 && <span className="pill warn">검사 안 본 것 {unchecked}</span>}</>}>{r.classes.map((c) => (
       <section key={c.id ?? "makeup"} aria-label={c.nickname || c.start}>
         {r.classes.length > 1 && <div className="hh" style={{ margin: "8px 0" }}>{c.nickname || (c.kind === "special" ? "특강" : "정규")} · {c.start}</div>}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}

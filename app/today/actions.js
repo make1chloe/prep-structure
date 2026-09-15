@@ -5,12 +5,12 @@ import { revalidatePath } from "next/cache";
 import { done as doneAt } from "@/lib/act";
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
-import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
+import { ensureSheet, saveComment, closeSheet, closeMany as closeManySheets } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
-import { attendanceWrite } from "@/lib/attend";
+import { attendanceWrite, attendMany as attendManyWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
@@ -24,6 +24,8 @@ const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.j
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
+export const attendMany = done(async (list, date, value) => { const { sb } = await staff(); return attendManyWrite(sb, list, String(date), value); });   // (어28)-② 고른 아이들 출결 한 번에(판이 없으면 세운다)
+export const closeMany = done(async (sheetIds) => { const { sb, user } = await staff(); return closeManySheets(sb, sheetIds, user.id); });   // (어28)-② 고른 판 마감 한 번에(저장된 글 그대로)
 export const checkAll = done(async (sheetId) => { const { sb } = await staff(); return checkAllItems(sb, String(sheetId)); });   // (어24) 「다 ○」
 export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
 export const rest = done(async (itemId, where) => { const { sb } = await staff(); await carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다)

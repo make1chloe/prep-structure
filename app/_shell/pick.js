@@ -12,8 +12,8 @@ const stop = (e) => e.stopPropagation();
 export function PickAll({ pick, label = "전체", disabled = false }) {
   return <label className="ckl" onClick={stop}><input type="checkbox" className="ck all" data-g="pick-all" checked={pick.all} disabled={disabled} onChange={(e) => pick.setAll(e.target.checked)} />{label}</label>;
 }
-export function PickBox({ pick, id, label = "고르기" }) {
-  return <label className="ckl" onClick={stop}><input type="checkbox" className="ck" data-g="pick" checked={pick.has(id)} aria-label={label} onChange={() => pick.toggle(id)} /></label>;
+export function PickBox({ pick, id, label = "고르기", disabled = false }) {   // disabled: 마감·닫힌 줄 · 자리는 두되 못 고른다(줄이 안 밀린다)
+  return <label className="ckl" onClick={stop}><input type="checkbox" className="ck" data-g="pick" checked={!disabled && pick.has(id)} disabled={disabled} aria-label={label} onChange={() => pick.toggle(id)} /></label>;
 }
 /** 띠 · 고른 것이 있을 때만. children 이 한 번에 할 단추들 */
 export function PickBar({ pick, unit = "줄", children }) {

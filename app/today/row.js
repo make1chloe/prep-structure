@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { itemText, itemRemove, itemRestore, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -19,12 +19,12 @@ import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
 import { itemTitle, itemSub, unitBits, pagesText } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」)
 import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
-import { useOpen } from "./board.js";
+import { useOpen, usePickCtx } from "./board.js";
+import { PickBox } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
 import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
-const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
@@ -33,6 +33,7 @@ const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
 export default function Row({ student, sheet, classId, classEnd = "", date, minutes, cfg, future = false, pref = null, prep = [] }) {
   const [open, setOpen, nextOf] = useOpen(student.id);   // 한 번에 한 아이((어12) board.js) — PC 는 이름 열 · 판 열
+  const pk = usePickCtx();   /* (어28)-② 고르기 · 판(board.js)이 들고 있다 */
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
   const closed = Boolean(sheet?.closed);
@@ -68,7 +69,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
       <div className="rowtop" onClick={(e) => { if (open || e.target.closest("button,a,input,select,textarea,label")) return; setOpen(true); }}>
-        <span className="who">{student.name}</span><span className="meta">{whoMeta(student)}</span>
+        {pk && <PickBox pick={pk} id={student.id} label={`${student.name} 고르기`} disabled={closed} />}<span className="who">{student.name}</span><span className="meta">{whoMeta(student)}</span>
         <span className="marks">{marks(sheet?.check ?? []).map((m, i) => <i key={i} className={"dot" + (m.cls ? " " + m.cls : "")}>{m.ch}</i>)}</span>
         <div className="seg sm" data-g="att" aria-label={`${student.name} 출결`}>
           {ATTEND.map(([v, name]) => <button key={v} type="button" aria-pressed={attend === v} disabled={closed} onClick={() => pickAttend(v)}>{name}</button>)}
