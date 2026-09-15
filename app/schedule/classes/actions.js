@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
-import { addClass, setSchedule, setClassName, closeClass, addMember, removeMember, setClassFee } from "@/lib/classes";
+import { addClass, setSchedule, setClassName, closeClass, closeClassMany, addMember, removeMember, removeMemberMany, setClassFee } from "@/lib/classes";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "반 02c");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return addClass(sb, f); }); }
@@ -13,3 +13,5 @@ export async function closeAct(classId, on) { return wrap(async () => { const { 
 export async function memberAct(classId, studentId, fromDate) { return wrap(async () => { const { sb } = await staff(); await addMember(sb, String(classId), String(studentId), fromDate); return {}; }); }
 export async function removeAct(classId, studentId, on) { return wrap(async () => { const { sb } = await staff(); await removeMember(sb, String(classId), String(studentId), on); return {}; }); }
 export async function feeAct(classId, f) { return wrap(async () => { const { sb } = await staff(); return setClassFee(sb, String(classId), f); }); }
+export async function closeManyAct(ids, on) { return wrap(async () => { const { sb } = await staff(); return closeClassMany(sb, ids, on); }); }   // (어28)-④ 고른 반 한 번에
+export async function removeManyAct(pairs, on) { return wrap(async () => { const { sb } = await staff(); return removeMemberMany(sb, pairs, on); }); }   // 고른 명단 아이 한 번에(반:아이 짝)

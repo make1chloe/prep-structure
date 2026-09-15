@@ -2,6 +2,7 @@
 /** 발송 판(목업 10) — 고르고 · 한 번에 · 예약(확정-㉕). 되돌릴 수 없는 것(보내기·예약)은 서버 답을 기다린다(속도-5). 판단은 lib/send-plan(순수) — 여기는 그린다 */
 import Link from "next/link";
 import Tip from "../_shell/tip.js";
+import { usePick, PickAll, PickBox } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-⑤ · 대전제-20) · 발송의 고르기도 같은 부품 · 띠 대신 늘 있는 아래 sendbar 가 한 번에 할 단추 */
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sendSelected, scheduleSelected, cancelSchedule, resendLog } from "./actions.js";
@@ -17,13 +18,10 @@ export default function Board({ d }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState(""); const [err, setErr] = useState(""); const [open, setOpen] = useState(false);
   const selectable = useMemo(() => d.daily.filter((r) => r.state === "ready" || r.state === "sent").map((r) => r.id), [d]);
-  const [sel, setSel] = useState(() => new Set(d.daily.filter((r) => r.checked).map((r) => r.id)));
+  const pk = usePick(selectable, d.daily.filter((r) => r.checked).map((r) => r.id));   // 마감한 판은 처음부터 고른 채(그대로) · 셈은 lib/pick-plan 한 벌
   const [when, setWhen] = useState("evening"); const [cDate, setCDate] = useState(d.date); const [cTime, setCTime] = useState("18:00");
-  const ids = [...sel].filter((id) => selectable.includes(id));
-  const all = selectable.length > 0 && selectable.every((id) => sel.has(id));
-  const toggle = (id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const setAll = (on) => setSel(on ? new Set(selectable) : new Set());
-  const run = (fn, okMsg) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(okMsg(r)); setSel(new Set()); router.refresh(); });
+  const ids = pk.ids;
+  const run = (fn, okMsg) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(okMsg(r)); pk.clear(); router.refresh(); });
   const cnt = closedCount(d.daily), nowN = nowCount(d.late);
   const fails = d.failWhy ?? [];   // 못 보낸 까닭은 **한 번씩만**(2026-09-12) — 줄마다 되풀이하던 것을 머리로
   const rc = d.sent.reduce((c, s) => { if (s.status.read) c.read++; else if (s.status.unread) c.unread++; else if (s.status.bad) c.failed++; else c.rehearsal++; return c; }, { read: 0, unread: 0, failed: 0, rehearsal: 0 });
@@ -56,10 +54,10 @@ export default function Board({ d }) {
 
     <section className="sgrp" data-card="daily">
       <div className="sgh"><span className="sgi">📨</span><b>마감하면 나갑니다 · 데일리리포트</b><span className="pill" data-g="closed-count">{cnt.closed} / {cnt.total}</span><span className="spacer" />
-        <label className="ckl"><input type="checkbox" className="ck all" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />이 묶음 전체</label></div>
+        <PickAll pick={pk} label="이 묶음 전체" disabled={!selectable.length} /></div>
       {!d.daily.length && <Row icon="" cls="dim"><b>오늘 판이 없습니다</b></Row>}
       {d.daily.map((r) => {
-        const ck = r.state === "ready" || r.state === "sent" ? <label className="ckl"><input type="checkbox" className="ck" checked={sel.has(r.id)} onChange={() => toggle(r.id)} /></label> : null;
+        const ck = r.state === "ready" || r.state === "sent" ? <PickBox pick={pk} id={r.id} label={`${r.name} 고르기`} /> : null;
         const tags = <div className="tags"><span className="tag on">마감됨</span>{r.cap && <span className="tag">{r.cap}</span>}{r.kind && <span className="tag type">{r.kind}</span>}</div>;
         if (r.state === "open") return <Row key={r.id} icon="⏳" cls="dim" data-g="daily-row" data-state={r.state} right={<Link prefetch={false} className="btn sm gho" href="/today">오늘 화면으로 ↗</Link>}><b>{r.name}</b><small>아직 마감 안 함 · <b>안 나갑니다</b></small></Row>;
         if (r.state === "holes") return <Row key={r.id} icon="⚠️" cls="warnrow" data-g="daily-row" data-state={r.state} right={<Link prefetch={false} className="btn sm" href="/today">고치기 ↗</Link>}><b>{r.name}</b><small>안 채운 치환 자리가 있어 <b>안 나갑니다</b></small><div className="tags"><span className="tag" style={MISS}>{r.holes.map((h) => `{{${h}}}`).join(" ")} 가 안 채워졌습니다</span></div></Row>;
@@ -99,7 +97,7 @@ export default function Board({ d }) {
       </div>}
 
     <div className="savebar sendbar" data-g="sendbar">
-      <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>
+      <PickAll pick={pk} label="전체 선택" disabled={!selectable.length} />
       <span className="pill">선택 <b>{ids.length}</b>건</span>
       <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다. ${ranText(x.r)}`)}>📨 지금 보내기</button>
       <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, customOf(when, cDate, cTime)), (x) => `예약했습니다. ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>

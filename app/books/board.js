@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
-import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, activityMoveAct } from "./actions.js";
+import { usePick, PickAll, PickBox, PickBar } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
+import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, unitStateManyAct, activityMoveAct } from "./actions.js";
 import { AREA_NAMES, CHUNK, BASIS, MODE, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
@@ -19,6 +20,7 @@ export default function Board({ d }) {
   const acts = book ? activityOrder(book.units ?? []) : [];
   const actMsg = (r) => `활동 차례 · ${r.order.join(" → ")} (단원 줄 ${r.moved}개를 다시 세움 · 오늘 학습·진도도 이 차례)`;   // ◀ ▶((가)-②) — 칸이 아니라 줄 차례
   const topicsOf = (uid) => (book?.topics ?? []).filter((t) => t.unit_id === uid);
+  const pk = usePick((book?.units ?? []).map((u) => u.id));   /* 단원 줄 고르기((어28)-④ · 대전제-20) · 고른 것은 화면 안에만 */
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }} data-g="count">교재 {c.total}권</span>
@@ -70,16 +72,20 @@ export default function Board({ d }) {
           {!acts.length && <span className="note" style={{ margin: 0 }}>단원이 없습니다</span>}
           <span className="note k" style={{ margin: 0 }}>올린 줄 순서에서 <b>저절로 나왔습니다</b> · ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 깔기·진도도 따라갑니다</span></div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧱</span>단원 · 대 › 중 › 소<span className="spacer" /><span className="tag" data-g="unit-count">{(book.units ?? []).length}단원</span></div>
-        <div className="tblwrap"><table data-g="unit-table"><thead><tr><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>손질</th></tr></thead><tbody>
-          {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { color: "var(--mute)" } : undefined}><td className="sch">{u.chapter}</td><td>{u.mid ?? ""}</td><td>{u.sub ?? ""}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
+        <div className="tblwrap"><table data-g="unit-table"><thead><tr><th><PickAll pick={pk} disabled={!(book.units ?? []).length} /></th><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>손질</th></tr></thead><tbody>
+          {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { color: "var(--mute)" } : undefined}><td><PickBox pick={pk} id={u.id} label={`${u.sub ?? u.chapter} 고르기`} /></td><td className="sch">{u.chapter}</td><td>{u.mid ?? ""}</td><td>{u.sub ?? ""}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
             <td className="num"><input type="text" className="scr" value={ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, ""))} aria-label={`${u.sub ?? u.chapter} 쪽`} placeholder="10-12" disabled={pending || u.state === "hidden"} style={{ width: 72 }} onChange={(x) => setUe(u, "pages", x.target.value)} /></td>
             <td className="num"><input type="text" className="scr" inputMode="numeric" value={ue(u, "qCount", u.q_count ?? "")} aria-label={`${u.sub ?? u.chapter} 문항`} disabled={pending || u.state === "hidden"} style={{ width: 56 }} onChange={(x) => setUe(u, "qCount", x.target.value.replace(/\D/g, ""))} /></td>
             <td><span className="wv" style={{ gap: 4 }}>{topicsOf(u.id).map((t) => <span key={t.topic_id} className="um hit"><b>{t.name}</b> <button type="button" className="btn sm gho" disabled={pending} data-act="topic-remove" onClick={() => run(() => topicsAct(u.id, topicsOf(u.id).filter((x) => x.topic_id !== t.topic_id).map((x) => x.topic_id)), "분류를 뗐습니다")}>✕</button></span>)}
               <select value="" aria-label={`${u.sub ?? u.chapter} 문법 분류`} disabled={pending} data-g="topic-pick" onChange={(x) => x.target.value && run(() => topicsAct(u.id, [...topicsOf(u.id).map((t) => t.topic_id), x.target.value]), "분류를 이었습니다")} style={{ width: "auto" }}><option value="">+ 잇기</option>{(b.topics_all ?? []).filter((t) => !topicsOf(u.id).some((x) => x.topic_id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></span></td>
             <td><span className="wv" style={{ gap: 4 }}>{uedit[u.id] && <button className="btn sm pri" type="button" disabled={pending} data-act="unit-save" onClick={() => run(() => unitAct(u.id, { pages: ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, "")), qCount: ue(u, "qCount", u.q_count ?? ""), gist: u.gist ?? "" }), "단원을 고쳤습니다(쪽·문항 · 조절·회차가 새 값으로 셉니다)", () => setUedit((st) => ({ ...st, [u.id]: undefined })))}>저장</button>}
               <button className="btn sm gho" type="button" disabled={pending} data-act="unit-state" onClick={() => run(() => unitStateAct(u.id, u.state === "hidden" ? "active" : "hidden"), u.state === "hidden" ? "되살렸습니다" : "숨겼습니다. 깔기·회차·범위에서 빠집니다(지우지 않았습니다)")}>{u.state === "hidden" ? "되살리기" : "숨김"}</button></span></td></tr>)}
-          {!(book.units ?? []).length && <tr><td colSpan={9} className="note">단원 없음 · ⬆ 올리기</td></tr>}
+          {!(book.units ?? []).length && <tr><td colSpan={10} className="note">단원 없음 · ⬆ 올리기</td></tr>}
         </tbody></table></div>
+        <PickBar pick={pk} unit="단원">{/* (어28)-④ 고른 단원에 한 번에 · 줄의 「숨김/되살리기」 손과 같다(지우지 않는다) */}
+          <button className="btn sm gho" type="button" disabled={pending} data-act="hide-picked" onClick={() => run(() => unitStateManyAct(pk.ids, "hidden"), (r) => `${r.n}단원을 숨겼습니다. 깔기·회차·범위에서 빠집니다(지우지 않았습니다)`, () => pk.clear())}>숨기기 {pk.count}</button>
+          <button className="btn sm" type="button" disabled={pending} data-act="unhide-picked" onClick={() => run(() => unitStateManyAct(pk.ids, "active"), (r) => `${r.n}단원을 되살렸습니다`, () => pk.clear())}>되살리기 {pk.count}</button>
+        </PickBar>
         <div className="wv" style={{ marginTop: 8 }} data-g="topics"><span className="fl" style={{ margin: 0 }}>문법 분류</span>{(b.topics_all ?? []).map((t) => <span key={t.id} className="um">{t.name}</span>)}
           <input value={topicName} onChange={(x) => setTopicName(x.target.value)} placeholder="+ 분류 (예: 관계사)" aria-label="문법 분류 이름" style={{ width: 160 }} /><button className="btn sm" type="button" disabled={pending || !topicName.trim()} data-act="topic-add" onClick={() => run(() => addTopicAct(topicName), "분류를 더했습니다", () => setTopicName(""))}>더하기</button>
           <span className="note k" style={{ margin: 0 }}>단원평가를 <b>볼지 말지는 학생 루틴</b>에서 정합니다</span></div>

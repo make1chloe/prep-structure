@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
-import { cutsAct, questionsAct, questionsSheetAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
+import { usePick, PickAll, PickBox, PickBar } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
+import { cutsAct, questionsAct, questionsSheetAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct, confirmManyAct, unconfirmManyAct } from "./actions.js";
 import { counts, cutsText, questionsText, questionsFor, questionsFrom, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
 import { mdDot } from "@/lib/exam-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
@@ -22,6 +23,7 @@ export default function Board({ d }) {
   const nQ = Math.max(e?.questions?.length ?? 0, 20, ...rows.flatMap((r) => r.wrongs));
   const save = (r) => run(() => saveAct(e.id, r.student_id, { raw: val(r, "raw", r.raw ?? ""), full: val(r, "full", r.full ?? 100), wrongs: val(r, "wrongs", r.wrongs.join(",")), ...(e.scope === "national" ? { percentile: val(r, "percentile", r.score?.percentile ?? "") } : {}) }), (x) => `${r.name} · 넣었습니다(틀린 문항 ${x.wrongs})`, () => setEdit((s) => { const n = { ...s }; delete n[r.student_id]; return n; }));
   const openRow = rows.find((r) => r.student_id === open) ?? null;
+  const pk = usePick(rows.filter((r) => r.score?.id).map((r) => r.score.id));   /* 성적 줄 고르기((어28)-④ · 대전제-20) · 넣은 줄만(안 넣은 줄은 네모가 잠긴다) · 고른 것은 화면 안에만 */
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <select value={e?.id ?? ""} onChange={(x) => x.target.value && pick(x.target.value)} aria-label="시험" data-g="exam-pick" style={{ width: "auto", maxWidth: 360 }}>
@@ -54,9 +56,9 @@ export default function Board({ d }) {
           <FilePick name="file" accept=".xlsx,.xls,.csv" ariaLabel="문항표 엑셀" label="📄 엑셀 고르기" /><button className="btn sm" type="submit" disabled={pending} data-act="questions-import">⬆ 올리기</button></form>
         <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}&q=1`} data-act="questions-export">⬇ 문항표</a></div>
       </div>
-      <div className="tblwrap"><table data-g="score-table"><thead><tr><th>학생</th><th>원점수</th><th>등급(세어 나옴)</th><th>틀린 문항</th><th>낸 때</th><th>공개</th><th></th></tr></thead><tbody>
+      <div className="tblwrap"><table data-g="score-table"><thead><tr><th><PickAll pick={pk} disabled={!rows.some((r) => r.score?.id)} /></th><th>학생</th><th>원점수</th><th>등급(세어 나옴)</th><th>틀린 문항</th><th>낸 때</th><th>공개</th><th></th></tr></thead><tbody>
         {rows.map((r) => { const raw = val(r, "raw", r.raw ?? ""), g = gradeByCuts(raw, cutsFor(e)), dirty = Boolean(edit[r.student_id]); return <tr key={r.student_id} className={r.state === "pending" ? "hi" : ""} data-g="score-row" data-student={r.student_id} data-state={r.state}>
-          <td className="sch">{r.name}</td>
+          <td><PickBox pick={pk} id={r.score?.id ?? `none:${r.student_id}`} label={`${r.name} 고르기`} disabled={!r.score?.id} /></td><td className="sch">{r.name}</td>
           <td><input type="text" inputMode="numeric" className={"scr" + (raw !== "" && Number(raw) < 60 ? " warnin" : "")} value={raw} placeholder="" aria-label={`${r.name} 원점수`} onChange={(x) => setV(r, "raw", x.target.value)} disabled={r.state === "confirmed"} /></td>
           <td data-g="grade">{r.score?.grade != null ? `${gradeText(e.level, r.score.grade)} (학교)` : gradeText(e.level, g) || ""}{e.scope === "national" && <span className="wv" style={{ gap: 4, marginTop: 4, marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>백분위</span><input type="text" inputMode="numeric" className="scr" value={val(r, "percentile", r.score?.percentile ?? "")} aria-label={`${r.name} 백분위`} placeholder="" style={{ width: 52 }} disabled={r.state === "confirmed"} onChange={(x) => setV(r, "percentile", x.target.value.replace(/\D/g, ""))} /></span>}</td>
           <td>{r.state === "none" && !dirty ? <span className="note" style={{ margin: 0 }}></span> : <button className="lnk" type="button" data-act="wrong-open" aria-pressed={open === r.student_id} onClick={() => setOpen(open === r.student_id ? null : r.student_id)}>{parseWrong(val(r, "wrongs", r.wrongs.join(","))).join(",") || "번호 안 넣음"}</button>}</td>
@@ -67,8 +69,12 @@ export default function Board({ d }) {
               : r.state === "pending" ? <button className="btn pri sm" type="button" disabled={pending} data-act="confirm" onClick={() => run(() => confirmAct(r.score.id), (x) => `${r.name} · 확인했습니다 · 공개 ${showText(x.show)}`)}>확인</button>
               : <button className="btn sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>대신 넣기</button>}</td>
         </tr>; })}
-        {!rows.length && <tr><td colSpan={7} className="note">이 시험을 보는 아이가 없습니다</td></tr>}
+        {!rows.length && <tr><td colSpan={8} className="note">이 시험을 보는 아이가 없습니다</td></tr>}
       </tbody></table></div>
+      <PickBar pick={pk} unit="줄">{/* (어28)-④ 고른 줄에 한 번에 · 줄의 「확인 · 풀기」 손과 같다 */}
+        <button className="btn pri sm" type="button" disabled={pending} data-act="confirm-picked" onClick={() => run(() => confirmManyAct(pk.ids), (r) => `${r.n}명 확인했습니다. 성적이 굳고 공개 기본값이 붙었습니다`, () => pk.clear())}>✓ 확인 {pk.count}</button>
+        <button className="btn sm gho" type="button" disabled={pending} data-act="unconfirm-picked" onClick={() => run(() => unconfirmManyAct(pk.ids), (r) => `${r.n}명의 확인을 풀었습니다. 공개는 원장만으로`, () => pk.clear())}>확인 풀기 {pk.count}</button>
+      </PickBar>
       {openRow && (() => { const cur = parseWrong(val(openRow, "wrongs", openRow.wrongs.join(","))), sum = wrongSummary(cur, e.questions ?? []); const toggle = (q) => setV(openRow, "wrongs", (cur.includes(q) ? cur.filter((x) => x !== q) : [...cur, q]).sort((a, b) => a - b).join(","));
         return <div className="qw" data-g="wrong-panel"><div className="ctitle"><span className="cemo">❌</span>{openRow.name}{openRow.byWho === "student" ? "가 표시한" : "의"} 틀린 문항 <span className={"tag" + (openRow.byWho === "student" ? " act" : "")}>{openRow.byWho === "student" ? "아이가 넣은 것" : "원장님이 넣은 것"}</span></div>
           <div className="qgrid">{Array.from({ length: nQ }, (_, i) => i + 1).map((q) => <button key={q} type="button" className={"q" + (cur.includes(q) ? " x" : "")} data-q={q} disabled={openRow.state === "confirmed"} onClick={() => toggle(q)} style={{ cursor: "pointer" }}>{q}</button>)}</div>

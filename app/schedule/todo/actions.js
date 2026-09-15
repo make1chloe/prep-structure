@@ -4,7 +4,7 @@ import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { finishTodo, undoTodo, setTodoDue, dropTodo, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored } from "@/lib/todo";
+import { finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored } from "@/lib/todo";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "할 일 05");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
@@ -21,3 +21,4 @@ export async function repeatActiveAct(id, active) { return wrap(async () => { co
 export async function printAllAct(materialIds) { return wrap(async () => { const { sb } = await staff(); return printAll(sb, materialIds); }); }
 export async function scoredAct(materialId, studentId, on) { return wrap(async () => { const { sb } = await staff(); return setScored(sb, String(materialId), String(studentId), Boolean(on)); }); }   // ✅ 채점 아이마다((가)-⑧)
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
+export async function manyAct(ids, op, value = null) { return wrap(async () => { const { sb } = await staff(); return todoMany(sb, ids, op, value); }); }   // (어28)-③ 고른 할 일에 한 번에(done · undo · due · drop)

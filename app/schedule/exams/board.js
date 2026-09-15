@@ -5,9 +5,10 @@ import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import ScopeForm from "@/app/_shell/scopeform";
 import SchoolsCard from "@/app/_shell/schoolscard";   // 학교 이름·급 고치기 · 닫기 · + 새 학교(대전제-19)
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, changeSeenAct } from "./actions.js";
+import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, hiddenManyAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, changeSeenAct, changeSeenManyAct } from "./actions.js";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
 import { englishOnAct } from "../actions.js";
 import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, stopDone, releaseDone, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
@@ -19,10 +20,12 @@ export default function Board({ d }) {
   const c = counts(exams, today);
   const school = exams.filter((e) => e.scope === "school" && !e.hidden), nat = exams.filter((e) => e.scope === "national" && !e.hidden), hidden = exams.filter((e) => e.hidden);
   const stName = (id) => (b.students ?? []).find((s) => s.id === id)?.name ?? "?";
-  const ctx = { b, today, pending, run, stName };
+  const ids = useMemo(() => exams.map((e) => e.id), [exams]); const pk = usePick(ids);   /* 고른 시험(학교 · 숨긴 것 · 전국) · 띠에서 한 번에 */
+  const picked = exams.filter((e) => pk.has(e.id)), toHide = picked.filter((e) => !e.hidden && e.scope === "school"), toShow = picked.filter((e) => e.hidden), toSee = picked.filter((e) => dateChanged(e));   /* 📡 바뀐 것 = 꼬리표와 같은 판단(dateChanged 한 벌) · 🙈 는 학교 시험만(전국 줄은 카드에도 🙈 손이 없다 · 한 번에 할 일은 줄 손과 같다) */
+  const ctx = { b, today, pending, run, stName, pk };
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <span className="pill" style={{ fontWeight: 700 }} data-g="count">학교 시험 {c.exams}</span>
+      <PickAll pick={pk} /><span className="pill" style={{ fontWeight: 700 }} data-g="count">학교 시험 {c.exams}</span>
       <span className={"pill" + (c.missing ? " warn" : "")} data-g="missing">영어일 없음 {c.missing}</span>
       <span className="pill" data-g="scopes">범위 {c.scopes}줄</span>
       {c.hidden > 0 && <button className="btn sm" type="button" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>🙈 숨긴 시험 {c.hidden}</button>}
@@ -31,6 +34,11 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 시험에 한 번에 · 숨기기(대비·재촉·교재 멈춤에서 빠짐 · 지우지 않는다) · 되살리기 · 📡 봤음 */}
+      <button type="button" className="btn sm" disabled={pending || !toHide.length} data-act="hide-picked" onClick={() => run(() => hiddenManyAct(toHide.map((e) => e.id), true), (r) => `${r.n}개 숨겼습니다. 대비·재촉·교재 멈춤에서 빠집니다`, pk.clear)}>🙈 숨기기 {toHide.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toShow.length} data-act="unhide-picked" onClick={() => run(() => hiddenManyAct(toShow.map((e) => e.id), false), (r) => `${r.n}개 되살렸습니다`, pk.clear)}>👁 되살리기 {toShow.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toSee.length} data-act="seen-picked" onClick={() => run(() => changeSeenManyAct(toSee.map((e) => e.id)), (r) => `${r.n}개 봤음`, pk.clear)}>📡 봤음 {toSee.length}</button>
+    </PickBar>
     {!school.length && <p className="note" data-g="empty">학교 시험 없음 · 📡 받아오기 · 손으로 넣기</p>}
     <div className="two" style={{ gap: 8 }} data-g="exams">{school.map((e) => <ExamCard key={e.id} e={e} {...ctx} />)}</div>
     <StopCard {...ctx} />
@@ -38,11 +46,11 @@ export default function Board({ d }) {
     <div className="exr" style={{ marginTop: 8 }} data-g="national">
       <div className="exh"><span className="ai">🌏</span><b>전국</b><span className="spacer" /><span className="pill">고등 전부</span></div>
       {!nat.length && <p className="note" style={{ margin: 0 }}>아직 없음 · 📡 받아오기</p>}
-      <div className="left">{nat.map((e, i) => <div key={e.id} className="lf" data-g="nat-row"><span className="ln">{i + 1}</span><div><b>{e.name}</b><small>{e.grade ? `고${e.grade}` : "고1·2·3"} · {e.takers.length}명</small><ChangedTag e={e} pending={pending} run={run} /></div><span className="lm">{mdDot(examOn(e))}</span></div>)}</div>
+      <div className="left">{nat.map((e, i) => <div key={e.id} className="lf" data-g="nat-row"><PickBox pick={pk} id={e.id} label={`${e.name} 고르기`} /><span className="ln">{i + 1}</span><div><b>{e.name}</b><small>{e.grade ? `고${e.grade}` : "고1·2·3"} · {e.takers.length}명</small><ChangedTag e={e} pending={pending} run={run} /></div><span className="lm">{mdDot(examOn(e))}</span></div>)}</div>
     </div>
     {showHidden && hidden.length > 0 && <div className="exr" style={{ marginTop: 8 }} data-g="hidden">
       <div className="exh"><span className="ai">🙈</span><b>숨긴 시험</b><span className="spacer" /></div>
-      <div className="left">{hidden.map((e) => <div key={e.id} className="lf" data-g="hidden-row"><span className="ln">·</span><div><b>{examHead(e)}</b><small>{e.name} · {mdDot(e.term_from)}~{mdDot(e.term_to)}</small></div><button className="btn sm" type="button" disabled={pending} data-act="unhide" onClick={() => run(() => hiddenAct(e.id, false), "다시 보입니다")}>보이기</button></div>)}</div>
+      <div className="left">{hidden.map((e) => <div key={e.id} className="lf" data-g="hidden-row"><PickBox pick={pk} id={e.id} label={`${examHead(e)} 고르기`} /><span className="ln">·</span><div><b>{examHead(e)}</b><small>{e.name} · {mdDot(e.term_from)}~{mdDot(e.term_to)}</small></div><button className="btn sm" type="button" disabled={pending} data-act="unhide" onClick={() => run(() => hiddenAct(e.id, false), "다시 보입니다")}>보이기</button></div>)}</div>
     </div>}
     <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
       <span className="pill" data-g="sum">시험 {c.exams} · 범위 {c.scopes}줄 · 영어일 없음 {c.missing}</span>
@@ -50,14 +58,14 @@ export default function Board({ d }) {
     </div>
   </>;
 }
-function ExamCard({ e, b, today, pending, run, stName }) {
+function ExamCard({ e, b, today, pending, run, stName, pk }) {
   const [eng, setEng] = useState(""); const [open, setOpen] = useState(false); const [skipPick, setSkipPick] = useState("");
   const groups = groupScopes(e.scopes ?? [], today);
   const weeks = weeksFor(e.level, b.rules ?? {}), win = stopWindow(e, weeks), st = stopText(win, today);
   const takers = e.takers ?? [], skipped = new Set((e.skips ?? []).map((k) => k.student_id));
   const pickable = skipCandidates(b.students, takers, e.skips);   // 안 봄 후보 — 한 명씩 · 한 번에((가)-⑨) 같은 목록
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
-    <div className="exh"><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
+    <div className="exh"><PickBox pick={pk} id={e.id} label={`${examHead(e)} 고르기`} /><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}<ChangedTag e={e} pending={pending} run={run} />
       <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</Link>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}

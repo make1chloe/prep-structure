@@ -4,8 +4,9 @@
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import { useMemo, useState, useTransition } from "react";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
 import { useRouter } from "next/navigation";
-import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, unitTestDueAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
+import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
 import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -18,12 +19,14 @@ export default function Board({ d }) {
   const all = useMemo(() => cardsOf(b), [b]);                       // 한 번 센다 — 보기·거르개·차례는 이 목록을 다르게 그릴 뿐(재조회 0)
   const [only, setOnly] = useState(d.only ?? []);   // 04 「단계 ↗」 — 그 자료만((가)-④) · 「전체 보기 ✕」로 푼다
   const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), "due"), [all, only, school]);   // (어10) 늘 마감 순 — 「만든 순」으로 보실 날이 없어 단추를 뺐다(대전제-14)
+  const todoIds = useMemo(() => cards.filter((x) => x.todoId).map((x) => x.id), [cards]); const pk = usePick(todoIds);   /* 고른 할 일 줄(자료 단계 카드는 ☑ 로 · 여기선 안 고른다) */
+  const pickedCards = cards.filter((x) => pk.has(x.id)), toDone = pickedCards.filter((x) => x.state !== "done"), toUndo = pickedCards.filter((x) => x.state === "done"); const [dueTo, setDueTo] = useState("");
   const cols = columnsOf(cards, today), hidden = hiddenOf(cards), c = counts(cards, today), behind = behindOf(cards, today, parseInt(b.rules?.["todo.behind_per_day"] ?? "1", 10) || 1), pa = printAllOf(cards);
   const selCard = (sel ? all.find((x) => x.id === sel) : only.length ? all.find((x) => only.includes(x.material?.id)) : null) ?? null;   // 자료만 걸러 열었으면 📦 흐름도 그 자료로
   const schools = b.schools ?? [];
   const schoolPick = (v) => setSchool(v);
   const Card = ({ c }) => <div className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} onClick={() => setSel(c.id)} aria-pressed={sel === c.id}>
-    <span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
+    {c.todoId ? <PickBox pick={pk} id={c.id} label={`${c.title} 고르기`} /> : null}<span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
     <div className={"nb-prop" + (isOverdue(c, today) ? " nb-over" : "")}><span className="nb-pi">📅</span><span className="nb-pv" data-g="due">{dueLine(c, today)}</span></div>
     {(c.school || c.n != null) && <div className="nb-prop"><span className="nb-pi">🏫</span><span className="nb-pv">{c.school && <span className={"nb-pill " + (c.level === "high" ? "nb-blue" : c.level === "middle" ? "nb-green" : "")}>{schoolTag(c)}</span>}{c.n != null && <span className="nb-pill">{c.kind === "print" ? `${c.pages}장 · ` : ""}{c.n}명</span>}</span></div>}
     {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.map((s) => { const tid = stepTodoOf(all, c.material?.id, s.step); return <button key={s.step} type="button" className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"} disabled={pending || !tid} style={{ border: 0, background: "none", padding: 0, font: "inherit", cursor: tid ? "pointer" : "default" }} onClick={(x) => { x.stopPropagation(); if (!tid) return; run(() => (s.done ? undoAct(tid) : doneAct(tid)), s.done ? `${s.name} 무름 · 카드가 제 칸으로 돌아갑니다` : `${s.name} ✓ · 카드가 다음 칸으로 갑니다`); }}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</button>; })}</span></div>}
@@ -50,7 +53,7 @@ export default function Board({ d }) {
   </div>;
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <span className="pill" style={{ fontWeight: 700 }} data-g="count">내 할 일 {c.open}</span>
+      <PickAll pick={pk} /><span className="pill" style={{ fontWeight: 700 }} data-g="count">내 할 일 {c.open}</span>
       <span className={"pill" + (c.overdue ? " warn" : "")} data-g="overdue">🔥 마감 지남 {c.overdue}</span>
       {only.length > 0 && <span className="pill warn" data-g="only">📄 {onlyText(all, only)} 만 <button type="button" className="lnk" data-act="only-off" onClick={() => { setOnly([]); router.replace("/schedule/todo"); }}>전체 보기 ✕</button></span>}
       <span className="spacer" />
@@ -59,6 +62,13 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 할 일에 한 번에 · 완료 · 되돌리기 · 미루기(날짜) · 내림(지우지 않는다) */}
+      <button type="button" className="btn sm pri" disabled={pending || !toDone.length} data-act="done-picked" onClick={() => run(() => manyAct(toDone.map((x) => x.todoId), "done"), (r) => `${r.n}개 끝냈습니다`, pk.clear)}>✓ 완료 {toDone.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toUndo.length} data-act="undo-picked" onClick={() => run(() => manyAct(toUndo.map((x) => x.todoId), "undo"), (r) => `${r.n}개 되돌렸습니다`, pk.clear)}>↩ 되돌리기 {toUndo.length}</button>
+      <input type="date" className="dt" value={dueTo} aria-label="미룰 마감" onChange={(e) => setDueTo(e.target.value)} style={{ width: "auto" }} />
+      <button type="button" className="btn sm" disabled={pending || !dueTo || !pickedCards.length} data-act="due-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "due", dueTo), (r) => `${r.n}개 마감을 ${dueTo} 로`, () => { pk.clear(); setDueTo(""); })}>📅 미루기</button>
+      <button type="button" className="btn sm gho" disabled={pending || !pickedCards.length} data-act="drop-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "drop"), (r) => `${r.n}개 내렸습니다(지우지 않습니다)`, pk.clear)}>내림 {pickedCards.length}</button>
+    </PickBar>
     <div className="wv" style={{ margin: "0 0 8px" }}><span className="spacer" /><Sibs here="/schedule/todo" /></div>
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
-import { addAct, scheduleAct, nameAct, closeAct, memberAct, removeAct, feeAct } from "./actions.js";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
+import { addAct, scheduleAct, nameAct, closeAct, closeManyAct, memberAct, removeAct, removeManyAct, feeAct } from "./actions.js";
 import { KIND, kindName, weekdayText, timeText, feeText, candidates, classLine } from "@/lib/class-plan";
 import { W, sessionsOf } from "@/lib/schedule-plan";
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
@@ -30,14 +31,22 @@ export default function Board({ d }) {
   const run = (fn, okMsg, after) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); after?.(r); router.refresh(); });
   const target = Number(d.rules?.["schedule.sessions_per_month"] ?? 8);
   const live = d.classes.filter((c) => c.state === "active"), closed = d.classes.filter((c) => c.state !== "active");
+  const openC = live.find((c) => c.id === open) ?? null;   /* 고르기((어28)-④ · 대전제-20): 반 줄(c:반) + 편 반의 명단(m:반:아이) 한 벌 · 고른 것은 화면 안에만 */
+  const pk = usePick([...live.map((c) => `c:${c.id}`), ...(openC ? openC.members.map((m) => `m:${openC.id}:${m.student_id}`) : [])]);
+  const pickedC = pk.ids.filter((x) => x.startsWith("c:")).map((x) => x.slice(2)), pickedM = pk.ids.filter((x) => x.startsWith("m:")).map((x) => { const [, classId, studentId] = x.split(":"); return { classId, studentId }; });
   return (<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <Link prefetch={false} className="btn sm gho" href="/schedule">← 일정</Link><b style={{ fontSize: "var(--fs-5)" }}>🏫 반</b>
-      <span className="pill" data-g="live-count">반 {live.length}</span>{closed.length > 0 && <span className="pill" data-g="closed-count">닫은 반 {closed.length}</span>}
+      <span className="pill" data-g="live-count">반 {live.length}</span><PickAll pick={pk} disabled={!live.length} />{closed.length > 0 && <span className="pill" data-g="closed-count">닫은 반 {closed.length}</span>}
       <span className="spacer" /><button type="button" className="btn sm pri" data-act="add-open" aria-pressed={add} onClick={() => setAdd(!add)}>+ 반 만들기</button>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="줄">{/* (어28)-④ 고른 반 · 명단 아이에 한 번에 · 줄의 「반 닫기」(묻고) · 「✕ 빼기」 손과 같다(지우지 않는다) */}
+      <button type="button" className="btn sm" disabled={pending || !pickedC.length} data-act="close-picked" onClick={() => sure.ask("close-many")}>반 닫기 {pickedC.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !pickedM.length} data-act="remove-picked" onClick={() => run(() => removeManyAct(pickedM, d.on), (r) => `${r.n}명 · 오늘부터 명단에서 뺐습니다`, () => pk.clear())}>명단 빼기 {pickedM.length}</button>
+      <Sure on={sure.is("close-many")} text={`고른 ${pickedC.length}반을 오늘부터 없는 반으로 닫을까요? 시간표·명단·단가 줄이 어제까지로 닫히고 옛 기록은 남습니다.`} yes="반 닫기" pending={pending} onYes={() => { sure.off(); run(() => closeManyAct(pickedC, d.on), (r) => `${r.n}반을 닫았습니다`, () => { pk.clear(); setOpen(null); }); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
+    </PickBar>
     {add && <div className="card" style={{ margin: "0 0 8px" }} data-g="add-form"><div className="ctitle"><span className="cemo">➕</span>새 반</div>
       <div className="wv"><input type="text" value={nf.nickname} aria-label="반 이름" placeholder="예: 중2 월수 4시" style={{ maxWidth: 220 }} onChange={(e) => setNf({ ...nf, nickname: e.target.value })} />
         <div className="seg sm" data-g="kind">{KIND.map(([k, n]) => <button key={k} type="button" aria-pressed={nf.kind === k} onClick={() => setNf({ ...nf, kind: k })}>{n}</button>)}</div></div>
@@ -46,7 +55,7 @@ export default function Board({ d }) {
     {!live.length && <div className="card"><p className="note">반이 없습니다. 「+ 반 만들기」</p></div>}
     {live.map((c) => { const s = sessionsOf(c, target), isOpen = open === c.id, cand = candidates(d.students, c.members); return (
       <div className="card" key={c.id} style={{ margin: "0 0 8px" }} data-g="class-row" data-class={c.id} data-open={isOpen ? "1" : "0"}>
-        <div className="ctitle"><span className="cemo">🏫</span><span data-g="line">{classLine(c)}</span><span className="spacer" />
+        <div className="ctitle"><PickBox pick={pk} id={`c:${c.id}`} label={`${c.nickname} 고르기`} /><span className="cemo">🏫</span><span data-g="line">{classLine(c)}</span><span className="spacer" />
           <span className={"pill" + (c.kind === "special" ? "" : s.ok ? " hw" : " warn")} data-g="sessions">{`이 달 ${s.n}회`}{c.kind === "regular" && !s.ok ? ` · ${s.short}회 모자람` : ""}</span>
           {c.next_schedule && <span className="pill" data-g="next-schedule">{String(c.next_schedule.from_date).slice(5).replace("-", "/")}부터 {weekdayText(c.next_schedule.weekdays)} {timeText(c.next_schedule)}</span>}
           <button type="button" className="btn sm" data-act="open" aria-pressed={isOpen} onClick={() => setOpen(isOpen ? null : c.id)}>{isOpen ? "접기" : "펴기"}</button></div>
@@ -58,7 +67,7 @@ export default function Board({ d }) {
           <div className="lf" style={{ marginTop: 8 }} data-g="schedule-edit"><span className="ln">🗓</span><div><b>시간표 · {c.schedule ? `${weekdayText(c.schedule.weekdays)} ${timeText(c.schedule)} · ${String(c.schedule.from_date).slice(0, 10)}부터` : "없음"}</b><small>바꾸면 그날부터 회차·수업이 새 시간표로 · 옛 회차는 그대로</small></div></div>
           <ScheduleForm init={c.schedule} on={d.on} disabled={pending} onSave={(f) => run(() => scheduleAct(c.id, f), (r) => (r.replaced ? "시간표를 고쳤습니다" : `${f.fromDate}부터 새 시간표입니다`))} />
           <div className="lf" style={{ marginTop: 8 }} data-g="members"><span className="ln">🧑‍🎓</span><div><b>명단 {c.members.length}명</b><small>오늘 기준</small></div></div>
-          <div className="tags" style={{ margin: "4px 0 0" }} data-g="member-list">{c.members.map((m) => <span key={m.student_id} className="tag" data-g="member" data-student={m.student_id}>{m.name}{m.grade ? ` ${m.grade}학년` : ""} <button type="button" className="btn sm gho" style={{ padding: "0 4px", minHeight: 0 }} disabled={pending} data-act="member-remove" aria-label={`${m.name} 빼기`} onClick={() => run(() => removeAct(c.id, m.student_id, d.on), `${m.name} · 오늘부터 명단에서 뺐습니다`)}>✕</button></span>)}{!c.members.length && <span className="tag">아직 아무도 없습니다</span>}</div>
+          <div className="tags" style={{ margin: "4px 0 0" }} data-g="member-list">{c.members.map((m) => <span key={m.student_id} className="tag" data-g="member" data-student={m.student_id}><PickBox pick={pk} id={`m:${c.id}:${m.student_id}`} label={`${m.name} 고르기`} />{m.name}{m.grade ? ` ${m.grade}학년` : ""} <button type="button" className="btn sm gho" style={{ padding: "0 4px", minHeight: 0 }} disabled={pending} data-act="member-remove" aria-label={`${m.name} 빼기`} onClick={() => run(() => removeAct(c.id, m.student_id, d.on), `${m.name} · 오늘부터 명단에서 뺐습니다`)}>✕</button></span>)}{!c.members.length && <span className="tag">아직 아무도 없습니다</span>}</div>
           <div className="wv" style={{ margin: "6px 0 0" }}><select value={pick[c.id] ?? ""} aria-label="넣을 아이" data-g="member-pick" style={{ width: "auto" }} onChange={(e) => setPick({ ...pick, [c.id]: e.target.value })}><option value="">+ 아이 넣기</option>{cand.map((st) => <option key={st.id} value={st.id}>{st.name}{st.grade ? ` · ${st.grade}학년` : ""}{st.school ? ` · ${st.school}` : ""}</option>)}</select>
             <button type="button" className="btn sm" disabled={pending || !pick[c.id]} data-act="member-add" onClick={() => run(() => memberAct(c.id, pick[c.id], d.on), "오늘부터 명단에 넣었습니다", () => setPick({ ...pick, [c.id]: "" }))}>오늘부터 넣기</button></div>
           <div className="lf" style={{ marginTop: 8 }} data-g="fee-edit"><span className="ln">💳</span><div><b>반 단가 · {feeText(c.fee)}</b><small>13 수강료의 단가 줄과 같은 표(fee_rule.class_id) · 학생별 금액이 있으면 그것이 먼저</small></div>

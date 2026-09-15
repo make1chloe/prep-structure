@@ -3,8 +3,8 @@
  *  셈은 lib/pick-plan(순수). 네모는 늘 보인다(대전제-16 · 「고르기」 단추 뒤에 숨기지 않는다) · 줄을 누르면 여는 목록에서는 네모 클릭이 줄 클릭으로 번지지 않는다 */
 import { useMemo, useState } from "react";
 import { togglePick, pickAll, pickState, pickedText } from "@/lib/pick-plan";
-export function usePick(ids = []) {
-  const [sel, setSel] = useState(() => new Set());
+export function usePick(ids = [], initial = []) {   // initial: 처음부터 고른 채 시작하는 것(10 발송의 마감한 판 · (어28)-⑤)
+  const [sel, setSel] = useState(() => new Set(initial));
   const st = useMemo(() => pickState(sel, ids), [sel, ids]);
   return { ...st, has: (id) => sel.has(id), toggle: (id) => setSel((s) => togglePick(s, id)), setAll: (on) => setSel(pickAll(ids, on)), only: (id) => setSel(new Set([id])), clear: () => setSel(new Set()) };
 }

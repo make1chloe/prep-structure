@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addAct, setAct, answerAct, stageAct, convertAct } from "./actions.js";
-import { columnsOf, WAYS, SEVEN, parseConvert } from "@/lib/inquiry-plan";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
+import { addAct, setAct, answerAct, stageAct, convertAct, stageManyAct, answerManyAct } from "./actions.js";
+import { columnsOf, WAYS, SEVEN, STAGES, parseConvert } from "@/lib/inquiry-plan";
 import { suggestLoginId } from "@/lib/student-plan";
 import { classText } from "@/lib/schedule-plan";
 export default function Board({ d }) {
@@ -17,17 +18,22 @@ export default function Board({ d }) {
   const toLocal = (ts) => ts ? new Date(new Date(ts).getTime() + 9 * 3600000).toISOString().slice(0, 16) : "";
   const fromLocal = (s) => (s ? new Date(`${s}:00+09:00`).toISOString() : null);
   const convCard = conv ? (b.inquiries ?? []).find((q) => q.id === conv) : null;
+  const pk = usePick((b.inquiries ?? []).filter((q) => q.stage !== "joined").map((q) => q.id));   /* 카드 고르기((어28)-④ · 대전제-20) · 등록된 장은 손이 없어 안 고른다 · 고른 것은 화면 안에만 */
   return <>
-    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><span className="pill" style={{ fontWeight: 700 }}>☎️ 신규 상담</span><span className={"pill" + (cols.unanswered ? " warn" : "")} data-g="unanswered">답 안 한 문의 {cols.unanswered}</span><span className="spacer" /><button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 전화 문의 받기</button><Link prefetch={false} className="btn sm" href="/ops/students">🧑‍🎓 학생 ↗</Link></div>
+    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><span className="pill" style={{ fontWeight: 700 }}>☎️ 신규 상담</span><span className={"pill" + (cols.unanswered ? " warn" : "")} data-g="unanswered">답 안 한 문의 {cols.unanswered}</span><PickAll pick={pk} /><span className="spacer" /><button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 전화 문의 받기</button><Link prefetch={false} className="btn sm" href="/ops/students">🧑‍🎓 학생 ↗</Link></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="장">{/* (어28)-④ 고른 문의에 한 번에 · 카드의 단계 손 · 📨 안내 손과 같다(등록은 「등록 전환」으로만) */}
+      <div className="seg sm" data-g="stage-picked">{STAGES.filter(([k]) => k !== "joined").map(([k, nm]) => <button key={k} type="button" disabled={pending} onClick={() => run(() => stageManyAct(pk.ids, k), (r) => `${r.n}장 → ${nm}`, () => pk.clear())}>{nm}</button>)}</div>
+      <button className="btn sm" type="button" disabled={pending} data-act="answer-picked" onClick={() => run(() => answerManyAct(pk.ids), (r) => `${r.n}장에 안내 보냄${r.sms ? ` · 문자 ${r.sms}` : ""}`, () => pk.clear())}>📨 안내 {pk.count}</button>
+    </PickBar>
     {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">☎️</span>전화 문의</div>
       <div className="wv"><input type="text" value={nf.name} placeholder="이름" aria-label="이름" onChange={(x) => setNf({ ...nf, name: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" value={nf.phone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, phone: x.target.value })} style={{ maxWidth: 150 }} /><input type="text" value={nf.school} placeholder="학교" aria-label="학교" onChange={(x) => setNf({ ...nf, school: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={nf.grade} placeholder="학년" aria-label="학년" onChange={(x) => setNf({ ...nf, grade: x.target.value.replace(/\D/g, "") })} />
         <select value={nf.way} aria-label="어디서" onChange={(x) => setNf({ ...nf, way: x.target.value })} style={{ width: "auto" }}>{WAYS.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select></div>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" value={nf.body} placeholder="물음 · 주 2회 되나요 · 수업료" aria-label="물음" onChange={(x) => setNf({ ...nf, body: x.target.value })} style={{ flex: "1 1 260px" }} /><button className="btn pri sm" type="button" disabled={pending || !nf.name.trim() || !nf.phone.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), "문의를 받았습니다. 🔥 오늘 답할 것", () => { setAddOpen(false); setNf({ name: "", phone: "", studentPhone: "", school: "", grade: "", way: "phone", body: "" }); })}>저장</button></div></div>}
     <div className="kb" data-g="kb">
       {cols.columns.map((col) => <div className={"col" + (col.urgent ? " urg" : "")} key={col.key} data-g="col" data-stage={col.key}><div className="colh">{col.label} <span className="n" data-g="col-count">{col.cards.length}</span></div>
-        {col.cards.map((q) => <div className={"kc" + (q.hot ? " hot" : "")} key={q.id} data-g="card" data-id={q.id} data-hot={q.hot ? "1" : "0"}><b>{q.name}{q.stage === "new" ? " 어머니" : ""}</b>
+        {col.cards.map((q) => <div className={"kc" + (q.hot ? " hot" : "")} key={q.id} data-g="card" data-id={q.id} data-hot={q.hot ? "1" : "0"}><PickBox pick={pk} id={q.id} label={`${q.name} 고르기`} disabled={q.stage === "joined"} /><b>{q.name}{q.stage === "new" ? " 어머니" : ""}</b>
           <div className="sub">{q.stage === "new" ? `${q.when} · ${q.wayText}` : q.stage === "joined" ? `${q.student ? `${q.student} · ` : ""}등록` : q.sub}</div>
           {q.stage === "new" && <div className="kv"><span>학년</span>{q.sub || ""}</div>}
           <div className="kv"><span>연락</span>{q.phoneText || ""}</div>

@@ -3,9 +3,10 @@
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
-import { sortFile, attachFile, setReply } from "@/lib/files";
+import { sortFile, attachFile, setReply, sortMany } from "@/lib/files";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "자료함 20");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function sortAct(fileId, kind) { return wrap(async () => { const { sb } = await staff(); return { bin: await sortFile(sb, String(fileId), String(kind)) }; }); }
 export async function attachAct(fileId, itemId) { return wrap(async () => { const { sb } = await staff(); await attachFile(sb, String(fileId), String(itemId)); return {}; }); }
 export async function replyAct(fileId, text) { return wrap(async () => { const { sb } = await staff(); await setReply(sb, String(fileId), String(text ?? "")); return {}; }); }
+export async function sortManyAct(ids, kind) { return wrap(async () => { const { sb } = await staff(); return sortMany(sb, ids, String(kind)); }); }   // (어28)-③ 고른 자료를 갈래로 한 번에

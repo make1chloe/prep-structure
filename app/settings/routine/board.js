@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
-import { addItemAct, editItemAct, retireItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
+import { addItemAct, editItemAct, retireItemAct, setLineAct, setLineManyAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
@@ -34,14 +35,15 @@ export default function Board({ d }) {
   const [editing, setEditing] = useState(null); // 항목 id — ✎ 폼
   const [bookPick, setBookPick] = useState(""); const [assignDate, setAssignDate] = useState(d.date);   // 잇기 시작일(비면 오늘 — 4단계-5)
   const b = d.board, sid = b.student, student = (b.students ?? []).find((s) => s.id === sid) ?? null;
-  const run = (fn, okMsg = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); setAdding(null); setEditing(null); router.refresh(); });
+  const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); setAdding(null); setEditing(null); if (after) after(r); router.refresh(); });
   const linesOf = (area) => (b.area_lines ?? []).filter((l) => l.area === area);
+  const pk = usePick(AREAS.flatMap(([a]) => alive(linesOf(a)).map((l) => l.id)));   /* 학원 기본 줄 고르기((어28)-④ · 대전제-20) · 고른 것은 화면 안에만 */
   const areasWithLines = AREAS.filter(([a]) => alive(linesOf(a)).length > 0).length;
   const totalBooks = Object.values(b.book_counts ?? {}).reduce((n, x) => n + Number(x), 0);
   const myBooks = b.student_books ?? [], myAreas = [...new Set(myBooks.map((x) => x.area).filter(Boolean))];
   return (<>
-    <div className="wv" style={{ marginBottom: 8 }}>
-      <span className="pill" style={{ fontWeight: 700 }}>학원 기본 루틴</span>
+    <div className="wv" style={{ marginBottom: 8 }} data-g="head">
+      <PickAll pick={pk} /><span className="pill" style={{ fontWeight: 700 }}>학원 기본 루틴</span>
       <span className="pill" data-g="area-count">영역 {areasWithLines}</span>
       <span className="pill">교재 예외 0</span>
       <span className="spacer" />
@@ -50,6 +52,11 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="줄">{/* (어28)-④ 고른 줄에 한 번에 · 줄의 필수·🗑 손과 같다(setLine 한 벌 · 내리기는 지우지 않는다) */}
+      <button type="button" className="btn sm" disabled={pending} data-act="required-on-picked" onClick={() => run(() => setLineManyAct("area", pk.ids, { required: true }), (r) => `${r.n}줄을 필수로`, () => pk.clear())}>필수 켬 {pk.count}</button>
+      <button type="button" className="btn sm" disabled={pending} data-act="required-off-picked" onClick={() => run(() => setLineManyAct("area", pk.ids, { required: false }), (r) => `${r.n}줄의 필수를 껐습니다`, () => pk.clear())}>필수 끔 {pk.count}</button>
+      <button type="button" className="btn sm gho" disabled={pending} data-act="retire-picked" onClick={() => run(() => setLineManyAct("area", pk.ids, { state: "retired" }), (r) => `${r.n}줄을 내렸습니다. 지우지 않았습니다(「내린 것」에서 되살립니다)`, () => pk.clear())}>내리기 {pk.count}</button>
+    </PickBar>
     {adding && <ItemForm areaPick init={{ area: adding }} pending={pending} onClose={() => setAdding(null)} onSave={(f) => run(() => addItemAct(f), (r) => (r.revived ? "내렸던 줄을 되살렸습니다" : "항목을 더했습니다"))} />}
 
     <div className="rall" style={{ marginTop: 8 }} data-g="areas">
@@ -63,7 +70,7 @@ export default function Board({ d }) {
             {lines.map((l, i) => (
               <div key={l.id}>
                 <div className="ritem on" data-g="line" data-line={l.id}>
-                  <span className="rn2">{i + 1}</span>
+                  <PickBox pick={pk} id={l.id} label={`${l.name} 고르기`} /><span className="rn2">{i + 1}</span>
                   <div style={{ flex: "1 1 170px", minWidth: 0 }}><b>{l.name}</b>{l.method && <small>{l.method}{l.checks?.length ? ` · ${l.checks.join(" · ")}` : ""}</small>}</div>
                   <button type="button" className={"tag" + (l.required ? " on" : "")} disabled={pending} data-act="required" aria-pressed={l.required} onClick={() => run(() => setLineAct("area", l.id, { required: !l.required }))}>필수</button>
                   {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="agate" aria-pressed={Boolean(l.gate_prev)} onClick={() => run(() => setLineAct("area", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}

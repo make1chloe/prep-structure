@@ -4,7 +4,7 @@ import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addItem, editItem, retireItem, setLine, moveLine, customizeStudent, resetStudent, reviveStudentLine, setBook, assignBook, customizeBook, resetBook, endBook } from "@/lib/routine";
+import { addItem, editItem, retireItem, setLine, setLineMany, moveLine, customizeStudent, resetStudent, reviveStudentLine, setBook, assignBook, customizeBook, resetBook, endBook } from "@/lib/routine";
 import { parseChecks } from "@/lib/routine-plan";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "루틴 11");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
@@ -12,6 +12,7 @@ export async function addItemAct(f) { return wrap(async () => { const { sb } = a
 export async function editItemAct(id, f) { return wrap(async () => { const { sb } = await staff(); await editItem(sb, id, { name: f.name, method: f.method, checks: parseChecks(f.checks) }); return {}; }); }
 export async function retireItemAct(id) { return wrap(async () => { const { sb } = await staff(); return retireItem(sb, id); }); }   // 항목 자체 내리기((가)-⑨)
 export async function setLineAct(kind, id, patch) { return wrap(async () => { const { sb } = await staff(); await setLine(sb, kind, id, patch); return {}; }); }
+export async function setLineManyAct(kind, ids, patch) { return wrap(async () => { const { sb } = await staff(); return setLineMany(sb, kind, ids, patch); }); }   // (어28)-④ 고른 줄 한 번에
 export async function moveLineAct(kind, id, dir) { return wrap(async () => { const { sb } = await staff(); return { moved: await moveLine(sb, kind, id, dir) }; }); }
 export async function customizeAct(studentId, area) { return wrap(async () => { const { sb } = await staff(); return { n: await customizeStudent(sb, studentId, area) }; }); }
 export async function resetAct(studentId, area) { return wrap(async () => { const { sb } = await staff(); return { n: await resetStudent(sb, studentId, area) }; }); }

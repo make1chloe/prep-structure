@@ -1,9 +1,10 @@
 "use client";
 /** 영상 배정 판(목업 19 오른쪽) — 머리(안 본 아이 N · + 영상 · ← 교재) · + 영상 양식(제목 · 유튜브 주소 · 폴더 · 길이) · 영상 카드(아이마다 막대와 상태 · 마감 · 📨 재촉 · 마감 미루기 · + 배정 · 내리기). 세는 것은 화면이 센다(원칙-5) */
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
 import { useRouter } from "next/navigation";
-import { addAct, setAct, assignAct, postponeAct, retireAct, remindAct } from "./actions.js";
+import { addAct, setAct, setManyAct, assignAct, postponeAct, retireAct, remindAct, remindManyAct } from "./actions.js";
 import { statusOf, counts, mmss, dueText, opensText, groupByFolder, folders } from "@/lib/video-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 const fillColor = (s) => (s.key === "done" ? "var(--ok)" : s.key === "part" ? "var(--weak)" : "var(--miss)");
@@ -13,10 +14,11 @@ export default function Board({ d }) {
   const [adding, setAdding] = useState(false); const [nv, setNv] = useState({ title: "", url: "", folder: "", length: "" }); const [assignFor, setAssignFor] = useState(null); const [picked, setPicked] = useState([]); const [due, setDue] = useState(""); const [post, setPost] = useState({}); const [showHidden, setShowHidden] = useState(false);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(r); router.refresh(); });
   const live = (b.videos ?? []).filter((v) => v.state === "active"), hidden = (b.videos ?? []).filter((v) => v.state !== "active");
+  const vIds = useMemo(() => (b.videos ?? []).map((v) => v.id), [b]); const pk = usePick(vIds); const pv = (b.videos ?? []).filter((v) => pk.has(v.id)), toDown = pv.filter((v) => v.state === "active"), toUp = pv.filter((v) => v.state !== "active"); const [folderTo, setFolderTo] = useState("");   /* 고른 영상 · 띠에서 한 번에 */
   const unwatched = live.reduce((n, v) => n + counts(v.assigns, cut).unwatched, 0);
   const Video = ({ v }) => { const c = counts(v.assigns, cut), rows = (v.assigns ?? []).filter((a) => a.state !== "retired"); return (
     <div className="card" style={{ margin: "0 0 8px" }} data-g="video" data-video={v.id} data-state={v.state}>
-      <div className="ctitle"><span className="cemo">🎬</span><span data-g="title">{v.title}</span> · <span data-g="len">{v.seconds ? mmss(v.seconds) : "길이 아직(아이 폰이 처음 알려 줍니다)"}</span>{v.folder && <span className="tag" style={{ marginLeft: 6 }}>📁 {v.folder}</span>}<span className="spacer" /><a className="btn sm gho" href={v.url} target="_blank" rel="noreferrer">유튜브 ↗</a>
+      <div className="ctitle"><PickBox pick={pk} id={v.id} label={`${v.title} 고르기`} /><span className="cemo">🎬</span><span data-g="title">{v.title}</span> · <span data-g="len">{v.seconds ? mmss(v.seconds) : "길이 아직(아이 폰이 처음 알려 줍니다)"}</span>{v.folder && <span className="tag" style={{ marginLeft: 6 }}>📁 {v.folder}</span>}<span className="spacer" /><a className="btn sm gho" href={v.url} target="_blank" rel="noreferrer">유튜브 ↗</a>
         {v.state === "active" ? <button type="button" className="btn sm gho" disabled={pending} data-act="hide" onClick={() => run(() => setAct(v.id, { state: "hidden" }), "내렸습니다(지우지 않습니다)")}>내리기</button> : <button type="button" className="btn sm" disabled={pending} data-act="unhide" onClick={() => run(() => setAct(v.id, { state: "active" }), "되살렸습니다")}>되살리기</button>}</div>
       {!rows.length && <p className="note" style={{ margin: "4px 0" }}>배정한 아이가 없습니다. + 배정</p>}
       {rows.map((a) => { const s = statusOf(a, cut); return <div className="vrow" key={a.id} data-g="vrow" data-student={a.student_id} data-status={s.key}><span className="vn">{a.student_name}</span><div className="bar"><div className="fill" style={{ width: `${s.key === "done" ? 100 : a.pct ?? 0}%`, background: fillColor(s) }} /></div><span className="bkv" style={{ color: s.key === "none" ? "var(--miss)" : undefined }} data-g="bkv">{s.text}</span>
@@ -32,12 +34,19 @@ export default function Board({ d }) {
     </div>); };
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <Link prefetch={false} className="btn sm gho" href="/books">← 교재</Link><span className="pill" style={{ fontWeight: 700 }}>🎬 영상 배정</span>
+      <PickAll pick={pk} /><Link prefetch={false} className="btn sm gho" href="/books">← 교재</Link><span className="pill" style={{ fontWeight: 700 }}>🎬 영상 배정</span>
       <span className={"pill" + (unwatched ? " warn" : "")} data-g="unwatched">안 본 아이 {unwatched}</span>
       <span className="spacer" />
       <button type="button" className="btn sm" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 영상</button></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 영상에 한 번에 · 폴더 옮기기 · 내리기(지우지 않는다) · 되살리기 · 📨 안 본 아이 재촉 */}
+      <input type="text" value={folderTo} placeholder="폴더" aria-label="옮길 폴더" onChange={(e) => setFolderTo(e.target.value)} style={{ maxWidth: 140 }} />
+      <button type="button" className="btn sm" disabled={pending || !folderTo.trim() || !pv.length} data-act="folder-picked" onClick={() => run(() => setManyAct(pv.map((v) => v.id), { folder: folderTo.trim() }), (r) => `${r.n}개를 📁 ${folderTo.trim()} 로`, () => { pk.clear(); setFolderTo(""); })}>📁 옮기기</button>
+      <button type="button" className="btn sm gho" disabled={pending || !toDown.length} data-act="hide-picked" onClick={() => run(() => setManyAct(toDown.map((v) => v.id), { state: "hidden" }), (r) => `${r.n}개 내렸습니다(지우지 않습니다)`, pk.clear)}>내리기 {toDown.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toUp.length} data-act="unhide-picked" onClick={() => run(() => setManyAct(toUp.map((v) => v.id), { state: "active" }), (r) => `${r.n}개 되살렸습니다`, pk.clear)}>되살리기 {toUp.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toDown.length} data-act="remind-picked" onClick={() => run(() => remindManyAct(toDown.map((v) => v.id)), (r) => `${r.n}명에게 재촉`, pk.clear)}>📨 재촉</button>
+    </PickBar>
     {adding && <div className="card" style={{ marginBottom: 8 }} data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>영상</div><div className="wv">
       <input value={nv.title} onChange={(x) => setNv({ ...nv, title: x.target.value })} placeholder="제목 (예: 간접의문문 정리)" aria-label="제목" style={{ flex: "1 1 200px" }} />
       <input value={nv.url} onChange={(x) => setNv({ ...nv, url: x.target.value })} placeholder="유튜브 주소" aria-label="유튜브 주소" style={{ flex: "1 1 220px" }} />

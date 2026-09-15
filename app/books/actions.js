@@ -4,7 +4,7 @@ import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState, moveActivityOrder } from "@/lib/book";
+import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState, setUnitStateMany, moveActivityOrder } from "@/lib/book";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "교재 15");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
@@ -16,6 +16,7 @@ export async function topicsAct(unitId, ids) { return wrap(async () => { const {
 export async function unitAct(unitId, f) { return wrap(async () => { const { sb } = await staff(); await setUnit(sb, String(unitId), f); return {}; }); }
 export async function activityMoveAct(bookId, activity, dir) { return wrap(async () => { const { sb } = await staff(); return moveActivityOrder(sb, String(bookId), String(activity), dir === "left" ? "left" : "right"); }); }   // 활동 차례 ◀ ▶((가)-②)
 export async function unitStateAct(unitId, state) { return wrap(async () => { const { sb } = await staff(); await setUnitState(sb, String(unitId), String(state)); return {}; }); }
+export async function unitStateManyAct(ids, state) { return wrap(async () => { const { sb } = await staff(); return setUnitStateMany(sb, ids, String(state)); }); }   // (어28)-④ 고른 단원 한 번에
 export async function addTopicAct(name) { return wrap(async () => { const { sb } = await staff(); return { id: await addTopic(sb, name) }; }); }
 export async function previewAct(formData, modes = {}) {
   return wrap(async () => {
