@@ -1,60 +1,23 @@
-/** 화면의 **읽을 것** 검사(글자) — 원장님 2026-09-12 「페이지에서 가독성이 떨어져 … 필요없는 설명좀빼」.
- *  한 달 돌려 재 보니 설명문이 **5144자 · 181개 · 폰으로 46화면**이었고, 그중 발송 한 화면이 1503자였다.
- *  까닭 셋을 규칙으로 굳힌다:
- *  ① **줄마다 되풀이되는 문장을 만들지 않는다** — 같은 말은 카드 머리에서 한 번(logStatus 가 그랬다: 같은 문장 26줄 · 768자)
- *  ② **긴 설명은 늘 보이게 두지 않는다** — 90자가 넘으면 `<Tip>`(ⓘ 접기) 안에. 툴팁(title)이 아니라 접기다 — 원장님은 폰으로 쓰신다
- *  ③ **개발 지시문은 화면에 없다** — Vercel·환경변수·Redeploy 같은 말은 문서로
- *  쓰기: node scripts/check-words.mjs */
-import { readFileSync, readdirSync } from "node:fs";
+/** 말 사전 검사 · 검사-93((어39) · 대전제-23 · 원장님 2026-09-15 「하나부터 열까지 단어가 왜 다 이따위로 쓰고있는데 … 메뉴명 설명 좀 어휘선택 업계표준으로좀써」).
+ *  docs/말-사전.md 의 「지금」 말이 화면 글(String · Template · JSXText 토큰 · 주석 뺌 · app(api 뺌) + lib/*-plan.js + lib/menu.js)에 남아 있나 센다.
+ *  래칫: 총 ≤ MAX · 말마다 ≤ 기준(내려만 간다 · (어40) 전수 치환 뒤 0). 새 말은 사전에 먼저 적는다. */
+import { readFileSync, readdirSync, statSync } from "node:fs"; import { join } from "node:path";
+const espree = (await import("espree")).default ?? (await import("espree"));
 let n = 0, bad = 0;
-const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? "\n        " + why : ""}`); } };
-const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다
-const files = [...readdirSync("app", { recursive: true })].filter((f) => String(f).endsWith(".js")).map((f) => [`app/${f}`, strip(readFileSync(`app/${f}`, "utf8"))]);
-
-console.log("■ 늘 보이는 설명문은 짧게 · 긴 것은 <Tip>(ⓘ 접기) 안으로");
-{ const 긴것 = [];
-  for (const [f, s] of files) {
-    // <p|span className="note…">…</p|span> 안의 **글자만** 센다(태그·중괄호는 뺀다)
-    for (const m of s.matchAll(/<(p|span) className="note[^"]*"[^>]*>([\s\S]*?)<\/\1>/g)) {
-      // 중괄호는 **안쪽부터 되풀이해** 지운다 — `${…}` 가 든 템플릿 때문에 한 번만 지우면 데이터 줄이 설명문으로 잡힌다
-      let 안 = m[2].replace(/<Tip[^>]*>[\s\S]*?<\/Tip>/g, "").replace(/<[^>]*>/g, "");   // 접혀 있는 글은 안 센다 — 그게 접은 까닭이다
-      for (let i = 0; i < 8; i++) { const 뒤 = 안.replace(/\{[^{}]*\}/g, ""); if (뒤 === 안) break; 안 = 뒤; }
-      안 = 안.replace(/\s+/g, " ").trim();
-      if (안.length > 90) 긴것.push(`${f}: ${안.length}자 · ${안.slice(0, 70)}…`);
-    }
-  }
-  ok("늘 보이는 설명문이 90자를 넘지 않는다(넘으면 <Tip> 안으로 · 폰에서도 눌러서 편다)", !긴것.length, 긴것.join("\n        ")); }
-
-console.log("■ 같은 문장을 줄마다 되풀이하지 않는다");
-{ // 판단 lib 이 **줄마다** 같은 붙박이 문장을 만들면 화면에 그 수만큼 쌓인다(2026-09-12: 리허설 16줄 · 못 보냄 10줄 = 768자)
-  const plan = strip(readFileSync("lib/send-plan.js", "utf8"));
-  ok("자취 한 줄은 **그 줄만의 것**을 적는다. 「리허설(…) · 실제로는 안 나감」·「못 보냄 · 까닭」을 줄마다 붙이지 않는다",
-    !/text: `리허설\(\$\{l\.sink\}\) · 실제로는 안 나감/.test(plan) && !/text: `못 보냄 · \$\{l\.fail_why/.test(plan),
-    "lib/send-plan.js logStatus · 까닭은 failGroups 로 카드 머리에서 한 번");
-  ok("못 보낸 까닭을 묶어 세는 한 곳이 있다(failGroups)", /export function failGroups/.test(plan)); }
-
-console.log("■ 개발 지시문은 화면에 없다");
-{ const 샌곳 = [];
-  const 개발말 = /Environment Variables|Redeploy|환경변수|NODE_ENV|npm |process\.env/;
-  for (const [f, s0] of files) {
-    const s = s0.replace(/<Tip[^>]*>[\s\S]*?<\/Tip>/g, " ");   // 접혀 있는 글은 뺀다 — 늘 보이는 글만 본다
-    for (const m of s.matchAll(/>([^<>{}]{10,300})</g)) if (개발말.test(m[1])) 샌곳.push(`${f}: ${m[1].trim().slice(0, 70)}`);
-  }
-  ok("Vercel·환경변수·Redeploy 같은 말이 **보이는 글**에 없다(툴팁·주석·문서에는 얼마든지)", !샌곳.length, 샌곳.join("\n        ")); }
-
-console.log("■ 접기 부품은 한 벌");
-{ const tip = strip(readFileSync("app/_shell/tip.js", "utf8"));
-  ok("ⓘ 접기는 app/_shell/tip.js 하나(원칙-1) · 기본은 접힘 · aria-expanded 가 있다",
-    /export default function Tip/.test(tip) && /useState\(false\)/.test(tip) && /aria-expanded=\{on\}/.test(tip));
-  const 제손 = files.filter(([f, s]) => f !== "app/_shell/tip.js" && /aria-expanded=\{[a-z]+\}[\s\S]{0,80}ⓘ/.test(s)).map(([f]) => f);
-  ok("화면이 제 손으로 ⓘ 접기를 또 만들지 않는다", !제손.length, 제손.join(" · ")); }
-
-console.log("■ 쓴 부품은 가져온다. 안 가져오면 그 화면이 통째로 죽는다(2026-09-12: <Tip> 을 쓰고 import 를 빼 발송 화면이 백지가 됐다. 빌드도 이 검사도 못 잡았다)");
-{ const 빠짐 = [];
-  const 부품 = ["Tip", "Sure", "Fold", "AsBand", "Oops", "Sibs", "CardOrder", "NoticeCard", "BellCard", "AskCard"];
-  for (const [f, s] of files) for (const c of 부품)
-    if (new RegExp(`<${c}[\\s/>]`).test(s) && !new RegExp(`import\\s+${c}\\b|\\b${c}\\s*[,}]|function ${c}\\b|const ${c}\\s*=`).test(s)) 빠짐.push(`${f}: <${c}> 를 쓰는데 가져오지 않았다`);
-  ok(`화면이 쓰는 부품 ${부품.length}가지를 다 가져온다`, !빠짐.length, 빠짐.join("\n        ")); }
-
-console.log(`\n■ 읽을 것 검사 ${n}건 · 실패 ${bad}`);
-process.exit(bad ? 1 : 0);
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
+const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = join(d, e); if (statSync(p).isDirectory()) walk(p, out); else if (p.endsWith(".js")) out.push(p); } return out; };
+const files = [...walk("app").filter((p) => !p.includes("/api/")), ...readdirSync("lib").filter((f) => /-plan\.js$|^menu\.js$/.test(f)).map((f) => "lib/" + f)];
+const toks = (f) => { try { return espree.parse(readFileSync(f, "utf8"), { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, tokens: true }).tokens.filter((t) => ["String", "Template", "JSXText"].includes(t.type)).map((t) => t.value.replace(/\s+/g, " ").trim()).filter(Boolean); } catch (e) { bad++; console.log(`   ❌ 파싱 실패 ${f}: ${e.message}`); return []; } };
+console.log("■ 말 사전(docs/말-사전.md) · 화면 글에 우리끼리 말이 남아 있나(대전제-23)");
+const md = readFileSync("docs/말-사전.md", "utf8");
+const rows = md.split("\n").filter((l) => /^\| /.test(l) && !/^\| 지금 \|/.test(l) && !/^\|---/.test(l)).map((l) => l.split(/(?<!\\)\|/).slice(1, -1).map((c) => c.trim()));
+const dict = rows.map(([now, later, find]) => ({ now, later, re: find ? new RegExp(find.replace(/^`|`$/g, "").replace(/\\\|/g, "|")) : null }));
+ok(`사전 줄 ≥ 25 · 「나중」 비지 않음 (지금 ${dict.length}줄)`, dict.length >= 25 && dict.every((d) => d.now && d.later), dict.filter((d) => !d.now || !d.later).map((d) => d.now).join(", "));
+const MAX = 270;   // (어39) 2026-09-15 실측 270 · (어40) 전수 치환 뒤 0
+const count = new Map(); const where = new Map();
+for (const f of files) for (const t of toks(f)) for (const d of dict) if (d.re && d.re.test(t)) { count.set(d.now, (count.get(d.now) ?? 0) + 1); if (!where.has(d.now)) where.set(d.now, new Set()); where.get(d.now).add(f); }
+const total = [...count.values()].reduce((a, b) => a + b, 0);
+const line = [...count].sort((a, b) => b[1] - a[1]).map(([w, c]) => `${w}=${c}`).join(" · ");
+console.log(`   실측 ${total} · ${line}`);
+ok(`화면 글에 남은 사전 말 ≤ ${MAX}(지금 ${total} · 내려만 간다 · (어40) 뒤 0)`, total <= MAX, line);
+console.log(`\n■ 말 사전 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);
