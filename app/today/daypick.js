@@ -5,14 +5,15 @@
 import { useGo } from "../_shell/going.js";
 import { plusDays } from "@/lib/day-plan";
 import { md } from "@/lib/dash-plan";
+import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 export default function DayPick({ date, today, weekday }) {
   const { go } = useGo(date);
   const at = (d) => go(d === today ? "/today" : `/today?d=${d}`, d);   // 오늘은 맨 주소로 — 즐겨찾기가 늘 오늘을 연다
   return (
     <div className="wv" style={{ marginBottom: 8 }} data-g="daypick">
-      <button className="btn sm" type="button" data-act="day-prev" aria-label="어제" onClick={() => at(plusDays(date, -1))}>◂</button>
+      <button className="btn sm" type="button" data-act="day-prev" {...icon("어제", "어제 수업 보기")} onClick={() => at(plusDays(date, -1))}>◂</button>
       <input className="dt" type="date" value={date} aria-label="날짜" onChange={(e) => { const v = e.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(v)) at(v); }} style={{ width: "auto" }} />
-      <button className="btn sm" type="button" data-act="day-next" aria-label="내일" onClick={() => at(plusDays(date, 1))}>▸</button>
+      <button className="btn sm" type="button" data-act="day-next" {...icon("내일", "내일 수업 보기")} onClick={() => at(plusDays(date, 1))}>▸</button>
       <span className="pill" data-g="day">{md(date)}{weekday ? ` ${weekday}` : ""}</span>
       {date !== today && <button className="btn sm pri" type="button" data-act="day-today" onClick={() => at(today)}>오늘로</button>}
     </div>

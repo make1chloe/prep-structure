@@ -1120,14 +1120,14 @@ fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{back
 .tr.dense .li b{font-size:var(--fs-2)}
 .tr.dense .li .n{margin-top:0}
 .acts{margin:0;gap:2px;flex:0 0 auto}
-.icb{width:var(--h-sm);min-width:var(--h-sm);padding:0!important;font-size:var(--fs-2)}
-.chkdone{display:flex;flex-direction:column;gap:2px;margin:4px 0 0;padding-top:4px;border-top:1px dashed var(--hair)}
-.cdb{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.cdn{font-size:var(--fs-1);font-weight:700;color:var(--faint);margin-right:2px}
-.cdc{border:1px solid var(--hair);background:var(--sunk);border-radius:6px;padding:2px 8px;font-size:var(--fs-2);color:var(--mid);display:inline-flex;align-items:center;gap:4px;min-height:22px;font-family:var(--sans)}
-.cdc[data-v="o"]{border-color:transparent;color:var(--surface);background:var(--ok)}
-.cdc[data-v="w"]{border-color:transparent;color:#111827;background:var(--weak)}
-.cdc[data-v="x"]{border-color:transparent;color:var(--surface);background:var(--miss)}
+.icb{width:var(--h-sm);min-width:var(--h-sm);padding:0!important;font-size:var(--fs-3);line-height:1;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px}
+.icb:hover{background:var(--sunk);border-color:var(--navy);color:var(--navy)}
+/* (어51) 검사한 줄은 **그 자리에서** 한 줄로 접힌다(원장님 9/16 「검사완료된걸 클릭하니까 위에 새로운 내용으로 다시 생기는거 구조가 비논리적이야 … 순서도 뒤엉켜잇어」) · 칩으로 옮기지 않는다 */
+.hw .nmb{background:none;border:0;padding:0;margin:0;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:0}
+.hw .nmb:hover b{text-decoration:underline}
+.hw[data-folded="1"]{opacity:.72}
+.hw[data-folded="1"] b{font-weight:600}
+.hw[data-folded="1"] small{margin-top:0}
 .chkstop{margin-top:6px;padding-top:4px;border-top:1px dashed var(--hair)}
 /* (어43) 08 로드맵 · 책 차례 한 줄 · 대단원 줄(상태 말 · 막대) · 소단원 큰 네모 */
 .rlist{display:flex;flex-direction:column;gap:8px}

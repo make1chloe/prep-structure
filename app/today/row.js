@@ -29,9 +29,10 @@ import { useOpen, usePickCtx } from "./board.js";
 import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
-import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
+import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel, bookOrder } from "@/lib/routine-plan";
 import { timerText, arrivalTimes, STAMP_NAME } from "@/lib/arrival-plan";   // (어48) 출결 곁의 도착·하원 시각   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
+import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
@@ -116,19 +117,23 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   const left = sheet.check.filter(isUnchecked).length;
   const cc = student.cc ?? [], units = student.unitTests ?? [], quizzes = student.quizzes?.today ?? [];
   const has = checkIcons(student);   // 제목 줄이 오늘 볼 것을 말한다 — 업무 목록 꼬리표와 같은 글(day-plan · 원칙-1)
-  // (어47) 원장님 9/16 「숙제검사가 완료된 건 접어서 스크롤줄이고(완료미흡미완료여부는 보이게표시)」 · 「교재보류는 접힌채로 아예 검사에서 맨밑으로」 · 판단은 day-plan splitChecks(순수) · 이 자리에서 검사한 줄과 칩을 눌러 다시 연 줄은 다시 열 때까지 펴 둔다(opened)
-  const [opened, setOpened] = useState(() => new Set());
+  // (어51) 원장님 9/16 「검사완료된걸 클릭하니까 위에 새로운 내용으로 다시 생기는거 구조가 비논리적이야 · 순서도 뒤엉켜잇어」 → 검사해도 줄은 **제자리**에서 접힌다(CheckItem) · 차례를 바꾸는 것은 교재 보류 하나뿐이고 그것만 맨 밑(day-plan splitChecks · 순수 · (어47) 「교재보류는 접힌채로 아예 검사에서 맨밑으로」)
   const [showStopped, setShowStopped] = useState(false);
+  const [giveHere, setGiveHere] = useState(null);   // (어51) 검사할 숙제가 없을 때 그 자리에서 숙제 주기(원장님 9/16 「검사'할' 숙제가 없는게 제일큰 문제야」)
+  const [assignHere, setAssignHere] = useState(false);
   const stopped = new Set((student.books ?? []).filter((b) => stopOn(b, date) === "book_off").map((b) => b.book_id));
-  const parts = splitChecks(sheet.check, { stopped, opened });
-  const glyph = (s) => CHECK.find(([v]) => v === s)?.[1] ?? "";
-  const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} onMarked={(id) => setOpened((s) => new Set(s).add(id))} />;
+  const parts = splitChecks(sheet.check, { stopped });
+  const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />;
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
-      <ItemTree rows={parts.open} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
-      {parts.done.length > 0 && <div className="chkdone" data-g="check-done">{parts.done.map((b) => <div key={b.key} className="cdb" data-g="check-done-book"><span className="cdn">📕 {b.book ?? "그 밖에"}</span>
-        {b.rows.map((it) => <button key={it.id} type="button" className="cdc" data-act="unfold" data-id={it.id} data-v={CHECK_KEY[it.status]} onClick={() => setOpened((s) => new Set(s).add(it.id))}>{glyph(it.status)} {itemTitle(it)}{it.done_note ? ` · ${it.done_note}` : ""}</button>)}</div>)}</div>}
+      <ItemTree rows={parts.live} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
+      {sheet.check.length === 0 && <div className="lf" data-g="check-none"><span className="ln">📭</span>
+        <div><b>오늘 검사할 숙제 없음</b><small>{(student.books ?? []).length ? "지난 시간에 낸 숙제가 없어서 검사할 줄이 없음" : "배정한 교재 없음"}</small></div>
+        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("home")}>+ 숙제 주기</button>}
+        {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
+      {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
+      {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
       {parts.stopped.length > 0 && <div className="chkstop" data-g="check-stopped"><button type="button" className="btn sm gho" data-act="stopped-open" aria-pressed={showStopped} onClick={() => setShowStopped((v) => !v)}>{showStopped ? "▾" : "▸"} 교재 보류 · 검사 {parts.stopped.length}</button>
         {showStopped && <ItemTree rows={parts.stopped} all={sheet.check} row={row} fold={false} dense />}</div>}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
@@ -137,26 +142,31 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
     </div>
   );
 }
-function CheckItem({ it, closed, fail, start, grouped = false, onMarked = null }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32)) · onMarked: (어47) 이 자리에서 검사한 줄은 접지 않는다
+function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32))
   const [st, setSt] = useState(isUnchecked(it) ? null : it.status);
+  const [open, setOpen] = useState(isUnchecked(it));   // (어51) 검사가 끝난 줄은 **그 자리에서** 한 줄로 접힌다(자리를 안 옮긴다 · 원장님 9/16 「구조가 시각적으로도 비선형인데 순서도 뒤엉켜잇어」) · 이름을 누르면 편다
   const [upto, setUpto] = useState(it.done_note ?? "");
   const [restTo, setRestTo] = useState(null);
   const sub = itemSub(it, { unit: !grouped });   // 교재 · 단원 · 쪽 · 문항(단원 머리가 있으면 뺀다) · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
-  const pick = (v) => { if (closed) return; const prev = st; setSt(v); onMarked?.(it.id); start(async () => { const r = await check(it.id, v, v === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
+  const folded = Boolean(st) && !open;
+  const pick = (v) => { if (closed) return; const prev = st, next = st === v ? "none" : v;   // (어51) 한 번 더 누르면 아예 체크 안 된 상태로(원장님 9/16)
+    setSt(next === "none" ? null : next); if (next === "weak" || next === "missing") setOpen(true);
+    start(async () => { const r = await check(it.id, next, next === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
   const pickRest = (w) => { setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
   return (
-    <div className="hw">
-      <div className="hwname"><b>{itemTitle(it)}</b>{sub && <small>{sub}</small>}
+    <div className="hw" data-g="check-line" data-folded={folded ? "1" : "0"}>{/* (어51) 줄 하나를 「그 자리에서」 접고 편다 · 이름을 -row 로 안 짓는다: 고르기(PickBox)를 붙일 목록이 아니라 한 줄짜리 검사 손이고, 일괄은 카드 머리의 「다 ○」 하나다((어28) 대전제-20 · check-pick 의 -row 규칙 밖 · gap-book · call-book 과 같은 뜻) */}
+      <div className="hwname"><button type="button" className="nmb" data-act="unfold" data-id={it.id} aria-expanded={!folded} onClick={() => setOpen(!open)}><b>{itemTitle(it)}</b></button>
+        {folded ? (it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
         {st && st !== "done" && !closed && (
           <div className="partial">
             {st === "weak" && <div className="wv"><span className="fl" style={{ margin: 0 }}>어디까지</span><div className="seg sm" data-g="upto">{UPTO.map((u) => <button key={u} type="button" aria-pressed={upto === u} onClick={() => pickUpto(u)}>{u}</button>)}</div></div>}
             <div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>나머지는</span><div className="seg sm" data-g="rest">{REST.map(([w, name]) => <button key={w} type="button" aria-pressed={restTo === w} onClick={() => pickRest(w)}>{name}</button>)}</div></div>
           </div>
-        )}
+        )}</>}
       </div>
       <div className="chk" aria-label="검사">
-        {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} onClick={() => pick(v)}>{g}</button>)}
+        {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} {...icon(CHECK_NAME[v], CHECK_TIP[v])} onClick={() => pick(v)}>{g}</button>)}
       </div>
     </div>
   );
@@ -263,8 +273,8 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
         <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절</button>
         <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크</button>
         {!closed && pos < nOrder && <span className="wv" data-g="book-order" style={{ margin: 0, gap: 2 }}>{/* (어35) 교재 차례 ▲▼ · 선생님이 고친다(원장님 9/15 「배정 선생님이 고칠 수 있음」) · 줄 있는 교재끼리만 · 시작한 줄은 그대로 앞 */}
-          <button type="button" className="btn sm gho" data-act="book-up" aria-label="앞으로" disabled={pos === 0} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "up")); })}>▲</button>
-          <button type="button" className="btn sm gho" data-act="book-down" aria-label="뒤로" disabled={pos >= nOrder - 1} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "down")); })}>▼</button></span>}
+          <button type="button" className="btn sm gho" data-act="book-up" {...icon("앞으로", "이 교재를 앞으로")} disabled={pos === 0} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "up")); })}>▲</button>
+          <button type="button" className="btn sm gho" data-act="book-down" {...icon("뒤로", "이 교재를 뒤로")} disabled={pos >= nOrder - 1} onClick={() => start(async () => { fail(await bookMove(sheet.id, b.book_id, "down")); })}>▼</button></span>}
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} api={progApi(sheet)} closed={closed} fail={fail} start={start} onClose={() => { setProg(false); router.refresh(); }} />}
@@ -290,10 +300,10 @@ function FreeLine({ it, no, closed, fail, start, moveLabel, other }) {
   return <div className="li" data-g="free-line"><span className="n">{no}</span>
     {edit ? <input ref={box} type="text" defaultValue={it.range_note ?? name} aria-label="줄 고치기" onBlur={(e) => save(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(e.currentTarget.value); } if (e.key === "Escape") setEdit(false); }} style={{ flex: "1 1 120px", minWidth: 0 }} />
       : <div><b>{name}</b>{sub && <small>{sub}</small>}</div>}
-    {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" aria-label="고치기" onClick={() => setEdit(true)}>✎</button>
+    {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" {...icon("고치기", "이 항목 고치기")} onClick={() => setEdit(true)}>✎</button>
       <button type="button" className="btn sm" data-act="item-move" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>
       {other === "home" && <button type="button" className="btn sm gho" data-act="item-next" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>다음 시간으로</button>}
-      <button type="button" className="btn sm gho" data-act="item-del" aria-label="빼기" onClick={() => start(async () => { fail(await itemRemove(it.id)); })}>✕</button></>}
+      <button type="button" className="btn sm gho" data-act="item-del" {...icon("빼기", "이 항목 빼기")} onClick={() => start(async () => { fail(await itemRemove(it.id)); })}>✕</button></>}
   </div>;
 }
 function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = null }) {
@@ -311,12 +321,12 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>오늘 단원</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={wave ? wave === o.key : same(o)} disabled={closed} onClick={() => pickUnits(o)}>{waveLabel(o)}</button>)}</div></div>}
       <ItemTree rows={rows} book={false} bySort fold={false} dense unitHead={(g) => <>{/* (어42) 나무 한 벌 · (어47) 단원 머리는 안 접힌다(div) · 손은 아이콘(원장님 9/16 「건너뛰기(엑스) 다음시간으로(화살표) 숙제로(집) 이거를 아이콘화해버려」) · 이름은 aria-label(명사 하나) */}
-            {!closed && slot === "class" && g.rows.length > 0 && <span className="wv acts" data-g="unit-acts"><button type="button" className="btn sm gho icb" data-act="unit-skip" aria-label="건너뛰기" onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="unit-next" aria-label="다음 시간" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>→</button><button type="button" className="btn sm gho icb" data-act="unit-home" aria-label="숙제" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>🏠</button></span>}
-            {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho icb" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}
+            {!closed && slot === "class" && g.rows.length > 0 && <span className="wv acts" data-g="unit-acts"><button type="button" className="btn sm gho icb" data-act="unit-skip" {...icon("건너뛰기", "오늘은 안 하고 넘기기")} onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="unit-next" {...icon("다음 시간", "다음 시간으로 미루기")} onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>⏭</button><button type="button" className="btn sm gho icb" data-act="unit-home" {...icon("숙제", "집에서 할 숙제로 옮기기")} onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>🏠</button></span>}
+            {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho icb" data-act="item-del" {...icon("오늘은 뺌", "오늘만 이 단원 빼기")} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}
           </>}
         row={(it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{it.started_at && <TimerTag it={it} />}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}</div>
-            {!closed && slot === "class" && <span className="wv acts" data-g="line-acts"><button type="button" className="btn sm gho icb" data-act="line-skip" aria-label="건너뛰기" onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="line-next" aria-label="다음 시간" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>→</button><button type="button" className="btn sm gho icb" data-act="line-home" aria-label="숙제" onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>🏠</button></span>}
-            {!closed && slot === "home" && <button type="button" className="btn sm gho icb" data-act="line-class" aria-label="학습" style={{ flex: "0 0 auto" }} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>🏫</button>}</div>; }} />
+            {!closed && slot === "class" && <span className="wv acts" data-g="line-acts"><button type="button" className="btn sm gho icb" data-act="line-skip" {...icon("건너뛰기", "오늘은 안 하고 넘기기")} onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="line-next" {...icon("다음 시간", "다음 시간으로 미루기")} onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>⏭</button><button type="button" className="btn sm gho icb" data-act="line-home" {...icon("숙제", "집에서 할 숙제로 옮기기")} onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>🏠</button></span>}
+            {!closed && slot === "home" && <span className="wv acts" data-g="line-acts"><button type="button" className="btn sm gho icb" data-act="line-skip" {...icon("건너뛰기", "오늘은 안 하고 넘기기")} onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="line-next" {...icon("다음 시간", "다음 시간으로 미루기")} onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>⏭</button><button type="button" className="btn sm gho icb" data-act="line-class" {...icon("학습", "오늘 학습으로 옮기기")} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>🏫</button></span>}</div>; }} />
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
         <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "학습 메모" : "숙제 메모"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
@@ -440,7 +450,7 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
   const sum = Number(f.mc_meaning || 0) + Number(f.sa_meaning || 0) + Number(f.mc_word || 0) + Number(f.sa_word || 0);
   const N = ({ k, label }) => <label className="wv" style={{ gap: 4, margin: 0 }}><span className="fl" style={{ margin: 0, width: "auto" }}>{label}</span><input className="scr" name={k} type="text" inputMode="numeric" value={f[k]} onChange={(e) => set(k, e.target.value)} style={{ maxWidth: 56 }} /></label>;
   return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 고치기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
-    <div className="mdlh"><b>방식 고치기 · 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+    <div className="mdlh"><b>방식 고치기 · 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
     <div className="mdlb">{errNode}
       {q.kind === "word" ? <>
         <div className="wv" style={{ gap: 10 }}><N k="mc_meaning" label="객관식 뜻 %" /><N k="sa_meaning" label="주관식 뜻 %" /><N k="mc_word" label="객관식 영어 %" /><N k="sa_word" label="주관식 영어 %" /><span className={"pill" + (sum === 100 ? " ok" : " warn")} data-g="style-sum">합 {sum}</span></div>
@@ -469,7 +479,7 @@ function AttTimes({ student, date, closed, fail, start }) {
       {t.in && <span className="pill" data-g="arr-in" data-by={t.in.by}>도착 {t.in.at} · {t.in.name}</span>}
       {t.out ? <span className="pill" data-g="arr-out" data-by={t.out.by}>하원 {t.out.at} · {t.out.name}</span>
         : !closed && <button type="button" className="btn sm" data-act="leave-now" onClick={() => put(4, null)}>하원</button>}
-      {!closed && (t.in || t.out) && <button type="button" className="btn sm gho icb" data-act="time-edit" aria-label="시각" aria-pressed={edit} onClick={() => { setEdit(!edit); setWhich(t.out ? "out" : "in"); setVal((t.out ?? t.in)?.at ?? ""); }}>✎</button>}
+      {!closed && (t.in || t.out) && <button type="button" className="btn sm gho icb" data-act="time-edit" {...icon("시각", "도착·하원 시각 고치기")} aria-pressed={edit} onClick={() => { setEdit(!edit); setWhich(t.out ? "out" : "in"); setVal((t.out ?? t.in)?.at ?? ""); }}>✎</button>}
       {edit && !closed && <>
         <span className="seg sm" data-g="time-which">{[["in", "도착"], ["out", "하원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={which === k} onClick={() => { setWhich(k); setVal((k === "out" ? t.out : t.in)?.at ?? ""); }}>{name}</button>)}</span>
         <input type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="예: 21:05" inputMode="numeric" aria-label="시각" style={{ maxWidth: 88 }} />
@@ -504,7 +514,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
         {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
           <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
           {r.state === "open" && <button type="button" className="btn sm" data-act="stay-done" disabled={closed} onClick={() => start(async () => { fail(await stayDoneAct(r.id)); })}>다 함</button>}
-          {r.state === "open" && !closed && <button type="button" className="btn sm gho" data-act="item-del" aria-label="빼기" onClick={() => start(async () => { fail(await itemRemove(r.id)); })}>✕</button>}</div>)}
+          {r.state === "open" && !closed && <button type="button" className="btn sm gho" data-act="item-del" {...icon("빼기", "이 항목 빼기")} onClick={() => start(async () => { fail(await itemRemove(r.id)); })}>✕</button>}</div>)}
         {!closed && <div className="wv" style={{ marginTop: 4 }} data-g="stay-add"><input type="text" value={stayText} onChange={(e) => setStayText(e.target.value)} placeholder="예: 워크북 복습" aria-label="남아서 할 항목" style={{ flex: "1 1 200px" }} />
           <button type="button" className="btn sm" data-act="stay-add" disabled={!stayText.trim()} onClick={() => start(async () => { const f = new FormData(); f.set("sheetId", sheet.id); f.set("slot", "stay"); f.set("text", stayText); if (fail(await add(f))) setStayText(""); })}>항목 더하기</button>
           {sc.open > 0 && <button type="button" className="btn sm" data-act="stay-carry" onClick={() => start(async () => { fail(await stayCarryAct(sheet.id)); })}>⏭ 다음 숙제로</button>}
@@ -520,7 +530,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
         <div><b>경고 {warn.count}회째 · 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
           <small>{warn.days} · 지난 반성문 뒤 {warn.since_written}회째</small></div></div>}
       {warn?.count > 0 && <div className="lenrow" style={{ marginTop: 8 }} data-limit="1"><span className="fl" style={{ margin: 0, width: "auto" }}>반성문 기준</span>
-        <div className="stepper" data-g="limit"><button type="button" data-s="-" disabled={closed || warn.report_at <= 1} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at - 1)); })}>−</button><input type="text" inputMode="numeric" aria-label="반성문 기준 횟수" value={warn.report_at} readOnly /><button type="button" data-s="+" disabled={closed} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at + 1)); })}>+</button></div>
+        <div className="stepper" data-g="limit"><button type="button" data-s="-" disabled={closed || warn.report_at <= 1} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at - 1)); })} {...icon("줄이기", "반성문 기준 줄이기")}>−</button><input type="text" inputMode="numeric" aria-label="반성문 기준 횟수" value={warn.report_at} readOnly /><button type="button" data-s="+" disabled={closed} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at + 1)); })} {...icon("늘리기", "반성문 기준 늘리기")}>+</button></div>
         <span className="note" style={{ margin: 0 }}>{warn.own_limit ? "이 아이만" : "학원 기본"} · 지금 {warn.since_written}회째</span></div>}
       {ask && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, width: "auto" }}>처분</span>
         <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={disp === k} disabled={closed} onClick={() => pickDisp(k)}>{name}</button>)}</div></div>}
@@ -582,7 +592,7 @@ function UnitTestPart({ t, passPct, date, closed, fail, start }) {
       <div className="wtrow">
         <div className="wtset"><b>{t.q_count}문항</b><div className="tags">{t.books?.name && <span className="tag" data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 세트`}</span>}{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
         <div className="wtscore"><label className="fl">맞은 개수</label>
-          <div className="stepper" data-g="unit"><button type="button" data-s="-" disabled={closed} onClick={() => put((Number(n) || 0) - 1)}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(e.target.value.replace(/\D/g, ""))} onBlur={() => { if (n !== "") put(n); }} /><button type="button" data-s="+" disabled={closed} onClick={() => put((Number(n) || 0) + 1)}>+</button></div>
+          <div className="stepper" data-g="unit"><button type="button" data-s="-" disabled={closed} onClick={() => put((Number(n) || 0) - 1)} {...icon("줄이기", "맞은 개수 줄이기")}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(e.target.value.replace(/\D/g, ""))} onBlur={() => { if (n !== "") put(n); }} /><button type="button" data-s="+" disabled={closed} onClick={() => put((Number(n) || 0) + 1)} {...icon("늘리기", "맞은 개수 늘리기")}>+</button></div>
           {res && <div className={"wtres " + (res.pass ? "pass" : "fail")} data-g="unit-res"><b>{n} / {t.q_count}</b><span>{res.pct}% {res.pass ? "통과" : "미달"}</span></div>}
         </div>
       </div>
@@ -675,7 +685,7 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
       <div className="mdl" style={{ width: "min(480px,100%)" }} data-g="give-modal">
         <div className="mdlh"><b>숙제 주기</b>
           <div className="seg sm" data-g="give-slot">{[["home", "집"], ["class", "학원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => setSlot(k)}>{name}</button>)}</div>
-          <span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+          <span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">{errNode}<textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"한 줄에 하나\n예: 워크북 p.10 1-18"} aria-label="줄 항목" style={{ width: "100%" }} /></div>
         <div className="mdlf"><button type="button" className="btn pri" data-act="give-save" disabled={!lines.length} onClick={save}>{lines.length ? `${lines.length}개 주기` : "주기"}</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
       </div>
@@ -701,13 +711,13 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
   return (
     <div className="mdlov" role="dialog" aria-modal="true" aria-label="조절" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="mdl" style={{ width: "min(520px,100%)" }}>
-        <div className="mdlh"><b>{b.books.name} · {pool.chapter ?? "남은 대단원 없음"}</b><span className="tag type">{pool.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlh"><b>{b.books.name} · {pool.chapter ?? "남은 대단원 없음"}</b><span className="tag type">{pool.round}회독</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">
           <div className="hw">
             <div className="hwname"><b>오늘 나갈 소단원</b><small data-g="tune-left">{pool.chapter ? `${pool.chapter} 에서 아직 안 나간 소단원 ${pool.inChapter}개` : `아직 안 나간 소단원 ${pool.pool.length}개`}{next ? ` · 다음 대단원 ${next} 도 고를 수 있음` : ""}</small>
               <div className="units unitcol">{pool.pool.map((u, i) => <Fragment key={u.unit_id}>{(pool.chapters?.length ?? 0) > 1 && u.chapter && u.chapter !== pool.pool[i - 1]?.chapter && <span className="note" data-g="tune-chapter" style={{ margin: "4px 0 0", fontWeight: 700 }}>{u.chapter}</span>}<button type="button" className="unit" aria-pressed={picked.has(u.unit_id)} disabled={closed} onClick={() => toggle(u)}>{u.short}<i>{pagesText(u) ?? ""}{u.q_count ? ` · ${u.q_count}문항` : ""}</i></button></Fragment>)}</div>
             </div>
-            <div className="stepper"><button type="button" data-s="-" disabled={closed} onClick={() => setSel(tuneStep(pool.pool, sel, -1))}>−</button><input type="text" inputMode="numeric" value={selected.length} aria-label="직접 입력" disabled={closed} onChange={(e) => setSel(tuneCount(pool.pool, Math.max(1, Number(e.target.value) || 1)))} /><button type="button" data-s="+" disabled={closed} onClick={() => setSel(tuneStep(pool.pool, sel, 1))}>+</button></div>
+            <div className="stepper"><button type="button" data-s="-" disabled={closed} onClick={() => setSel(tuneStep(pool.pool, sel, -1))} {...icon("줄이기", "나갈 소단원 줄이기")}>−</button><input type="text" inputMode="numeric" value={selected.length} aria-label="직접 입력" disabled={closed} onChange={(e) => setSel(tuneCount(pool.pool, Math.max(1, Number(e.target.value) || 1)))} /><button type="button" data-s="+" disabled={closed} onClick={() => setSel(tuneStep(pool.pool, sel, 1))} {...icon("늘리기", "나갈 소단원 늘리기")}>+</button></div>
           </div>
           <div className="lf warn" style={{ margin: "2px 0 8px" }}><span className="ln">📐</span>
             <div><b>고른 소단원 {selected.length}개 = 오늘 <span style={{ color: "var(--navy)" }}>{empty ? "문항·쪽 수가 교재에 없음" : `${sum.questions}문항 · ${sum.pages}쪽`}</span></b>
@@ -762,9 +772,9 @@ function PlanModal({ student, date, fail, start, onClose }) {
   return (
     <div className="mdlov" role="dialog" aria-modal="true" aria-label="결석·지각 예정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="mdl" style={{ width: "min(540px,100%)" }}>
-        <div className="mdlh"><b>📅 {student.name} · 결석·지각 예정</b>{data?.label && <span className="pill">{data.label}</span>}<span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlh"><b>📅 {student.name} · 결석·지각 예정</b>{data?.label && <span className="pill">{data.label}</span>}<span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">{errNode}
-          <div className="calhead"><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, -1))}>◂</button><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, 1))}>▸</button>
+          <div className="calhead"><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, -1))} {...icon("지난달", "지난달 보기")}>◂</button><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, 1))} {...icon("다음 달", "다음 달 보기")}>▸</button>
             <span className="spacer" /><span className="pill">수업일만 고를 수 있습니다</span></div>
           <div className="cal pick" data-g="plancal">
             {["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}

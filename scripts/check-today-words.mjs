@@ -9,8 +9,10 @@ const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what
 const 한글 = (t) => t.replace(/[^가-힣]/g, "").length;
 console.log("■ 01 은 설명하지 않는다. 이름이 말한다(대전제-15)");
 ok("ⓘ Tip 0 · 접힌 설명도 설명이다", !/<Tip\b/.test(row));
-const titles = [...row.matchAll(/<[a-z][^>]*\stitle=/g)].length;
-ok("마우스 대면 뜨는 title= 0(html 요소) · 폰엔 마우스가 없다", titles === 0, String(titles));
+// (어51) 원장님 2026-09-16 「아이콘 자체가 너무 시각적으로 빈약해. 아이콘으로만 정보를 표시한경우에는 툴팁이라고하나,그런걸로 마우스를 대고 있으면 다음시간으로 미루기, 같이 설명을 띄워」
+//  → 마우스 대면 뜨는 글을 아주 안 쓰던 규칙((어12) 대전제-15)을 여기서 한 자리만 연다: **아이콘만 있는 손**. 글이 보이는 자리에는 여전히 안 붙이고, 아이콘 손은 icon() 한 벌로만 단다(app/_shell/icon.js · 이름·툴팁이 한 벌이라 어긋나지 않는다 · 폰에서는 aria-label 이 같은 말을 읽는다)
+const titles = [...row.matchAll(/<[a-z][^>]*\stitle=/g)].length, icons = [...row.matchAll(/\{\.\.\.icon\(/g)].length;
+ok(`마우스 대면 뜨는 title= 은 손으로 안 붙인다(지금 ${titles}) · 아이콘만 있는 손은 icon() 한 벌로 이름·툴팁(지금 ${icons}곳 · ○△✕ 도 CHECK_TIP 로 「다시 누르면 해제」까지 말한다)`, titles === 0 && icons >= 20 && /icon\(CHECK_NAME\[v\], CHECK_TIP\[v\]\)/.test(row), `title ${titles} · icon ${icons}`);
 // 설명 문장 — note·small·placeholder 안에서 「~합니다」로 끝나는 글. 상태 글(「메모 없음」「3/5 남음」「예: 워크북 p.10」)은 안 걸린다
 const texts = [...row.matchAll(/(?:className="note[^"]*"[^>]*>|<small[^>]*>|placeholder="?)([^<{"]*)/g)].map((m) => m[1].trim()).filter(Boolean);
 const explain = texts.filter((t) => /(합니다|됩니다|십시오|세요|입니다)[.)]?$/.test(t) || /(합니다|됩니다) · /.test(t));

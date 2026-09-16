@@ -9,6 +9,7 @@ import AssignModal from "./_shell/assignmodal.js";
 import { nextRoundFor } from "./_shell/assign-actions.js";   // (어50) 다음 회독 시작
 import { progressOpenFor, progressSetFor, progressSetManyFor, progressUpToFor, progressSkipFor } from "./_shell/progress-actions.js";
 import { academyAct } from "./settings/progress/actions.js";
+import { icon } from "./_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 const apiFor = (studentId) => ({ open: (bk) => progressOpenFor(studentId, bk), set: (u, st) => progressSetFor(studentId, u, st), setMany: (ids, st) => progressSetManyFor(studentId, ids, st), upTo: (bk, u) => progressUpToFor(studentId, bk, u), skip: (bk, c) => progressSkipFor(studentId, bk, c) });
 export default function DashGaps({ gaps = [], calls = [], summary, people, date, progress = null }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState("");
@@ -37,7 +38,7 @@ export default function DashGaps({ gaps = [], calls = [], summary, people, date,
       <div className="gapchips" data-g="call-chips">{byStudent.filter((s) => s.calls.length).map((s) => chip(s, s.calls.length, "call-chip"))}</div></div>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {cur && !prog && !assign && <div className="mdlov" role="dialog" aria-modal="true" aria-label="오늘 줄 0" onClick={(e) => { if (e.target === e.currentTarget) setWho(null); }}><div className="mdl" style={{ width: "min(520px,100%)" }}>
-      <div className="mdlh"><b>{cur.name}</b><span className="pill">오늘 줄 0인 교재 {cur.rows.length}{cur.calls.length ? ` · 메모로만 ${cur.calls.length}` : ""}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={() => setWho(null)}>✕</button></div>
+      <div className="mdlh"><b>{cur.name}</b><span className="pill">오늘 줄 0인 교재 {cur.rows.length}{cur.calls.length ? ` · 메모로만 ${cur.calls.length}` : ""}</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={() => setWho(null)}>✕</button></div>
       <div className="mdlb" data-g="gap-modal">
         {/* 한 아이의 교재 줄(gap-book · call-book) · 줄마다 손이 다르고(진도 체크 · 루틴 11) 한 번에 할 것이 없어 고르기(대전제-20)는 안 붙인다 · 교재 배정 모달은 고르기 한 벌 */}
         {cur.rows.map((g) => <div key={g.book_id} className="lf" data-g="gap-book" data-gap={g.kind}><span className="ln">📕</span><div><b>{g.book}</b><small><span className="tag">{g.tag}</span>{g.absent && <span className="tag">오늘 결석 예정</span>}</small></div>

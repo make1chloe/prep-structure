@@ -12,6 +12,7 @@ import { fieldNag } from "@/lib/integration-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 import { seoulTime } from "@/lib/day-plan";   // 「고침 9/10 23:41」 — 저장이 됐는지 줄에서 바로 보이게(원장님 9/10 「저장눌러도 저장안됨」 — 사실은 저장돼 있었다)
 import { saveKeysAct, testSmsAct } from "./actions.js";
+import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 /** 자동완성 끄기 한 벌 — 크롬·사파리(autoComplete) · 1Password · LastPass · 대시레인 */
 const NOFILL = { autoComplete: "off", spellCheck: false, autoCorrect: "off", autoCapitalize: "off", "data-lpignore": "true", "data-1p-ignore": "true", "data-form-type": "other" };
 export default function Keys({ rows = [] }) {
@@ -36,7 +37,7 @@ export default function Keys({ rows = [] }) {
           <input type={f.k === "from" ? "tel" : "text"} value={v} {...NOFILL} aria-label={f.label} name={`key-${f.k}`} aria-invalid={why ? "true" : undefined}
             placeholder={f.secret || f.peek ? (f.filled ? "넣어 둠 · 바꿀 때만 · 지우려면 -" : f.hint || "") : f.hint || ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })}
             style={{ flex: "1 1 200px", ...(f.secret ? { WebkitTextSecurity: "disc" } : null), ...(why ? { borderColor: "var(--miss)" } : null) }} />
-          {v !== "" && <button className="btn sm" type="button" data-act="key-clear" aria-label={`${f.label} 비우기`} onClick={() => setForm({ ...form, [f.k]: "" })}>✕</button>}
+          {v !== "" && <button className="btn sm" type="button" data-act="key-clear" {...icon(`${f.label} 비우기`)} onClick={() => setForm({ ...form, [f.k]: "" })}>✕</button>}
           {why && <small className="note" role="alert" data-g="key-why" style={{ flexBasis: "100%", margin: 0, color: "var(--miss)" }}>{why}</small>}
         </div>); })}
         <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><button className="btn pri" type="button" disabled={pending} data-act="key-save" onClick={() => save(r.id)}>저장</button>

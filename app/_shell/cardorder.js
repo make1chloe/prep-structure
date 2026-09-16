@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setPrefAct } from "./pref-actions.js";
 import { moveId, reorder, dropIndex } from "@/lib/pref-plan";
+import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 export default function CardOrder({ screen, cards }) {   // cards = [{ id, name }] — 지금 그려진 차례
   const router = useRouter(); const [open, setOpen] = useState(false); const [ord, setOrd] = useState(cards.map((c) => c.id)); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [drag, setDrag] = useState(null);
   const name = (id) => cards.find((c) => c.id === id)?.name ?? id;
@@ -19,8 +20,8 @@ export default function CardOrder({ screen, cards }) {   // cards = [{ id, name 
       {ord.map((id, i) => <div className="li" key={id} data-g="order-row" data-id={id} data-drag={drag === id ? "1" : "0"}>
         <span className="grip" data-g="order-grip" aria-hidden="true" onPointerDown={(e) => grab(e, id)} onPointerMove={follow} onPointerUp={drop} onPointerCancel={drop}>⠿</span>
         <div><b>{name(id)}</b></div><span className="wv" style={{ gap: 2, marginBottom: 0 }}>
-        <button type="button" className="btn sm gho" disabled={pending || i === 0} data-act="order-up" aria-label={`${name(id)} 위로`} onClick={() => setOrd(moveId(ord, id, "up"))}>▲</button>
-        <button type="button" className="btn sm gho" disabled={pending || i === ord.length - 1} data-act="order-down" aria-label={`${name(id)} 아래로`} onClick={() => setOrd(moveId(ord, id, "down"))}>▼</button></span></div>)}
+        <button type="button" className="btn sm gho" disabled={pending || i === 0} data-act="order-up" {...icon(`${name(id)} 위로`)} onClick={() => setOrd(moveId(ord, id, "up"))}>▲</button>
+        <button type="button" className="btn sm gho" disabled={pending || i === ord.length - 1} data-act="order-down" {...icon(`${name(id)} 아래로`)} onClick={() => setOrd(moveId(ord, id, "down"))}>▼</button></span></div>)}
       <div className="wv" style={{ marginTop: 6, marginBottom: 0 }}><button type="button" className="btn pri sm" disabled={pending} data-act="order-save" onClick={save}>저장</button><button type="button" className="btn sm" onClick={() => setOpen(false)}>닫기</button>{err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}</div>
     </div>}
   </div>);

@@ -7,6 +7,7 @@ import SchoolAdd from "./schooladd.js";
 import { usePick, PickAll, PickBox, PickBar } from "./pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
 import { schoolSetAct, schoolCloseAct, schoolCloseManyAct } from "./school-actions.js";
 import { LEVELS, levelName } from "@/lib/schools-plan";
+import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 export default function SchoolsCard({ schools = [] }) {
   const [edit, setEdit] = useState(null); const [f, setF] = useState({ name: "", level: "" }); const [err, setErr] = useState("");
   const [pending, start] = useTransition(); const router = useRouter(); const sure = useSure();
@@ -28,7 +29,7 @@ export default function SchoolsCard({ schools = [] }) {
             <button type="button" className="btn sm pri" data-act="school-set" disabled={pending || !f.name.trim()} onClick={() => run(() => schoolSetAct(s.id, f))}>저장</button>
             <button type="button" className="btn sm gho" onClick={() => setEdit(null)}>닫기</button></span>
           : <><div><b>{s.name}</b><small>{levelName(s.level)}{s.neis_code ? ` · 나이스 ${s.neis_code}` : ""}</small></div>
-            <button type="button" className="btn sm gho" data-act="school-edit" onClick={() => { setEdit(s.id); setF({ name: s.name, level: s.level }); }}>✎</button>
+            <button type="button" className="btn sm gho" data-act="school-edit" onClick={() => { setEdit(s.id); setF({ name: s.name, level: s.level }); }} {...icon("고치기", "학교 이름·급 고치기")}>✎</button>
             <button type="button" className="btn sm gho" data-act="school-close" disabled={pending} onClick={() => sure.ask(s.id)}>닫기</button></>}
         <Sure on={sure.is(s.id)} text={`${s.name} 을(를) 닫을까요? 선택 목록에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 복구됩니다`} pending={pending} onYes={() => run(() => schoolCloseAct(s.id))} onNo={() => sure.off()} />
       </div>)}

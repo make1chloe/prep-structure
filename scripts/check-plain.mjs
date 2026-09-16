@@ -18,12 +18,33 @@ const deadImport = src.filter(([, s]) => /^import Tip from/m.test(s) && !/<Tip\b
 ok("안 쓰는 Tip import 0", deadImport.length === 0, deadImport.join(", "));
 // html 요소(<span <a <div …)의 여는 태그를 중괄호 깊이를 세며 끝까지 읽는다 — 태그 안 {a > b} 식을 만나면 <[^>]*> 가 끊겨 title 을 못 보던 구멍((어16) — 성적 ▲ 꼬리표의 title 셋이 숨어 있었다). 부품(<Card title=)의 title 은 제목이지 설명이 아니라 안 센다
 function htmlTags(s) { const out = []; let i = 0; while ((i = s.indexOf("<", i)) !== -1) { if (!/[a-z]/.test(s[i + 1] ?? "")) { i++; continue; } let j = i + 1, d = 0; for (; j < s.length; j++) { const ch = s[j]; if (ch === "{") d++; else if (ch === "}") d--; else if (ch === ">" && d === 0) break; } out.push(s.slice(i, j)); i = j; } return out; }
-// (어39) 원장님 2026-09-15 「모를 거 같으면 tooltips 몰라? … 그냥 명사 1개 두 개로 끝내라」 · 툴팁(title="…")은 써도 되지만 **명사 하나 둘**(낱말 ≤ 2 · 한글 ≤ 8자 · 문장 아님)
+// (어39) 원장님 2026-09-15 「모를 거 같으면 tooltips 몰라? … 그냥 명사 1개 두 개로 끝내라」 + (어51) 2026-09-16 「아이콘 자체가 너무 시각적으로 빈약해. 아이콘으로만 정보를 표시한경우에는 툴팁이라고하나,그런걸로 마우스를 대고 있으면 다음시간으로 미루기, 같이 설명을 띄워」
+//  → 툴팁은 둘로 갈린다: **글이 함께 보이는 손**에 바로 붙인 title="…" 은 그대로 명사 하나 둘(낱말 ≤ 2 · 한글 ≤ 8자 · 문장 아님) · **아이콘만 있는 손**은 app/_shell/icon.js 한 벌로 이름·툴팁을 달고 툴팁은 뜻이 통하는 설명(한글 ≤ 16자 · 문장 아님)
 const titles = src.flatMap(([p, s]) => htmlTags(s).flatMap((t) => [...t.matchAll(/\stitle="([^"]*)"/g)].map((m) => [p, m[1]])));
 const longTitles = titles.filter(([, t]) => t.trim().split(/\s+/).length > 2 || 한글(t) > 8 || /(습니다|입니다|합니다|됩니다|세요|십시오)[.)]?$/.test(t.trim())).map(([p, t]) => `${p}: ${t.slice(0, 30)}`);
 ok(`툴팁(title="…")은 명사 하나 둘 · 낱말 ≤ 2 · 8자 이하 · 문장 아님(지금 ${titles.length}개 중 긴 것 0)`, longTitles.length === 0, longTitles.slice(0, 5).join(" | "));
 const dyn = src.flatMap(([p, s]) => htmlTags(s).filter((t) => /\stitle=\{/.test(t)).map(() => p));
 ok(`내용을 대는 title={…} ≤ 4(지금 ${dyn.length} · 발송 10 발송 이력 원문 · 발송 10 상태 아이콘 툴팁((어39) 명사 하나) · 학생 14 자료 이름 · 문자틀 note)`, dyn.length <= 4, dyn.join(", "));
+// (어51) 아이콘만 있는 손(글자 하나짜리 <button>)은 전부 icon() 으로 이름(aria-label)과 툴팁(title)을 한 벌로 단다 — 따로 적으면 반드시 어긋난다(원칙-1)
+function glyphBtns(s) { const out = []; let i = 0;
+  while ((i = s.indexOf("<button", i)) !== -1) { let j = i + 7, d = 0, q = null;
+    for (; j < s.length; j++) { const c = s[j];
+      if (q) { if (c === "\\") { j++; continue; } if (c === q) q = null; continue; }
+      if (c === "{") d++; else if (c === "}") d--; else if ((c === '"' || c === "'") && d === 0) { q = c; continue; }
+      else if (c === ">" && d === 0) break; }
+    const end = s.indexOf("</button>", j); if (end === -1) break;
+    const inner = s.slice(j + 1, end).trim();
+    if (/^[^\w\s가-힣{<]{1,2}$/.test(inner)) out.push({ head: s.slice(i, j), inner, line: s.slice(0, i).split("\n").length });
+    i = end + 9; }
+  return out; }
+const glyphs = src.flatMap(([p, s]) => glyphBtns(s).map((b) => ({ p, ...b })));
+const bare = glyphs.filter((b) => !/\{\.\.\.icon\(/.test(b.head));
+ok(`아이콘만 있는 손 ${glyphs.length}개가 전부 icon() 한 벌로 이름·툴팁을 단다(app/_shell/icon.js · 맨손 0 · 원장님 9/16 「아이콘으로만 정보를 표시한경우에는 툴팁 … 설명을 띄워」)`, bare.length === 0, bare.slice(0, 6).map((b) => `${b.p}:${b.line} ${b.inner}`).join(", "));
+const tipArgs = src.flatMap(([p, s]) => [...s.matchAll(/icon\("([^"]*)"(?:,\s*"([^"]*)")?\)/g)].map((m) => [p, m[1], m[2] ?? m[1]]));
+const badTip = tipArgs.filter(([, , t]) => 한글(t) > 16 || /(습니다|입니다|합니다|됩니다|세요|십시오)[.)]?$/.test(t.trim())).map(([p, , t]) => `${p}: ${t.slice(0, 30)}`);
+ok(`icon() 툴팁 ${tipArgs.length}개는 뜻이 통하되 문장은 아니다(한글 ≤ 16자 · 「~합니다」 없음)`, badTip.length === 0, badTip.slice(0, 5).join(" | "));
+const emptyTip = tipArgs.filter(([, nm, t]) => 한글(nm) === 0 || 한글(t) === 0).map(([p, nm]) => `${p}: ${nm}`);
+ok(`icon() 의 이름·툴팁은 빈 것이 없다(아이콘만 있는 손은 이 글이 곧 이름이라 비면 못 읽는다 · 지금 ${tipArgs.length}곳)`, emptyTip.length === 0, emptyTip.slice(0, 5).join(" | "));
 const texts = src.flatMap(([p, s]) => [...s.matchAll(/(?:className="note[^"]*"[^>]*>|<small[^>]*>|placeholder="?|\s(?:small|note|hint|text|sub)=")([^<{"]*)/g)].map((m) => [p, m[1].trim()]).filter(([, t]) => 한글(t) >= 2));
 const explain = texts.filter(([, t]) => /(합니다|됩니다|십시오|세요|입니다)[.)]?$/.test(t) || /(합니다|됩니다) · /.test(t));
 ok(`note·small·placeholder 의 「~합니다」 문장 ≤ 6(지금 ${explain.length} · 남은 것은 빈 칸 상태 글 「교재를 고르세요」류 · 9/14 걷기 전 29)`, explain.length <= 6, explain.map(([p, t]) => `${p.split("/").slice(1, 3).join("/")}: ${t.slice(0, 30)}`).join(" | "));

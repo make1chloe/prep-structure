@@ -9,6 +9,7 @@ import { useModalErr, call } from "./modalerr.js";
 import { TRI, markText } from "@/lib/mark";   // (어43) 부호·말 한 곳
 import { pagesText } from "@/lib/item-plan";
 import { chapterSummary } from "@/lib/progress-plan";
+import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 const isDone = (u) => u.status === "done" || u.status === "skip";
 export default function ProgressModal({ b, api, closed = false, fail, start, onClose }) {
   const [t, setT] = useState(null);
@@ -29,7 +30,7 @@ export default function ProgressModal({ b, api, closed = false, fail, start, onC
   const skip = (chapter) => act(put((x) => x.chapter === chapter && !isDone(x), "skip"), () => api.skip(b.book_id, chapter), true);
   const undone = t.chapters.reduce((n, c) => n + (c.total - c.done - c.skip), 0);
   return shell(<>
-    <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+    <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
     <div className="mdlb">
       {errNode}
       <div className="tags" style={{ marginBottom: 8 }}><span className="tag on">끝낸 대단원 {t.finished} / {t.chapters.length}</span>{t.now && <span className="tag act">지금 {t.now}</span>}<span className="tag">안 끝난 소단원 {undone}</span>{t.memo_streak > 0 && <span className={"tag" + (t.memo_streak >= t.memo_rule ? " act" : "")} data-g="memo-streak">✍ 메모로만 {t.memo_streak}회 연속</span>}</div>

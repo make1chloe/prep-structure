@@ -3,6 +3,7 @@
  *  실패는 파일마다 그 자리에서 말한다 — 조용히 빠뜨리지 않는다(대전제-0) */
 import { useEffect, useRef, useState } from "react";
 import { acceptBatch, checkFile, isImage, shrinkPlan, sizeText, pickRows, withoutPick } from "@/lib/files-plan";
+import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 async function shrinkImage(file, maxPx) {
   try {
     const bmp = await createImageBitmap(file);
@@ -40,7 +41,7 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
         {!compact && <input type="text" value={note} placeholder="한 마디 (예: 수행평가 안내문)" aria-label="한 마디" onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 160px" }} />}
         <button type="button" className="btn sm pri" data-act="upload" disabled={busy || !files.length} onClick={go}>{busy ? "보내는 중…" : `보내기${files.length ? ` ${files.length}장` : ""}`}</button>
       </div>
-      {files.length > 0 && <div className="tags" style={{ marginTop: 8 }} data-g="picks">{pickRows(files).map((r) => <span key={r.i} className="tag" data-g="pick-row" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{r.photo && urls[r.i] ? <img src={urls[r.i]} alt={r.name} style={{ width: 28, height: 28, objectFit: "cover", borderRadius: 4 }} /> : "📄"} {r.name} <small>{r.size}</small><button type="button" className="btn sm gho" data-act="pick-remove" aria-label={`${r.name} 빼기`} onClick={() => setFiles(withoutPick(files, r.i))} style={{ padding: "0 6px" }}>✕</button></span>)}</div>}
+      {files.length > 0 && <div className="tags" style={{ marginTop: 8 }} data-g="picks">{pickRows(files).map((r) => <span key={r.i} className="tag" data-g="pick-row" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{r.photo && urls[r.i] ? <img src={urls[r.i]} alt={r.name} style={{ width: 28, height: 28, objectFit: "cover", borderRadius: 4 }} /> : "📄"} {r.name} <small>{r.size}</small><button type="button" className="btn sm gho" data-act="pick-remove" {...icon(`${r.name} 빼기`)} onClick={() => setFiles(withoutPick(files, r.i))} style={{ padding: "0 6px" }}>✕</button></span>)}</div>}
       <p className="note k" style={{ margin: "4px 0 0" }}>{hint}{files.length ? ` · 고른 것 ${files.length}장 ${sizeText(files.reduce((n, f) => n + f.size, 0))}` : ""}</p>
       {out && <div className={"lf " + (out.fails.length ? "warn" : "ok")} role={out.fails.length ? "alert" : undefined} data-g="upload-out" style={{ marginTop: 8 }}><span className="ln">{out.fails.length ? "!" : "✓"}</span><div><b>{out.sent ? `${out.sent}장 보냈어요` : "못 보냈어요"}</b>{out.fails.map((f, i) => <small key={i}>{f}</small>)}</div></div>}
     </div>

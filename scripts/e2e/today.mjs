@@ -70,7 +70,7 @@ const S1_ROW = "99999999-0000-4000-9000-000000000001";   // 리허설 학생 줄
     } else ok("내일은 그 반이 안 돌아 아이 줄이 없다(그 날 도는 반만 뜬다. 맞는 동작)", true); }
   await p.goto(`${APP}/today`); await p.waitForLoadState("networkidle").catch(() => {}); }
 const row = p.locator(`.row[data-student='${S1_ROW}']`);
-const unfoldAll = async () => { const u = row.locator("[data-g=check-done] button[data-act=unfold]"); while (await u.count()) { await u.first().click(); await p.waitForTimeout(150); } };   // (어47) 검사한 줄은 칩으로 접혀 있다 · 다시 누르려면 편다
+const unfoldAll = async () => { const u = row.locator("[data-g=check-line][data-folded='1'] button[data-act=unfold]"); while (await u.count()) { await u.first().click(); await p.waitForTimeout(120); } };   // (어51) 검사한 줄은 그 자리에서 접힌다 · 다시 누르려면 편다(자리는 안 바뀐다)
 ok("리허설 학생 줄이 선다", (await row.count()) === 1, String(await p.locator(".row").count()));
 ok("어제 숙제 둘 + 그저께 하나 · 30일 안 안 본 숙제 전부가 검사 줄로 왔다(셋 · (카))", (await row.locator(".panel .chk").count()) === 3, String(await row.locator(".panel .chk").count()));
 ok("「검사 안 본 것 3」", (await p.locator(".pill.warn", { hasText: "검사 안 본 것 3" }).count()) === 1, "알약: " + (await p.locator("main .pill").allTextContents()).join(" | "));
@@ -138,9 +138,12 @@ ok("△ 누르면 「어디까지·나머지는」이 열린다", (await first.l
 await first.locator(".seg[data-g=upto] button", { hasText: "절반" }).click(); await p.waitForTimeout(300);
 await first.locator(".seg[data-g=rest] button", { hasText: "다음 숙제로" }).click(); await p.waitForTimeout(800);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
-ok("(어47) 다시 열면 검사한 줄은 교재 밑 칩 한 줄로 접혀 있다(△ zz_워크북 복습 · ✕ zz_그저께 · 원장님 9/16 「완료된 건 접어서 · 완료미흡미완료여부는 보이게」) · 안 본 줄(클카 문장훈련)은 그대로 펴져 있다", (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).getAttribute("data-v")) === "w" && (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "zz_그저께" }).getAttribute("data-v")) === "x" && (await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).count()) === 1 && (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).count()) === 0, await row.locator("[data-g=check-done]").textContent().catch(() => "없음"));
-await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).click(); await p.waitForTimeout(200);
-ok("(어47) 칩을 누르면 그 줄이 다시 펴져 고칠 수 있다(△ 눌린 채 · 어디까지 절반)", (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).count()) === 1 && (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).count()) === 0);
+{ const wb = row.locator(".panel .hw", { hasText: "워크북 복습" }).first();
+  ok("(어51) 다시 열면 검사한 줄은 **그 자리에서** 한 줄로 접힌다(자리를 안 옮긴다 · 원장님 9/16 「검사완료된걸 클릭하니까 위에 새로운 내용으로 다시 생기는거 구조가 비논리적이야」) · 안 본 줄은 펴진 채", (await wb.getAttribute("data-folded")) === "1" && (await row.locator(".panel .hw", { hasText: "클카 문장훈련" }).first().getAttribute("data-folded")) === "0", `워크북 ${await wb.getAttribute("data-folded")}`);
+  const before = await row.locator(".panel [data-card=check] [data-g=check-line]").evaluateAll((els) => els.map((e) => e.querySelector("b")?.textContent ?? ""));
+  await wb.locator("button[data-act=unfold]").click(); await p.waitForTimeout(200);
+  const after = await row.locator(".panel [data-card=check] [data-g=check-line]").evaluateAll((els) => els.map((e) => e.querySelector("b")?.textContent ?? ""));
+  ok("(어51) 이름을 누르면 그 자리에서 펴진다 · 줄 차례는 그대로(뒤엉키지 않는다)", (await wb.getAttribute("data-folded")) === "0" && before.join("|") === after.join("|"), `${before.join("|")}\n${after.join("|")}`); }
 ok("△·절반이 남아 있다", (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".chk button[data-v=w]").getAttribute("aria-pressed")) === "true" && (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".seg[data-g=upto] button", { hasText: "절반" }).getAttribute("aria-pressed")) === "true");
 ok("△ 를 주면 머리의 진도 점도 △", (await row.locator(".marks .dot").allTextContents()).includes("△"), (await row.locator(".marks .dot").allTextContents()).join(""));
 ok("나머지가 오늘 숙제 줄로 섰다(원본을 가리킨다)", (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li", { hasText: "지난 숙제의 나머지" }).count()) === 1);
@@ -174,7 +177,7 @@ const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
 ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 · 학습 회차 「1-3 다시」 눌림 · 학원 단원 머리 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시" && (await bkC.locator("[data-g=tree-head]").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator("[data-g=tree-head]").first().textContent().catch(() => "?")}`);
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^이번 단원$/ }).click(); await p.waitForTimeout(1000);
 await bkH.locator(".seg[data-g=wave-home] button", { hasText: "이번 단원 복습" }).click(); await p.waitForTimeout(1000);
-await pick(row, "check"); await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "zz_그저께" }).click(); await p.waitForTimeout(200); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 · 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
+await pick(row, "check"); await unfoldAll(); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 · 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
 ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "이번 단원" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);

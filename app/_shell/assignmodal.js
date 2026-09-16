@@ -9,6 +9,7 @@ import { usePick, PickAll, PickBox } from "./pick.js";
 import { useModalErr, call } from "./modalerr.js";
 import { markCh } from "@/lib/mark";
 import { assignChoices, assignBooksFor } from "./assign-actions.js";
+import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 export default function AssignModal({ studentId, name = "", date, sheetId = null, onClose, onDone = null }) {
   const router = useRouter(); const [pending, start] = useTransition();
   const [rows, setRows] = useState(null); const [total, setTotal] = useState(0); const [on, setOn] = useState(date); const [failM, errNode] = useModalErr();
@@ -21,7 +22,7 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
   return (
     <div className="mdlov" role="dialog" aria-modal="true" aria-label="교재 배정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="mdl" style={{ width: "min(520px,100%)" }}>
-        <div className="mdlh"><b>교재 배정{name ? ` · ${name}` : ""}</b><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlh"><b>교재 배정{name ? ` · ${name}` : ""}</b><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">
           {errNode}
           {why != null ? <div className="lf warn" data-g="assign-why"><span className="ln">📕</span><div><b>배정은 됐고 오늘 줄은 0</b><small>{why}</small></div><Link prefetch={false} className="btn sm" href="/settings/routine">루틴 11 ↗</Link></div>

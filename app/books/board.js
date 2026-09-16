@@ -8,6 +8,7 @@ import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — �
 import { usePick, PickAll, PickBox, PickBar } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
 import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, unitStateManyAct, activityMoveAct } from "./actions.js";
 import { AREA_NAMES, CHUNK, BASIS, MODE, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
+import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const { go } = useGo(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -67,8 +68,8 @@ export default function Board({ d }) {
           <span className="note k" style={{ margin: 0 }}>잇는 것은 언제나 <b>교재ID</b>입니다. 이름은 어느 것도 다른 것을 덮지 않습니다</span></div>
         <div className="wv" style={{ marginTop: 8 }} data-g="acts"><span className="fl" style={{ margin: 0 }}>활동 차례</span>
           {acts.map((a, i) => <span key={a} className="wv" style={{ gap: 2 }} data-g="act" data-activity={a}>{i > 0 && <span className="uma">→</span>}<span className="tag">{a}</span>
-            <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="act-left" aria-label={`${a} 앞으로`} onClick={() => run(() => activityMoveAct(book.id, a, "left"), actMsg)}>◀</button>
-            <button className="btn sm gho" type="button" disabled={pending || i === acts.length - 1} data-act="act-right" aria-label={`${a} 뒤로`} onClick={() => run(() => activityMoveAct(book.id, a, "right"), actMsg)}>▶</button></span>)}
+            <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="act-left" {...icon(`${a} 앞으로`)} onClick={() => run(() => activityMoveAct(book.id, a, "left"), actMsg)}>◀</button>
+            <button className="btn sm gho" type="button" disabled={pending || i === acts.length - 1} data-act="act-right" {...icon(`${a} 뒤로`)} onClick={() => run(() => activityMoveAct(book.id, a, "right"), actMsg)}>▶</button></span>)}
           {!acts.length && <span className="note" style={{ margin: 0 }}>단원이 없습니다</span>}
           <span className="note k" style={{ margin: 0 }}>올린 줄 순서에서 <b>저절로 나왔습니다</b> · ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 자동 배정·진도도 따라갑니다</span></div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧱</span>단원 · 대 › 중 › 소<span className="spacer" /><span className="tag" data-g="unit-count">{(book.units ?? []).length}단원</span></div>
@@ -76,7 +77,7 @@ export default function Board({ d }) {
           {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { color: "var(--mute)" } : undefined}><td><PickBox pick={pk} id={u.id} label={`${u.sub ?? u.chapter} 고르기`} /></td><td className="sch">{u.chapter}</td><td>{u.mid ?? ""}</td><td>{u.sub ?? ""}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
             <td className="num"><input type="text" className="scr" value={ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, ""))} aria-label={`${u.sub ?? u.chapter} 쪽`} placeholder="10-12" disabled={pending || u.state === "hidden"} style={{ width: 72 }} onChange={(x) => setUe(u, "pages", x.target.value)} /></td>
             <td className="num"><input type="text" className="scr" inputMode="numeric" value={ue(u, "qCount", u.q_count ?? "")} aria-label={`${u.sub ?? u.chapter} 문항`} disabled={pending || u.state === "hidden"} style={{ width: 56 }} onChange={(x) => setUe(u, "qCount", x.target.value.replace(/\D/g, ""))} /></td>
-            <td><span className="wv" style={{ gap: 4 }}>{topicsOf(u.id).map((t) => <span key={t.topic_id} className="um hit"><b>{t.name}</b> <button type="button" className="btn sm gho" disabled={pending} data-act="topic-remove" onClick={() => run(() => topicsAct(u.id, topicsOf(u.id).filter((x) => x.topic_id !== t.topic_id).map((x) => x.topic_id)), "분류를 뗐습니다")}>✕</button></span>)}
+            <td><span className="wv" style={{ gap: 4 }}>{topicsOf(u.id).map((t) => <span key={t.topic_id} className="um hit"><b>{t.name}</b> <button type="button" className="btn sm gho" disabled={pending} data-act="topic-remove" onClick={() => run(() => topicsAct(u.id, topicsOf(u.id).filter((x) => x.topic_id !== t.topic_id).map((x) => x.topic_id)), "분류를 뗐습니다")} {...icon("빼기", "분류 빼기")}>✕</button></span>)}
               <select value="" aria-label={`${u.sub ?? u.chapter} 문법 분류`} disabled={pending} data-g="topic-pick" onChange={(x) => x.target.value && run(() => topicsAct(u.id, [...topicsOf(u.id).map((t) => t.topic_id), x.target.value]), "분류를 이었습니다")} style={{ width: "auto" }}><option value="">+ 분류</option>{(b.topics_all ?? []).filter((t) => !topicsOf(u.id).some((x) => x.topic_id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></span></td>
             <td><span className="wv" style={{ gap: 4 }}>{uedit[u.id] && <button className="btn sm pri" type="button" disabled={pending} data-act="unit-save" onClick={() => run(() => unitAct(u.id, { pages: ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, "")), qCount: ue(u, "qCount", u.q_count ?? ""), gist: u.gist ?? "" }), "단원을 고쳤습니다(쪽·문항 · 조절·회차가 새 값으로 셉니다)", () => setUedit((st) => ({ ...st, [u.id]: undefined })))}>저장</button>}
               <button className="btn sm gho" type="button" disabled={pending} data-act="unit-state" onClick={() => run(() => unitStateAct(u.id, u.state === "hidden" ? "active" : "hidden"), u.state === "hidden" ? "복구했습니다" : "숨겼습니다. 자동 배정·회차·범위에서 빠집니다(지우지 않았습니다)")}>{u.state === "hidden" ? "복구" : "숨기기"}</button></span></td></tr>)}
@@ -120,7 +121,7 @@ function Upload({ close, run, pending }) {
   const t = plan ? totalsFor(plan.perBook, modes) : null;
   const holdsLeft = plan?.holds ? plan.holds.filter((h) => !holds[h.key] || holds[h.key].act === "skip").reduce((n, h) => n + h.lines, 0) : 0;   // 교재 시트 계획엔 보류 목록이 없다(줄마다 act)
   return <div className="mdlov" data-g="upload"><div className="mdl" style={{ width: "min(640px, 100%)" }}>
-    <div className="mdlh"><b>⬆ 올리기 · 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
+    <div className="mdlh"><b>⬆ 올리기 · 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" {...icon("닫기")} onClick={close}>✕</button></div>
     <div className="mdlb">
       {!plan && <form action={read} className="wv" data-g="upload-form"><FilePick name="file" accept=".xlsx,.xls,.csv" ariaLabel="단원 엑셀" label="📄 엑셀 고르기" /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button></form>}
       {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
