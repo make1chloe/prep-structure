@@ -152,8 +152,9 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
   .appbar{gap:8px 16px}
   .appbar .tabs{order:1;flex-basis:100%;margin-left:0;flex-wrap:wrap;row-gap:4px;overflow-x:visible}
   .appbar .tabs .tab{padding-left:8px;padding-right:8px;white-space:nowrap}
+  .appbar .tabs .temo{display:none}
 }
-/* (거) 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」 — 폰에선 첫 줄에 이름·칩·로그아웃(탭을 order 로 뒤로 보내면 빈 자리(flex:1)가 로그아웃을 오른끝으로 민다), 둘째 줄에 탭 꽉 차게 · 빈 셋째 줄 없음 · 줄 사이 8 · 탭 좌우 8. (어9) 탭이 열둘이 되자 옆으로 굴리기(overflow-x)로는 **뒤쪽 넷(운영·학생·자료함·설정)이 폰에서 아예 안 보였다** — 원장님 2026-09-12 「세개 올린것 괜찮은데 나는 안보여」. 굴림막대를 숨겨 두어 더 있다는 표시도 없었다(대전제-0 위반). 그래서 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로다. 안 보이는 탭은 클릭이 ∞다 */
+/* (거) 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」 — 폰에선 첫 줄에 이름·칩·로그아웃(탭을 order 로 뒤로 보내면 빈 자리(flex:1)가 로그아웃을 오른끝으로 민다), 둘째 줄에 탭 꽉 차게 · 빈 셋째 줄 없음 · 줄 사이 8 · 탭 좌우 8. (어67)-② 탭에 얼굴(.temo)이 붙었는데 폰에서는 **숨긴다** — 얼굴을 넣으면 열하나가 **세 줄**이 되어 상단 띠가 119 → 151px 로 커졌다(9/9 「여백없이」에 어긋난다). 폰에서 탭은 이름이 곧 얼굴이다. (어9) 탭이 열둘이 되자 옆으로 굴리기(overflow-x)로는 **뒤쪽 넷(운영·학생·자료함·설정)이 폰에서 아예 안 보였다** — 원장님 2026-09-12 「세개 올린것 괜찮은데 나는 안보여」. 굴림막대를 숨겨 두어 더 있다는 표시도 없었다(대전제-0 위반). 그래서 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로다. 안 보이는 탭은 클릭이 ∞다 */
 .tab{padding:4px 12px;border-radius:8px;font-size:var(--fs-2);color:var(--mid);background:none;border:0}
 .tab[aria-current="true"]{background:var(--navy);color:var(--on-navy);font-weight:500}
 .pill{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;font-family:var(--sans);background:var(--sunk);color:var(--mid);border:1px solid var(--hair)}

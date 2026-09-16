@@ -10,5 +10,5 @@ export default function Tabs({ items }) {
   useEffect(() => { setPressed(null); }, [pathname]);
   useEffect(() => { if (!pressed) return; const t = setTimeout(() => setPressed(null), LIMIT_MS); return () => clearTimeout(t); }, [pressed]);
   const cur = pressed ?? currentTab(items, pathname);
-  return <nav className="tabs" aria-label="메뉴">{items.map((m) => <Link prefetch={false} key={m.href} className="tab" href={m.href} aria-current={cur === m.href ? "true" : undefined} onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; setPressed(m.href); }}>{m.name}</Link>)}</nav>;
+  return <nav className="tabs" aria-label="메뉴">{items.map((m) => <Link prefetch={false} key={m.href} className="tab" href={m.href} aria-current={cur === m.href ? "true" : undefined} onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; setPressed(m.href); }}>{m.emo && <span className="temo" aria-hidden="true">{m.emo} </span>}{m.name}</Link>)}</nav>;   /* (어67)-② 탭마다 얼굴 하나 · 그림은 lib/emoji.js FACE 에서 온다(대전제-25) · 폰에서는 얼굴을 숨긴다(목업 CSS .temo — 11개가 세 줄이 되어 상단 띠가 119 → 151px 로 커졌다 · 9/9 「여백없이」) */
 }

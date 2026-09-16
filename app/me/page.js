@@ -85,7 +85,7 @@ export default async function Me({ searchParams }) {
     { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">달력 ↗</span></div></Link>) },
     { id: 'scores', name: '성적', node: <ScoreCard scores={d.scores} entry={d.entry} {...fold("scores")} /> },
     { id: 'files', name: '자료', node: can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} {...fold("files")} /> },
-    { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
+    { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏛️" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
         {d.school.map((g) => <div key={g.id} data-g="school-grid"><div className="hh" style={{ marginTop: 8 }}>{g.label}</div>{g.rows.map((r) => <div className="li" key={r.id} data-g="school-row"><div><b>{r.title}</b><small>{r.cells.map((c) => `${c.label} ${c.text}`).join(" · ")}</small></div></div>)}</div>)}
         </Card>) },
     { id: 'memo', name: '선생님 한 마디', node: can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" {...fold("memo")} pill={md(d.memos[0].sheet_date)}>

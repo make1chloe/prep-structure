@@ -55,7 +55,7 @@ export default async function Home() {
       </Card> },
     { id: 'soon', name: '오늘 안', node: <Card emo="🔥" title="오늘 안" id="soon" {...fold("soon")}>
         {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}
-        {d.unitTodo.map((u) => <Row key={u.id} icon="📝" cls="i-ex" b={`단원평가 출제 · ${u.name}`} small={`${u.topic} ${u.n}문항 · ${md(u.on)} 낼 것`} />)}
+        {d.unitTodo.map((u) => <Row key={u.id} icon="✍️" cls="i-ex" b={`단원평가 출제 · ${u.name}`} small={`${u.topic} ${u.n}문항 · ${md(u.on)} 낼 것`} />)}
         {d.retests.map((q) => <Row key={q.id} icon="📄" cls="i-ex" b={`${qkind(q.kind)} 재시험 · ${q.name}`} small={`${q.total ?? "?"}개 · 재시험지는 업무(05)에서`} />)}
         <Row icon="🗂️" cls="i-cls" b="내 업무 · 자료 만들기 · 인쇄 · 배부 · 단원평가 출제 · 재시험지 · 성적 받기 · 반복"><Link prefetch={false} className="btn sm" href="/schedule/todo">열기</Link></Row>
       </Card> },
@@ -70,7 +70,7 @@ export default async function Home() {
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
         {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요. {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다. 학교 시험에서 보고 「봤음」` : "학교 시험에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 · ${e.text}`} />)}
-        {d.exams.missing.length > 0 && <Row icon="📝" cls="i-ex" b={`영어 시험일 없음 · ${d.exams.missing.map((s) => s.name).join(" · ")}`}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-missing-go">시험 ↗</Link></Row>}
+        {d.exams.missing.length > 0 && <Row icon="🅰️" cls="i-ex" b={`영어 시험일 없음 · ${d.exams.missing.map((s) => s.name).join(" · ")}`}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-missing-go">시험 ↗</Link></Row>}
       </Card> },
     { id: 'answer', name: '답할 것', node: <Card emo="💬" title="답할 것" id="answer" {...fold("answer")}>
         {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}

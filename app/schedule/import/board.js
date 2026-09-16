@@ -24,7 +24,7 @@ export default function Board({ d }) {
       <span className="pill" style={{ fontWeight: 700 }} data-g="last">나이스 · {b.last_neis_at ? `${md(seoulDate(b.last_neis_at))} 받음` : "아직 안 받음"}</span>
       <span className="pill">학교 {(b.schools ?? []).length}곳</span>
       <span className="spacer" />
-      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 학교 시험 ↗</Link>
+      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🗓️ 학교 시험 ↗</Link>
       <button className="btn sm pri" type="button" disabled={pending || !b.neis_key} data-act="import" onClick={() => run(() => importAct(), (r) => `받았습니다. 학교 ${r.r.schools}곳 · 시험 ${r.r.put}줄${r.r.changed?.length ? ` · 📡 날짜 바뀐 회차 ${r.r.changed.length}(${r.r.changed.map((c) => `${c.school ? c.school + " " : ""}${c.name} ${changeText(c)}`).join(" / ")}) · 학교 시험에서 보고 「봤음」` : ""} · 건너뜀(쉬는 날 ${r.r.skipped.off} · 행사 ${r.r.skipped.event} · 평가 ${r.r.skipped.assess})${r.r.failed.length ? ` · 못 받음: ${r.r.failed.join(" / ")}` : ""}`)}>🔄 다시 받기</button>
     </div>
     {!b.neis_key && <p className="note" data-g="no-key">나이스 키가 없습니다. <Link prefetch={false} href="/settings#keys" data-act="to-keys"><b>설정 → 🔌 연동 설정 ↗</b></Link> 에서 넣으면 「다시 받기」가 켜집니다((터)).</p>}
@@ -39,7 +39,7 @@ export default function Board({ d }) {
           <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="+ 낱말" aria-label="전국 낱말" name="word" style={{ width: 120 }} /><button className="btn sm" type="button" disabled={pending || !word.trim()} data-act="word-add" onClick={() => run(() => examWordAct(word), (r) => (r.added ? "낱말을 더했습니다. 다음 가져오기부터 전국으로 봅니다" : "이미 있는 낱말입니다"))}>더하기</button></div>
       </div>
       <div className="nbox" data-g="school">
-        <div className="nh2"><span className="ai">🏫</span><b>학교별</b><span className="spacer" /><span className="tag">중간·기말</span></div>
+        <div className="nh2"><span className="ai">🏛️</span><b>학교별</b><span className="spacer" /><span className="tag">중간·기말</span></div>
         {!sch.length && <p className="note">아직 없음 · 가져오기 · 손으로</p>}
         {sch.map((e) => { const s = (b.schools ?? []).find((x) => x.id === e.school_id); return <div key={e.id} className={"nrow" + (e.english_on ? "" : " warnrow2")} data-g="school-row" data-exam={e.id}><span className="nd2">{e.term_from ? `${md(e.term_from)}~${md(e.term_to)}` : ""}</span>
           <div><b>{e.school ?? "?"} {e.name}</b><small>{gradeText(e, s)} · {e.english_on ? `영어 ${md(e.english_on)}` : <b>영어 시험일 없음</b>}

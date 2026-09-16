@@ -74,7 +74,7 @@ ok("학원 화면 폭 960 은 0 · 학원 화면은 1400 · 카드 목록은 두
 const allSrc = [...files("app"), ...files("lib")].map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p, "utf8"))]);
 const examWord = /회차 고르기|시험 회차|회차가 없|회차가 아|지난 회차|이 회차|본 회차|그 회차|고른 회차|회차의 |회차를 고|회차에서 범위|회차 판/;
 const examHits = allSrc.flatMap(([p, s]) => s.split("\n").filter((l) => examWord.test(l)).map((l) => `${p}: ${l.trim().slice(0, 60)}`));
-ok("「회차」는 수업 회차뿐 · 학교 시험을 회차라 부르는 글 0(「시험」·「학교 시험」·「시험 고르기」로 · 06b 이름 「🏫 학교 시험」)", examHits.length === 0 && /🏫 학교 시험/.test(readFileSync("app/_shell/sibs.js", "utf8")), examHits.slice(0, 5).join(" | "));
+ok("「회차」는 수업 회차뿐 · 학교 시험을 회차라 부르는 글 0(「시험」·「학교 시험」·「시험 고르기」로 · 06b 이름 「🗓️ 학교 시험」 · (어67)-② 🏫 은 반 하나만 맡는다)", examHits.length === 0 && /🗓️ 학교 시험/.test(readFileSync("app/_shell/sibs.js", "utf8")), examHits.slice(0, 5).join(" | "));
 // (어22) 「—」 안 쓴다(대전제-18 · 원장님 2026-09-15 「— 이 표시좀 쓰지마 쓸데가리없어」) · 개발 표기(규칙 번호 · 날짜 ①②)는 화면에 안 샌다 — 화면에 닿는 토큰(String · Template · JSXText)만 · 주석은 뺀다
 { const espree = (await import("espree")).default ?? (await import("espree"));
   const libFiles = readdirSync("lib").filter((f) => /\.js$/.test(f)).map((f) => "lib/" + f);

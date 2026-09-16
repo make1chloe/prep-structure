@@ -73,7 +73,7 @@ export default function Board({ d }) {
       </tbody></table></div>
       <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">♻️</span>같은 범위로 지난번에 만든 것</div>
       <div className="reuse" data-g="reuse">
-        {!reuse.length && <p className="note" data-g="no-reuse" style={{ margin: 0 }}>{scopes.length ? "같은 범위(교재 단원)로 만든 지난 자료가 없습니다" : "범위가 없어 못 찾습니다. 🏫 학교 시험에서 범위를 교재 단원으로 고르면 여기 섭니다"}</p>}
+        {!reuse.length && <p className="note" data-g="no-reuse" style={{ margin: 0 }}>{scopes.length ? "같은 범위(교재 단원)로 만든 지난 자료가 없습니다" : "범위가 없어 못 찾습니다. 🗓️ 학교 시험에서 범위를 교재 단원으로 고르면 여기 섭니다"}</p>}
         {reuse.map((r) => <div className={"ru1" + (r.already || revised[r.id] ? "" : " hit")} key={r.id} data-g="reuse-row" data-already={r.already ? "1" : "0"}><span className="ri">{r.emo}</span>
           <div><b>{r.title}</b><small>{r.small}</small>
             <div className="tags"><span className={"tag" + (r.already ? "" : revised[r.id] ? " act" : " on")}>{r.already ? r.tag : revised[r.id] ? "개정판 · 체크 안 합니다" : r.tag}</span><label className="ckl"><input type="checkbox" className="ck" checked={Boolean(revised[r.id])} onChange={(x) => setRevised({ ...revised, [r.id]: x.target.checked })} disabled={r.already} /> 개정판</label></div></div>

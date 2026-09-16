@@ -14,7 +14,7 @@ export default function SchoolsCard({ schools = [] }) {
   const pk = usePick(schools.map((s) => s.id));   // 학교 줄 고르기 · 고른 것은 화면 안에만
   const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r?.ok) { setErr(r?.msg ?? "못 함"); return; } setEdit(null); sure.off(); pk.clear(); router.refresh(); });
   return <div className="exr" style={{ marginTop: 8 }} data-g="schools-card">
-    <div className="exh"><span className="ai">🏫</span><b>학교</b><span className="pill" data-g="schools-count">{schools.length}곳</span><PickAll pick={pk} disabled={!schools.length} /><span className="spacer" /><SchoolAdd open={!schools.length} /></div>
+    <div className="exh"><span className="ai">🏛️</span><b>학교</b><span className="pill" data-g="schools-count">{schools.length}곳</span><PickAll pick={pk} disabled={!schools.length} /><span className="spacer" /><SchoolAdd open={!schools.length} /></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 6px", color: "var(--miss)" }}>{err}</p>}
     <PickBar pick={pk} unit="곳">{/* (어28)-④ 고른 학교에 한 번에 · 줄의 「닫기」 손과 같다(묻고 · 지우지 않는다) */}
       <button type="button" className="btn sm" disabled={pending} data-act="close-picked" onClick={() => sure.ask("many")}>닫기 {pk.count}</button>
@@ -22,7 +22,7 @@ export default function SchoolsCard({ schools = [] }) {
     </PickBar>
     <div className="left">
       {schools.map((s) => <div className="lf" key={s.id} data-g="school-row">
-        <PickBox pick={pk} id={s.id} label={`${s.name} 고르기`} /><span className="ln">{s.level === "high" ? "🎓" : s.level === "middle" ? "🏫" : "🏠"}</span>
+        <PickBox pick={pk} id={s.id} label={`${s.name} 고르기`} /><span className="ln">{s.level === "high" ? "고" : s.level === "middle" ? "중" : "초"}</span>
         {edit === s.id
           ? <span className="wv" style={{ gap: 4, margin: 0, flex: 1 }} data-g="school-edit"><input type="text" value={f.name} aria-label="학교 이름" onChange={(e) => setF({ ...f, name: e.target.value })} style={{ maxWidth: 180 }} />
             <span className="seg sm">{LEVELS.map(([k, n]) => <button key={k} type="button" aria-pressed={f.level === k} onClick={() => setF({ ...f, level: k })}>{n}</button>)}</span>

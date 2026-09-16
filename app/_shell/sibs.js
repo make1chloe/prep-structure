@@ -4,7 +4,7 @@
  *  여기 한 곳에만 적고, 화면들은 <Sibs here="/…" /> 로 가져다 쓴다. 지금 있는 화면은 빼고 그린다. */
 import Link from "next/link";
 export const 유형 = {
-  내신: [["/schedule/grid", "🗂️ 학교별 표"], ["/schedule/exams", "🏫 학교 시험"], ["/schedule/exams/prep", "📄 내신 자료"], ["/schedule/todo", "🗂️ 업무"]],
+  내신: [["/schedule/grid", "🗃️ 학교별 표"], ["/schedule/exams", "🗓️ 학교 시험"], ["/schedule/exams/prep", "🎯 내신 자료"], ["/schedule/todo", "🗂️ 업무"]],
 };
 export const familyOf = (here) => Object.values(유형).find((xs) => xs.some(([h]) => h === here)) ?? null;
 export default function Sibs({ here }) {

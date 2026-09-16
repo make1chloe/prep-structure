@@ -68,7 +68,7 @@ function ExamCard({ e, b, today, pending, run, stName, pk }) {
   const takers = e.takers ?? [], skipped = new Set((e.skips ?? []).map((k) => k.student_id));
   const pickable = skipCandidates(b.students, takers, e.skips);   // 안 봄 후보 — 한 명씩 · 한 번에((가)-⑨) 같은 목록
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
-    <div className="exh"><PickBox pick={pk} id={e.id} label={`${examHead(e)} 고르기`} /><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
+    <div className="exh"><PickBox pick={pk} id={e.id} label={`${examHead(e)} 고르기`} /><span className="ai">🗓️</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어 시험일 없음</span>}<ChangedTag e={e} pending={pending} run={run} />
       <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</Link>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
@@ -110,7 +110,7 @@ function StopCard({ b, today, pending, run }) {
   return <div className="exr" style={{ marginTop: 8 }} data-g="stop-card">
     <div className="exh"><span className="ai">⏸</span><b>교재 보류</b><span className="spacer" /></div>
     <div className="left">
-      {LEVELS.map((lv) => { const cur = b.rules?.[`prep.stop_weeks.${lv}`]; return <div key={lv} className="lf ok"><span className="ln">{lv === "high" ? "🎓" : lv === "middle" ? "🏫" : "🏠"}</span><div><b>{LEVEL_NAME[lv]}</b><small>{cur == null ? "규칙 줄이 없습니다(0122)" : "기본값"}</small></div>
+      {LEVELS.map((lv) => { const cur = b.rules?.[`prep.stop_weeks.${lv}`]; return <div key={lv} className="lf ok"><span className="ln">{lv === "high" ? "고" : lv === "middle" ? "중" : "초"}</span><div><b>{LEVEL_NAME[lv]}</b><small>{cur == null ? "규칙 줄이 없습니다(0122)" : "기본값"}</small></div>
         <div className="seg sm" data-g={`weeks-${lv}`}>{WEEK_CHOICES.map((n) => <button key={n} type="button" aria-pressed={String(cur) === String(n)} disabled={pending} onClick={() => run(() => stopWeeksAct(lv, n), `${LEVEL_NAME[lv]} ${n}주 · 앞으로의 시험에 다시 맞췄습니다`)}>{n}주</button>)}</div></div>; })}
       <div className="lf"><span className="ln">🧑‍🎓</span><div><b>아이만 따로</b><small>학교급 기본값 대신 이 아이만 · {custom.length ? custom.map((s) => `${s.name} ${s.stop_weeks}주`).join(" · ") : "따로 정한 아이 없음"}</small></div>
         <select value={sid} onChange={(x) => setSid(x.target.value)} aria-label="아이" data-g="weeks-student" style={{ width: "auto" }}><option value="">아이 고르기</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>

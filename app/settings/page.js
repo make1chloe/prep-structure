@@ -17,7 +17,7 @@ export default async function Settings() {
   ]);
   return <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🎨</span>배색</div><Skins /></div><div className="card"><div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div><Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link></div>
     {principal && <Link prefetch={false} className="card" href="/settings/staff" data-card="staff" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">👤</span>직원 계정</div></Link>}
-    {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏫</span>학원 회선</div>
+    {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏢</span>학원 회선</div>
       {cfg.error ? <p className="note">{cfg.error}</p> : <>
         <p className="note">유예 {cfg.graceMin}분</p>
         <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">주소 없음 · 아무도 못 찍음</span>}</div>

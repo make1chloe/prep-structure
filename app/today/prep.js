@@ -21,7 +21,7 @@ export default function PrepCard({ student, prep = [], date, closed = false }) {
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="prep-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}
     {list.map(({ exam: e, stopped, rows, notGiven, scopes, dday }) => <div key={e.id} data-g="prep-exam" data-exam={e.id} style={{ marginBottom: 8 }}>
-      <div className="wv" style={{ margin: "0 0 8px" }}><span className="pill">🏫 {e.school ?? "전국"} · {e.name}</span>{e.english_on ? <span className="pill warn">영어 {mdDot(e.english_on)} · {dday}</span> : <span className="pill">영어 시험일 없음</span>}<span className="spacer" />
+      <div className="wv" style={{ margin: "0 0 8px" }}><span className="pill">🏛️ {e.school ?? "전국"} · {e.name}</span>{e.english_on ? <span className="pill warn">영어 {mdDot(e.english_on)} · {dday}</span> : <span className="pill">영어 시험일 없음</span>}<span className="spacer" />
         <span className="tag" data-g="prep-stopped">{stopped.map((b) => b.name).join(" · ")} 보류{stopped[0]?.stop_until ? ` · ${mdDot(stopped[0].stop_until)} 에 풀림` : ""}</span></div>
       <div className="lf" style={{ marginBottom: 6 }} data-g="prep-scope" data-scopes={scopes}><span className="ln">📐</span><div><b>학교 시험 범위{scopes ? ` · ${scopes}줄` : ""}</b>{!scopes && <small>없음</small>}</div>
         <button className="btn sm" type="button" data-act="scope-open" aria-pressed={scopeFor === e.id} onClick={() => setScopeFor(scopeFor === e.id ? null : e.id)}>{scopes ? "고치기" : "고르기"}</button></div>

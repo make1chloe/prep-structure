@@ -66,7 +66,7 @@ export default async function Parent({ searchParams }) {
     { id: 'videos', name: '영상', node: can(PARENT.homework) && d.videos.length > 0 && <Card emo="🎬" title="영상" id="videos" {...fold("videos")} pill={`${d.videos.filter((v) => v.status.key !== "done").length}개 남음`} pillCls={d.videos.some((v) => v.status.key !== "done") ? "warn" : "hw"}>
       {d.videos.map((v) => <div className="li" key={v.id} data-g="video-line" data-status={v.status.key}><div><b>{v.video?.title}</b><small>{[v.due || null, v.opens ? `${v.opens}번 열어봄` : null].filter(Boolean).join(" · ")}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
       </Card> },
-    { id: 'nextquiz', name: '다음 시간 시험', node: can(PARENT.next) && d.nextQuizzes.length > 0 && <Card emo="📝" title="다음 시간 시험" id="nextquiz" {...fold("nextquiz")} pill={String(d.nextQuizzes.length)}>
+    { id: 'nextquiz', name: '다음 시간 시험', node: can(PARENT.next) && d.nextQuizzes.length > 0 && <Card emo="🔤" title="다음 시간 시험" id="nextquiz" {...fold("nextquiz")} pill={String(d.nextQuizzes.length)}>
       {d.nextQuizzes.map((l) => <div className="lf" key={l.id} style={{ marginTop: 4 }}><span className="ln">{l.emo}</span><div><b>{l.b}</b><small>{l.small}</small></div></div>)}
       </Card> },
     { id: 'future', name: '앞으로', node: can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
@@ -79,7 +79,7 @@ export default async function Parent({ searchParams }) {
     { id: 'scores', name: '성적', node: can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" {...fold("scores")} pill={d.scores[0].title}>
       {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta">{s.deltaText}</span>}</div>)}
       </Card> },
-    { id: 'school', name: '우리 학교', node: can(PARENT.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
+    { id: 'school', name: '우리 학교', node: can(PARENT.grid) && d.school.length > 0 && (<Card emo="🏛️" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
         {d.school.map((g) => <div key={g.id} data-g="school-grid"><div className="hh" style={{ marginTop: 8 }}>{g.label}</div>{g.rows.map((r) => <div className="li" key={r.id} data-g="school-row"><div><b>{r.title}</b><small>{r.cells.map((c) => `${c.label} ${c.text}`).join(" · ")}</small></div></div>)}</div>)}
         </Card>) },
     { id: 'memo', name: '선생님 한 마디', node: can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" {...fold("memo")} pill={md(d.memos[0].sheet_date)}>

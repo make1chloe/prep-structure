@@ -32,14 +32,15 @@ await login(p, "staff", "zz_principal@e2e.test", PW);
 ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
+const tabName = (t) => String(t ?? "").replace(/^[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, "").trim();   // (어67)-② 탭에 얼굴이 붙었다 — 이름만 견준다
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 열하나((어28) 운영 탭 = 학생) · **날마다 여는 화면은 한 번에**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」): 일정 뒤 내신·업무·성적, 학생 뒤 자료실", tabs.join(",") === "대시보드,오늘,발송,일정,내신,업무,성적,교재,학생,자료실,설정", tabs.join(","));
+ok("원장 메뉴 열하나((어28) 운영 탭 = 학생) · **날마다 여는 화면은 한 번에**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」): 일정 뒤 내신·업무·성적, 학생 뒤 자료실 · (어67)-② 탭마다 얼굴 하나(lib/emoji.js FACE · 서로 겹침 0)", tabs.map((t) => t.trim()).join(",") === "🏠 대시보드,☀️ 오늘,📨 발송,📅 일정,🗃️ 내신,📋 업무,🏆 성적,📕 교재,🧑‍🎓 학생,📎 자료실,⚙️ 설정", tabs.join(","));
 { // 동선이 실제로 줄었나 — 탭 한 번으로 그 화면이 열린다(전엔 운영·일정을 거쳐 두 번이었다)
   for (const [name, path2] of [["학생", "/ops"], ["자료실", "/ops/files"], ["성적", "/scores"]]) {   // (어28) 「학생」은 이제 큰 탭(/ops = 학생 14)
-    await Promise.all([p.waitForURL((u) => u.pathname === path2, { timeout: 15000 }), p.locator("header.appbar nav.tabs a", { hasText: new RegExp(`^${name}$`) }).click()]);
+    await Promise.all([p.waitForURL((u) => u.pathname === path2, { timeout: 15000 }), p.locator(`header.appbar nav.tabs a[href="${path2}"]`).click()]);
     { const hb = await p.locator("header.appbar").boundingBox(); const nTabs = await p.locator("header.appbar nav.tabs a").count();   // 원장님 9/15 「페이지 이동시 맨위 메뉴가 사라짐」 · 옮긴 뒤에도 상단 띠·탭 열하나가 그 자리에
       ok(`(어29) 「${name}」 으로 옮긴 뒤에도 상단 띠가 맨 위(0px)에 있고 탭 열하나가 그대로다 · 이름·로그아웃도`, hb && Math.round(hb.y) === 0 && nTabs === 11 && (await p.locator("header.appbar .pill").count()) >= 1 && (await p.locator("header.appbar form[action='/logout'] button").count()) === 1, `y=${hb?.y} 탭 ${nTabs}`); }
-    ok(`「${name}」 탭 한 번으로 ${path2} 가 열린다(전에는 두 번) · 그 탭이 파랗다`, new URL(p.url()).pathname === path2 && (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === name, p.url());
+    ok(`「${name}」 탭 한 번으로 ${path2} 가 열린다(전에는 두 번) · 그 탭이 파랗다`, new URL(p.url()).pathname === path2 && tabName(await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()) === name, p.url());
   }
   await p.goto(APP + "/ops"); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(어28) /ops 는 곧 학생 14(운영 탭 = 학생 · 원칙-1 같은 화면 두 곳 없음) · 머리 세그 「학생 · 💰 수납」 · 왼쪽 목록에 고르기 네모(전체 · 줄마다) · 상담은 목록 머리 「☎️ 신규 상담 ↗」", (await p.locator("main [data-g=view] a").count()) === 2 && (await p.locator("main [data-g=view] a[aria-pressed=true]").textContent()) === "학생" && (await p.locator("main .stlist [data-g=pick-all]").count()) === 1 && (await p.locator("main .stlist [data-g=pick]").count()) >= 1 && (await p.locator("main a.card").count()) === 0 && (await p.locator("main [data-g=list-head] a[href='/ops/inquiry']").count()) === 1, "세그 " + (await p.locator("main [data-g=view] a").count()) + " · 카드 " + (await p.locator("main a.card").count()));
@@ -50,13 +51,13 @@ ok("원장 메뉴 열하나((어28) 운영 탭 = 학생) · **날마다 여는 �
   await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {}); }
 // ⚠️ 탭 걷기는 /today 를 누르지 않는다 · 원장이 오늘 수업을 열면 아이의 오늘 수업 일지가 서서(「선생님이 오늘 수업을 열면」) 뒤의 아이 화면 걷기(등원 전 = 지난 판)가 어긋난다(게이트 64). 부작용 없는 발송·반 화면으로 밟는다
 console.log("■ 누른 즉시 표시(다) · 지금 탭이 파랗다 · 누르면 서버 답 전에 그 탭이 파랗고 상단 띠가 켜진다 · 답이 오면 띠가 꺼진다");
-const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).join(",");
+const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).map(tabName).join(",");
 const goingOn = async () => p.locator("[data-g=going]").getAttribute("data-on");
 ok("대시보드(/)에서 「대시보드」 탭만 파랗다(aria-current)", (await curTab()) === "대시보드", await curTab());
 { const isSend = (u) => u.pathname === "/send"; const slow = async (route) => { await new Promise((r) => setTimeout(r, 1200)); await route.continue(); };   // 서버 답을 1.2초 붙들어 「답 전」을 만든다
   await p.route(isSend, slow);
   await p.locator("header.appbar nav.tabs a", { hasText: "발송" }).click();
-  const early = await p.waitForFunction(() => document.querySelector("header.appbar nav.tabs a[aria-current='true']")?.textContent === "발송" && document.querySelector("[data-g=going]")?.dataset.on === "1", null, { timeout: 900 }).then(() => true).catch(() => false);
+  const early = await p.waitForFunction(() => document.querySelector("header.appbar nav.tabs a[aria-current='true']")?.textContent?.endsWith("발송") && document.querySelector("[data-g=going]")?.dataset.on === "1", null, { timeout: 900 }).then(() => true).catch(() => false);
   ok("누르자마자(주소가 아직 / 인 채) 「발송」 탭이 파랗고 상단 띠가 켜진다(data-on=1)", early && new URL(p.url()).pathname === "/", `early ${early} · url ${p.url()} · cur ${await curTab()} · on ${await goingOn()}`);
   await p.waitForURL(isSend, { timeout: 15000 }); await p.unroute(isSend, slow); await p.waitForLoadState("networkidle").catch(() => {});
   await p.waitForFunction(() => document.querySelector("[data-g=going]")?.dataset.on === "0", null, { timeout: 5000 }).catch(() => {});
@@ -179,7 +180,7 @@ await p.goto(APP + "/"); ok("나간 뒤 첫 화면은 로그인으로 보낸다"
 console.log("■ 선생님 · 켠 만큼만");
 await login(p, "staff", "zz_instructor@e2e.test", PW);
 const tabs2 = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("선생님 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.join(",") === "대시보드", tabs2.join(","));
+ok("선생님 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.map(tabName).join(",") === "대시보드", tabs2.join(","));
 await p.goto(APP + "/ops/students?v=fee"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("선생님이 수강료 유형을 열면 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
@@ -192,7 +193,7 @@ await Promise.all([p.waitForURL(/\/password\?e=/, { timeout: 15000 }).catch(() =
 await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1");
 await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/password"), { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
 { const t = await p.locator("header.appbar nav.tabs a").allTextContents();
-  ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.join(",") === "대시보드", t.join(",")); }
+  ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.map(tabName).join(",") === "대시보드", t.join(",")); }
 await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("선생님은 직원 계정 화면을 못 연다(원장만)", !(await p.locator("main [data-card=staff]").count()), (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 80));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
@@ -232,7 +233,7 @@ await p.fill("#pw", "새비밀번호2"); await p.fill("#pw2", "새비밀번호2"
 const pm = p.locator("main");
 ok("바꾸면 학부모 화면(/parent) · 아이 이름 · 메뉴 없음", new URL(p.url()).pathname === "/parent" && (await pm.locator("[data-g=kid]").textContent()) === "zz_시험_학생" && (await p.locator("header.appbar nav.tabs a").count()) === 0, p.url());
 ok("🕘 오늘 · 아이가 찍은 등원 「HH:MM 도착 · 하원 아직」 · 정시 등원 알약(마감 전 판은 안 보이지만 등원은 보인다)", /\d\d:\d\d 도착 · 하원 아직/.test(await pm.locator("[data-card=today]").textContent()), (await pm.locator("[data-card=today]").textContent()).slice(0, 120));
-ok("📋 어제 수업(마감한 판) · 수업일지 글 없음 · 📘 다음 숙제 2(어제 낸 것) · 📝 다음 시간 시험 「단어 20개 · 통과 90%」 · 오늘 수업 일지는 마감 전이라 안 보인다", (await pm.locator("[data-card=recent]").textContent()).includes("수업일지 글이 없습니다") && (await pm.locator("[data-card=homework] .h .pill").textContent()) === "2" && (await pm.locator("[data-card=nextquiz]").textContent()).includes("단어 20개") && !(await pm.locator("[data-card=recent] .h b").textContent()).includes("오늘 수업"), (await pm.textContent()).replace(/\s+/g, " ").slice(0, 400));
+ok("📋 어제 수업(마감한 판) · 수업일지 글 없음 · 📘 다음 숙제 2(어제 낸 것) · 🔤 다음 시간 시험 「단어 20개 · 통과 90%」 · 오늘 수업 일지는 마감 전이라 안 보인다", (await pm.locator("[data-card=recent]").textContent()).includes("수업일지 글이 없습니다") && (await pm.locator("[data-card=homework] .h .pill").textContent()) === "2" && (await pm.locator("[data-card=nextquiz]").textContent()).includes("단어 20개") && !(await pm.locator("[data-card=recent] .h b").textContent()).includes("오늘 수업"), (await pm.textContent()).replace(/\s+/g, " ").slice(0, 400));
 ok("빈 카드는 숨긴다(확정-⑮) · 오늘 하원 지연·앞으로 없음 → 카드 없음 · 📨 보낸 것엔 어제·그저께 하원 지연 안내(씨앗) · 남기실 말 카드는 있다 · 달력 링크", (await pm.locator("[data-card=late]").count()) === 0 && (await pm.locator("[data-card=future]").count()) === 0 && (await pm.locator("[data-card=sent] .li").count()) === 2 && (await pm.locator("[data-card=sent]").textContent()).includes("하원 지연 안내 · 21:40 예정") && (await pm.locator("[data-card=ask]").count()) === 1 && (await pm.locator("[data-card=cal]").count()) === 1, (await pm.locator("[data-card=sent]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 200));
 await ctx.storageState({ path: ".tmp/state-parent.json" });
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-parent-morning-${v.viewport.width}.png`, fullPage: true }); }

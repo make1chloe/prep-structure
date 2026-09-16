@@ -24,7 +24,7 @@ import { markText } from "@/lib/mark";
 import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { itemTitle, itemSub, pagesText } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」)
+import { itemTitle, itemSub, pagesText, CHECK_MOVE, UPTO } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」) · (어67) 검사 줄의 손 넷·「어디까지」도 거기 한 벌
 import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
 import { useOpen, usePickCtx } from "./board.js";
 import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
@@ -34,8 +34,6 @@ import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP } from "@/lib/stat
 import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel, bookOrder } from "@/lib/routine-plan";
 import { timerText, arrivalTimes, STAMP_NAME } from "@/lib/arrival-plan";   // (어48) 출결 곁의 도착·하원 시각   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
 import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
-const UPTO = ["시작만", "절반", "거의 다"];
-const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
@@ -128,6 +126,7 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   const parts = splitChecks(sheet.check, { stopped });
   const stopCount = new Map(paused.map((b) => [b.book_id, parts.stopped.filter((r) => r.units?.book_id === b.book_id).length]));
   const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />;
+  const off = (sheet.off ?? []).filter((it) => it.slot === "check");   // (어67) 「삭제」한 검사 줄 · 지운 것이 아니라 내린 것이라 되돌릴 길이 있어야 한다(대전제-6·19)
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
@@ -138,6 +137,8 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
         {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
       {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
       {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
+      {off.length > 0 && <div className="lf" data-g="check-off"><div><b>삭제한 줄 {off.length}</b><small>{off.map(itemTitle).join(" · ")}</small></div>
+        {!closed && off.map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" data-id={it.id} onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>복구</button>)}</div>}
       <PausedBooks books={paused} sheet={sheet} date={date} closed={closed} fail={fail} start={start} counts={stopCount} />{/* (어57) 카드 맨 밑 · 「진행중」을 누르면 그 교재 줄이 위 나무에 선다 */}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
@@ -156,17 +157,16 @@ function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped:
     setSt(next === "none" ? null : next); if (next === "weak" || next === "missing") setOpen(true);
     start(async () => { const r = await check(it.id, next, next === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
-  const pickRest = (w) => { setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
+  const pickMove = (w) => { if (closed) return;   // (어67) 손 넷 · 글은 lib/item-plan CHECK_MOVE 한 벌. 삭제는 그 줄을 내리고(off · 카드 밑 「복구」), 나머지 셋은 나머지를 그 구분으로 넘긴다
+    if (w === "off") { start(async () => { fail(await itemRemove(it.id)); }); return; }
+    setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
   return (
     <div className="hw" data-g="check-line" data-folded={folded ? "1" : "0"}>{/* (어51) 줄 하나를 「그 자리에서」 접고 편다 · 이름을 -row 로 안 짓는다: 고르기(PickBox)를 붙일 목록이 아니라 한 줄짜리 검사 손이고, 일괄은 카드 머리의 「다 ○」 하나다((어28) 대전제-20 · check-pick 의 -row 규칙 밖 · gap-book · call-book 과 같은 뜻) */}
       <div className="hwname"><button type="button" className="nmb" data-act="unfold" data-id={it.id} aria-expanded={!folded} onClick={() => setOpen(!open)}><b>{itemTitle(it)}</b></button>
         {folded ? (it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
-        {st && st !== "done" && !closed && (
-          <div className="partial">
-            {st === "weak" && <div className="wv"><span className="fl" style={{ margin: 0 }}>어디까지</span><div className="seg sm" data-g="upto">{UPTO.map((u) => <button key={u} type="button" aria-pressed={upto === u} onClick={() => pickUpto(u)}>{u}</button>)}</div></div>}
-            <div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>나머지는</span><div className="seg sm" data-g="rest">{REST.map(([w, name]) => <button key={w} type="button" aria-pressed={restTo === w} onClick={() => pickRest(w)}>{name}</button>)}</div></div>
-          </div>
-        )}</>}
+        {st === "weak" && !closed && <div className="partial"><div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>어디까지</span><div className="seg sm" data-g="upto">{UPTO.map((u) => <button key={u} type="button" aria-pressed={upto === u} onClick={() => pickUpto(u)}>{u}</button>)}</div></div></div>}
+        {!closed && <div className="wv acts" data-g="check-move">{/* (어67) 원장님 9/16 「숙제검사는 그냥 이모지쓰지말자 · 삭제. 오늘. 남아서. 숙제.」 — 검사 카드의 손은 글자다 */}
+          {CHECK_MOVE.map(([w, name]) => <button key={w} type="button" className="btn sm gho" data-act={`check-${w}`} {...(w === "off" ? {} : { "aria-pressed": restTo === w })} onClick={() => pickMove(w)}>{name}</button>)}</div>}</>}
       </div>
       <div className="chk" aria-label="검사">
         {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} {...icon(CHECK_NAME[v], CHECK_TIP[v])} onClick={() => pick(v)}>{g}</button>)}
@@ -223,7 +223,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       {books.length === 0 && <div className="lf" data-g="no-book"><span className="ln">📕</span><div><b>배정한 교재 없음</b></div>{!closed && <button type="button" className="btn sm pri" data-act="assign-book" onClick={() => setAssign(true)}>+ 교재 배정</button>}</div>}
       {assign && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssign(false)} />}
       {runBooks.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} pos={i} nOrder={nOrder} />)}
-      <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">📝</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>고치기</button></div>
+      <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">🔤</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>고치기</button></div>
       {quizEdit && nextQuiz}
       <div className="folds wv" style={{ margin: "10px 0 0" }} data-g="folds">
         <button type="button" className="btn sm gho" data-act="fold-more" aria-pressed={more} onClick={() => setMore((v) => !v)}>+ 항목{extras ? ` ${extras}` : ""}</button>
@@ -445,7 +445,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
   const patch = (q, p) => start(async () => { fail(await quizSet(sheet.id, q.id, p)); });
   return (
     <div data-card="next-quiz">
-      <div className="ctitle" style={{ marginTop: 12, fontSize: "var(--fs-3)" }}><span className="cemo">📝</span>다음 시간 시험</div>
+      <div className="ctitle" style={{ marginTop: 12, fontSize: "var(--fs-3)" }}><span className="cemo">🔤</span>다음 시간 시험</div>
       {quizzes.map((q) => { const [, kname, icon] = kindOf(q.kind); return (
         <div key={q.id}>
           <div className="lf" style={{ marginTop: 4 }}><span className="ln">{icon}</span>
@@ -621,7 +621,7 @@ function UnitTestPart({ t, passPct, date, closed, fail, start }) {
   const state = { todo: "낼 것", made: "출제 완료", taken: "봤음", scored: "채점함" }[t.state] ?? t.state;
   return (
     <div className="part" data-card="unit-test">
-      <div className="hh">📝 단원평가 · {t.grammar_topics?.name ?? "분류 없음"}<span className="cnt">{state}</span></div>
+      <div className="hh">✍️ 단원평가 · {t.grammar_topics?.name ?? "분류 없음"}<span className="cnt">{state}</span></div>
       <div className="wtrow">
         <div className="wtset"><b>{t.q_count}문항</b><div className="tags">{t.books?.name && <span className="tag" data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 세트`}</span>}{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
         <div className="wtscore"><label className="fl">맞은 개수</label>
@@ -669,7 +669,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
   return (
     <div className="card" data-card="comment" data-folded={off ? "1" : "0"}>
       <div className="ctitle"><span className="cemo">✉️</span>부모님께 나갈 글{closed && <span className="auto">마감됨</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
-      {lines.length > 0 && <div className="lf ok" style={{ marginBottom: 8 }} data-g="attached"><span className="ln">📝</span>
+      {lines.length > 0 && <div className="lf ok" style={{ marginBottom: 8 }} data-g="attached"><span className="ln">📎</span>
         <div><b>글 밑에 붙는 줄</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div></div>}
       {closed && <div className="tags" style={{ marginBottom: 8 }}><span className="tag">{capName(cap)}</span><span className="tag type">{kindName(kind)}</span>{draft && sameAsDraft(text, draft) && <span className="tag">AI 초안 그대로</span>}</div>}
       {!closed && <div className="lf" data-g="comment-line"><span className="ln">✉️</span><div><b>{kindName(kind)} · {capName(cap)}</b><small>{draft ? "초안 준비됨" : "초안 없음"}{kind === autoKind ? " · 오늘 상태에서 저절로" : ""}</small></div>
