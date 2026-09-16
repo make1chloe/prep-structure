@@ -560,6 +560,16 @@ if (!(await two2.locator(".panel").count())) await two2.locator("button.open").c
 await 펴기(two2);
 if (!(await two2.locator("[data-card=work]").count())) {   // 오늘 결석 예정이라 판이 없다 — 왔으면 출결을 누른다 → 판이 선다(02c: 결석 예정은 판을 안 세운다)
   await two2.locator(".seg[data-g=att] button", { hasText: "출석" }).click(); await p.waitForTimeout(2500);
+  { const at = two2.locator("[data-g=att-times]");   // (어48) 출결 곁 · 도착·하원 시각(원장님 9/16)
+    ok("(어48) 출결을 누르면 도착 시각이 남는다(아이가 안 찍었으면 원장이 찍은 것으로)", (await at.locator("[data-g=arr-in]").count()) === 1 && /^도착 \d\d:\d\d · 원장$/.test((await at.locator("[data-g=arr-in]").textContent()).trim()), await at.textContent().catch(() => "없음"));
+    await at.locator("button[data-act=leave-now]").click(); await p.waitForTimeout(1200);
+    ok("(어48) 출결 곁 「하원」 · 누르면 그 자리에서 하원 시각 · 단추는 사라진다", /^하원 \d\d:\d\d · 원장$/.test((await at.locator("[data-g=arr-out]").textContent()).trim()) && (await at.locator("button[data-act=leave-now]").count()) === 0, await at.textContent());
+    await at.locator("button[data-act=time-edit]").click(); await p.waitForTimeout(200);
+    await at.locator("[data-g=time-which] button", { hasText: "하원" }).click();
+    await at.locator("input[aria-label=시각]").fill("21:05");
+    await at.locator("button[data-act=time-save]").click(); await p.waitForTimeout(1500);
+    await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    ok("(어48) 시각 고치기 · 다시 열어도 하원 21:05(원장님 9/16 「시간 정정가능하게 나중에 누를수도 있으니까」)", (await two2.locator("[data-g=arr-out]").textContent()).includes("21:05"), await two2.locator("[data-g=att-times]").textContent().catch(() => "없음")); }
   await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   if (!(await two2.locator(".panel").count())) await two2.locator("button.open").click();
   await 펴기(two2);

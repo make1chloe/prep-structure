@@ -10,6 +10,8 @@ Supabase → **SQL Editor** → **New query** → 파일을 통째로 붙여넣�
 
 - `0168.sql` · **학생 아이디 겹치면 다섯째 숫자**((어46) · profiles_login_id_shape · 원장님 9/16 「같은 아이디 이미있으면 5번째에 2붙여서」)
   https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0168.sql
+- `0169.sql` · **출결 곁에 하원 · 도착·하원 시각을 누가 찍었나**((어48) · v2.arrival.stamped_by · 원장님 9/16 「출석, 지각, 하원은 시간이 기록되게해」)
+  https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0169.sql
 - `0167.sql` · **아이 화면 타이머**((어35) · day_item.started_at·ended_at · 아이 문지기가 세 칸(다 했어요 · 시작 · 끝) · 원장님 9/15 「학생페이지 타이머 짓는다」)
   https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0167.sql
 - `0166.sql` · **출결 사유**((어44) · 지각·결석 까닭 넷 · 진료·학교 일정은 경고에 안 셈 · 규칙 warn.excused) · 원장님 9/15 「출결에 지각 결석 사유 필요헤」

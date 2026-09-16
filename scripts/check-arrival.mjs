@@ -1,5 +1,5 @@
 /** 등원·하원 검사(검사-㊺ · 목업 07 🕘 · 0078·0083) — 순수 판단 lib/arrival-plan.js: 걸음 셋 + 집에 가요 · 도착은 가장 이른 등원 걸음 · 지각 분은 반 시작과 견줘(유예 분) · 학원 회선(IPv4 그대로 · IPv6 앞 4덩어리 · ::ffff: · 빈 목록은 아무도 못 찍음) · 요청 주소 읽기 · 반 고르기(하나·둘·보강·없음) · 「앞으로」 줄 · 학원 줄의 차례 */
-import { STEPS, LEAVE, stepName, arrivalState, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps, homeSteps, timerText } from "../lib/arrival-plan.js";
+import { STEPS, LEAVE, stepName, arrivalState, arrivalTimes, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps, homeSteps, timerText } from "../lib/arrival-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 걸음");
@@ -29,5 +29,9 @@ console.log("■ (어35) 학원 줄 타이머(원장님 9/15 「학생페이지 
 ok("타이머 글 · 하는 중 「▶ m:ss」 · 끝 「⏱ N분」(끝 − 시작 · 1분 미만은 1분 · 끝은 ended_at 없으면 said_done_at) · 시작 안 했으면 null · 시계가 뒤로 가도 0:00", timerText({ started_at: "2026-09-15T10:00:00Z" }, Date.parse("2026-09-15T10:03:07Z")) === "▶ 3:07" && timerText({ started_at: "2026-09-15T10:00:00Z", ended_at: "2026-09-15T10:12:20Z" }) === "⏱ 12분" && timerText({ started_at: "2026-09-15T10:00:00Z", said_done_at: "2026-09-15T10:00:10Z" }) === "⏱ 1분" && timerText({}) === null && timerText({ started_at: "2026-09-15T10:00:00Z" }, Date.parse("2026-09-15T09:59:00Z")) === "▶ 0:00");
 const ts = classSteps([{ id: "a", sort: 1, said_done_at: "x", started_at: "s" }, { id: "b", sort: 2, started_at: "s" }, { id: "c", sort: 3 }]);
 ok("classSteps · 시작했지만 안 끝낸 줄(b)은 now + running · 끝낸 줄은 done(running 아님) · 뒤는 locked", ts.map((s) => `${s.id}:${s.state}${s.running ? "*" : ""}`).join() === "a:done,b:now*,c:locked");
+console.log("■ (어48) 출결 곁의 도착·하원 시각 · 누가 찍었나(원장님 9/16 「출석, 지각, 하원은 시간이 기록되게해」)");
+{ const t = arrivalTimes([{ step: 2, at: "2026-09-16T08:02:00Z", stamped_by: "student" }, { step: 1, at: "2026-09-16T08:00:30Z", stamped_by: "student" }, { step: 4, at: "2026-09-16T13:10:00Z", stamped_by: "staff" }]);
+  ok("도착은 가장 이른 등원 걸음(17:00 · 앱이 찍음) · 하원은 걸음 4(22:10 · 원장이 찍음) · 이름까지", t.in.at === "17:00" && t.in.by === "student" && t.in.name === "앱" && t.out.at === "22:10" && t.out.by === "staff" && t.out.name === "원장", JSON.stringify(t));
+  ok("안 찍었으면 null · 찍은이가 비면 아이가 찍은 것으로 본다(옛 줄 · 0169 앞)", arrivalTimes([]).in === null && arrivalTimes([]).out === null && arrivalTimes([{ step: 2, at: "2026-09-16T08:02:00Z" }]).in.by === "student" && arrivalTimes([{ step: 4, at: "2026-09-16T13:10:00Z" }]).in === null); }
 console.log(`\n■ 등원·하원 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

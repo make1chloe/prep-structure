@@ -5,7 +5,7 @@ import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -31,7 +31,7 @@ import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
 import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel, bookOrder } from "@/lib/routine-plan";
-import { timerText } from "@/lib/arrival-plan";   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
+import { timerText, arrivalTimes, STAMP_NAME } from "@/lib/arrival-plan";   // (어48) 출결 곁의 도착·하원 시각   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
@@ -86,6 +86,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
           {ATTEND.map(([v, name]) => <button key={v} type="button" aria-pressed={attend === v} disabled={closed} onClick={() => pickAttend(v)}>{name}</button>)}
         </div>
         {REASON_ON.includes(attend) && sheet?.id && <div className="seg sm" data-g="att-reason" aria-label={`${student.name} 까닭`}>{ATTEND_REASON.map(([k, name]) => <button key={k} type="button" aria-pressed={reason === k} disabled={closed} onClick={() => pickReason(k)}>{name}</button>)}</div>}{/* (어44) 지각·결석 까닭 넷 · 원장님 9/15 · 진료·학교 일정은 경고에 안 센다(규칙 warn.excused) */}
+        {sheet?.id && <AttTimes student={student} date={date} closed={closed} fail={fail} start={start} />}{/* (어48) 도착 · 하원 시각 · 원장님 9/16 */}
         <span className="spacer" />
         {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
         {roundPill(student.books) && <span className="pill">{roundPill(student.books)}</span>}
@@ -449,6 +450,33 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
       <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="spacer" />
         <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (failM(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
     </div></div></div>;
+}
+
+/** (어48) 출결 곁의 도착·하원(원장님 2026-09-16 「학생들이 어플에서 하원처리를 안했을 경우를 대비해서 출석체크 근처에 하원도 넣고 출석, 지각, 하원은 시간이 기록되게해 1차적으로 학생어플에서 눌렀으면 그걸 기준으로 삼고, 내가 다시 눌렀으면 내가 누른걸로 정정 그리고 시간 정정가능하게」).
+ *  아이 앱이 찍은 시각이 1차 · 출결을 눌러도 안 덮는다 · 「하원」과 ✎ 는 원장님이 찍고 고친다(등원 표 걸음 2·4 한 곳 · lib/arrival.js staffStamp). 누르면 먼저 바뀐다(속도-5) */
+function AttTimes({ student, date, closed, fail, start }) {
+  const [t, setT] = useState(() => arrivalTimes(student.arrival ?? []));
+  useEffect(() => { setT(arrivalTimes(student.arrival ?? [])); }, [student.arrival]);
+  const [edit, setEdit] = useState(false);
+  const [which, setWhich] = useState("out");
+  const [val, setVal] = useState("");
+  const nowHHMM = () => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).replace(/^24/, "00");
+  const put = (step, hhmm) => { const prev = t, key = step === 4 ? "out" : "in";
+    setT({ ...t, [key]: { at: hhmm ?? nowHHMM(), by: "staff", name: STAMP_NAME.staff } }); setEdit(false);
+    start(async () => { const r = await stampAt(student.id, date, step, hhmm); if (!fail(r)) { setT(prev); return; } setT((o) => ({ ...o, [key]: { at: r.at, by: "staff", name: STAMP_NAME.staff } })); }); };
+  return (
+    <span className="wv" data-g="att-times" style={{ margin: 0, gap: 4 }}>
+      {t.in && <span className="pill" data-g="arr-in" data-by={t.in.by}>도착 {t.in.at} · {t.in.name}</span>}
+      {t.out ? <span className="pill" data-g="arr-out" data-by={t.out.by}>하원 {t.out.at} · {t.out.name}</span>
+        : !closed && <button type="button" className="btn sm" data-act="leave-now" onClick={() => put(4, null)}>하원</button>}
+      {!closed && (t.in || t.out) && <button type="button" className="btn sm gho icb" data-act="time-edit" aria-label="시각" aria-pressed={edit} onClick={() => { setEdit(!edit); setWhich(t.out ? "out" : "in"); setVal((t.out ?? t.in)?.at ?? ""); }}>✎</button>}
+      {edit && !closed && <>
+        <span className="seg sm" data-g="time-which">{[["in", "도착"], ["out", "하원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={which === k} onClick={() => { setWhich(k); setVal((k === "out" ? t.out : t.in)?.at ?? ""); }}>{name}</button>)}</span>
+        <input type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="예: 21:05" inputMode="numeric" aria-label="시각" style={{ maxWidth: 88 }} />
+        <button type="button" className="btn sm pri" data-act="time-save" disabled={!/^([01]\d|2[0-3]):[0-5]\d$/.test(val)} onClick={() => put(which === "out" ? 4 : 2, val)}>저장</button>
+      </>}
+    </span>
+  );
 }
 /** 3b 하원 지연(목업 01) · 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 · 차이는 세어 나온다) · 반복(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
 function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", shut = null, closed, fail, start }) {
