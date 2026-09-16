@@ -24,6 +24,11 @@ import { dirname, join, normalize } from "node:path";
 const STORE = process.env.E2E_STORAGE_DIR || "/var/tmp/e2e-storage";
 const readRaw = (req) => new Promise((ok) => { const chunks = []; req.on("data", (c) => chunks.push(c)); req.on("end", () => ok(Buffer.concat(chunks))); });
 import { sign, verify } from "./token.mjs";
+/** (어65) 진짜 인증(Supabase Auth)은 **여섯 자 미만을 아예 안 받는다** — 흉내가 안 받아 주면 게이트가 못 잡는다.
+ *  원장님 2026-09-16 「비번짧아서 계정 못만듬」 · 글까지 진짜와 같게 돌려준다(화면이 그 글을 그대로 보인다). */
+const PW_MIN = 6;
+const tooShort = (pw) => String(pw ?? "").length < PW_MIN;
+const shortMsg = { code: "weak_password", message: `Password should be at least ${PW_MIN} characters.` };
 
 const PG_PORT = process.env.E2E_PG_PORT || "55440";
 const PGRST = process.env.E2E_PGRST || "55441";
@@ -160,8 +165,9 @@ const server = http.createServer(async (req, res) => {
       const u = userRow(c.sub);
       if (!u) return json(res, 401, { message: "user not found" });
       if (req.method === "PUT") {
-        // 비밀번호 바꾸기 — 학생이 처음 들어와 0000 을 바꾸는 자리
+        // 비밀번호 바꾸기 — 학생이 처음 들어와 첫 비밀번호를 바꾸는 자리
         const body = await readBody(req);
+        if (body.password && tooShort(body.password)) return json(res, 422, shortMsg);
         if (body.password) {
           db.exec("update auth.users set encrypted_password = $1 where id = $2", [body.password, u.id]);
         }
@@ -174,7 +180,7 @@ const server = http.createServer(async (req, res) => {
     if (path === "/auth/v1/settings") {
       return json(res, 200, { external: {}, disable_signup: false, mailer_autoconfirm: true, autoconfirm: true });
     }
-    // 서버 자신(service role)이 계정을 발급·초기화하는 길 — supabase-js auth.admin.createUser / updateUserById 가 치는 주소(3단계-8 등록 전환 · 비밀번호 0000)
+    // 서버 자신(service role)이 계정을 발급·초기화하는 길 — supabase-js auth.admin.createUser / updateUserById 가 치는 주소(3단계-8 등록 전환 · 첫 비밀번호는 lib/student-plan FIRST_PW)
     if (path === "/auth/v1/admin/users" && req.method === "GET") {   // (어36) auth.admin.listUsers · 이메일로 계정을 찾는 길(page · per_page · { users }) · 진짜는 Link 머리로 다음 쪽을 말하는데 여기는 한 쪽에 다 준다
       const per = Math.max(1, Number(url.searchParams.get("per_page") || 50)), page = Math.max(1, Number(url.searchParams.get("page") || 1));
       const all = db.query("select id, email, raw_user_meta_data from auth.users order by email").rows;
@@ -187,6 +193,7 @@ const server = http.createServer(async (req, res) => {
       if (!body.email) return json(res, 422, { message: "email 이 없습니다" });
       const dup = db.query("select id from auth.users where lower(email) = lower($1)", [body.email]);
       if (dup.rows[0]) return json(res, 422, { code: "email_exists", message: "A user with this email address has already been registered" });
+      if (tooShort(body.password)) return json(res, 422, shortMsg);
       db.exec("insert into auth.users (email, encrypted_password, raw_user_meta_data) values ($1, $2, $3::jsonb)", [body.email, body.password || "", JSON.stringify(body.user_metadata || {})]);
       const r = db.query("select id, email, raw_user_meta_data from auth.users where lower(email) = lower($1)", [body.email]);
       return json(res, 200, shape(r.rows[0]));
@@ -195,12 +202,14 @@ const server = http.createServer(async (req, res) => {
     if (adm && req.method === "PUT") {
       const body = await readBody(req); const u = userRow(adm[1]);
       if (!u) return json(res, 404, { message: "user not found" });
+      if (body.password && tooShort(body.password)) return json(res, 422, shortMsg);
       if (body.password) db.exec("update auth.users set encrypted_password = $1 where id = $2", [body.password, u.id]);
       return json(res, 200, shape(userRow(u.id)));
     }
     if (adm && req.method === "GET") { const u = userRow(adm[1]); return u ? json(res, 200, shape(u)) : json(res, 404, { message: "user not found" }); }
     if (path === "/auth/v1/signup") {
       const body = await readBody(req);
+      if (tooShort(body.password)) return json(res, 422, shortMsg);
       db.exec("insert into auth.users (email, encrypted_password) values ($1, $2)", [body.email, body.password]);
       const r = db.query("select id, email, raw_user_meta_data from auth.users where email = $1", [body.email]);
       return json(res, 200, session(r.rows[0]));

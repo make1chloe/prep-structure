@@ -1,6 +1,7 @@
 /** 학생 판단 검사(검사-60) — lib/student-plan.js 순수 셈: 재원 기간 글 · 학년 글 · 반 글 · KPI 여섯(재료 0이면 —) · 교재 막대(stopOn 한 곳) · 성적 줄(등급은 학교 것 › 컷) · 약한 영역(세 번 연속) · 이 달 출결(하원 시각, 답 ⑩) · 단원평가 알약(통과선) · 지나온 것(새것부터) · 목록 줄(재원·퇴원 · 찾기) · 형제 글 · 고치기 양식 읽기 · 아이디 제안·읽기 · 초기화는 앱이 발급한 계정만(대전제-12) · 학부모 계정 이름 읽기((가)-⑩) */
-import { attendSummary } from "../lib/student-plan.js";
-import { readFileSync } from "node:fs";
+import { attendSummary, FIRST_PW } from "../lib/student-plan.js";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { tenureText, gradeText2, classLine, kpis, bookLines, scoreRows, weakText, attendRow, unitChips, historyLines, listRows, siblingText, parseStudent, suggestLoginId, parseLoginId, nextLoginId, canReset, parseParentName } from "../lib/student-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -56,5 +57,18 @@ ok("목록 줄에 그 달 요약이 붙는다(listRows att)", listRows([{ id: "a
   ok("첫 화면 카드는 진짜 길을 말한다(학생 14 → 계정 · 아이디는 꼬리 없이 displayId · 로그아웃 단추 · 조회 오류가 있으면 까닭) · 없는 화면 「누가 누구인가」 0 · whoami 는 오류를 삼키지 않는다(err)", /data-g="no-profile"/.test(home) && /displayId\(user\.email\)/.test(home) && /학생 14/.test(home) && /action="\/logout"/.test(home) && !/누가 누구인가/.test(home) && /err: error\?\.message \?\? null/.test(sess));
   ok("14 의 발급 답은 이은 것과 새로 만든 것을 가른다(adopted · 비밀번호는 그대로) · 「이관된 계정(전환일까지 …)」 글 0(전환일은 없다 · 대전제-12)", (scr.match(/r\.adopted \?/g) ?? []).length === 2 && (scr.match(/비밀번호는 그대로/g) ?? []).length >= 3 && !/전환일까지/.test(scr));
   ok("e2e 인증 흉내에 GET /auth/v1/admin/users(목록 · page · per_page · { users })가 있다 · 씨앗에 사람 줄 없는 계정 chloe9837", /"\/auth\/v1\/admin\/users" && req\.method === "GET"/.test(shim) && /users: rows\.map\(shape\)/.test(shim) && /chloe9837@chloe-eng\.internal/.test(readFileSync("scripts/e2e/seed.sql", "utf8"))); }
+{ // (어65) 첫 비밀번호 — 원장님 2026-09-16 「비번짧아서 계정 못만듬」(화면 「Password should be at least 6 characters.」)
+  const plan = readFileSync("lib/student-plan.js", "utf8"), shim = readFileSync("scripts/e2e/auth.mjs", "utf8");
+  const walk = (d, out = []) => { for (const e of readdirSync(d)) { const q = join(d, e); statSync(q).isDirectory() ? walk(q, out) : /\.js$/.test(q) && out.push(q); } return out; };
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+  ok(`첫 비밀번호는 lib/student-plan.js FIRST_PW 한 곳 · 여섯 자 이상(지금 ${FIRST_PW.length}자) — 인증은 여섯 자 미만을 아예 안 받는다(0000 이던 동안 학생·학부모·직원 어느 계정도 못 났다)`,
+     /export const FIRST_PW = "/.test(plan) && FIRST_PW.length >= 6);
+  const mine = walk("app").filter((q) => !q.includes("/api/")).concat(readdirSync("lib").filter((f) => f.endsWith(".js")).map((f) => "lib/" + f));
+  const hard = mine.filter((q) => q !== "lib/student-plan.js").filter((q) => /["'`>][^"'`<]*\b0000\b/.test(strip(readFileSync(q, "utf8")).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, "").replace(/0000-|-0000/g, "")));
+  ok("화면·손이 첫 비밀번호를 글자로 또 적지 않는다(원칙-1 · 바꾸면 화면·문자가 함께 바뀐다)", hard.length === 0, hard.join(", "));
+  ok("걷기 인증 흉내도 짧은 비밀번호를 진짜처럼 거절한다(PW_MIN 6 · 발급·초기화·가입·제 비밀번호 넷 다) — 안 그러면 게이트가 이 사고를 또 못 잡는다",
+     /const PW_MIN = 6/.test(shim) && (shim.match(/tooShort\(/g) ?? []).length >= 4 && /Password should be at least/.test(shim));
+  ok("첫 비밀번호 그대로는 못 쓴다(같은 숫자만 막기 · 규칙 password.min_len 은 DB 에서 읽는다 · 코드에 안 박는다)",
+     /\^\(\\d\)\\1\*\$/.test(readFileSync("app/password/actions.js", "utf8")) && /ruleInt\(sb, "password\.min_len"\)/.test(readFileSync("app/password/actions.js", "utf8"))); }
 console.log(`\ncheck-student ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

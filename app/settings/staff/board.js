@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ROLES, ROLE_NAME } from "@/lib/roles";
 import { STAFF_ROLES, staffIdNag, staffState } from "@/lib/staff-plan";
+import { FIRST_PW } from "@/lib/student-plan";   // 첫 비밀번호는 한 곳((어65))
 import { staffIssue, staffRole, staffOpen } from "./actions.js";
 const EMO = { [ROLES.PRINCIPAL]: "👑", [ROLES.INSTRUCTOR]: "🧑‍🏫", [ROLES.ASSISTANT]: "🧰" };
 
@@ -59,7 +60,7 @@ export default function Board({ rows = [], meId = null }) {
           {STAFF_ROLES.map(([k, nm]) => <button key={k} type="button" data-act="staff-pick" data-r={k} aria-pressed={f.role === k} onClick={() => setF({ ...f, role: k })}>{nm}</button>)}</div></div>
       <div className="wv" style={{ marginBottom: 0 }}>
         <button className="btn pri" type="button" data-act="staff-issue" disabled={pending || !f.name.trim() || !f.loginId.trim() || !!nag} onClick={issue}>계정 발급</button>
-        <span className="tag" data-g="staff-firstpw">첫 비밀번호 0000</span></div>
+        <span className="tag" data-g="staff-firstpw">첫 비밀번호 {FIRST_PW}</span></div>
     </div>}
   </div>);
 }

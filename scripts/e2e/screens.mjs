@@ -3,6 +3,7 @@
  *  PC·폰 캡처를 .tmp/ 에 남기고, 원장 쿠키 상태를 .tmp/state-principal.json 에 남겨 치수·글꼴·대비 검사가 로그인한 채로 열게 한다. */
 import fs from "node:fs";
 import { launch, offline, VIEWS } from "../_browser.mjs";
+import { FIRST_PW } from "../../lib/student-plan.js";   // (어65) 첫 비밀번호는 한 곳 — 걷기가 제 손으로 적으면 어긋난다(원칙-1)
 const APP = process.env.E2E_APP || "http://127.0.0.1:3300";
 const PW = "e2e-pass";
 let n = 0, bad = 0;
@@ -156,7 +157,7 @@ await p.fill("#staff-id", "zz_tea1");
 ok("바른 아이디면 막이 사라지고 발급이 열린다", (await p.locator("[data-g=staff-nag]").count()) === 0 && !(await p.locator("[data-act=staff-issue]").isDisabled()));
 await act(p.locator("[data-act=staff-issue]"));
 { const made = (await p.locator("[data-g=staff-made]").textContent().catch(() => "")) ?? "";
-  ok("낸 아이디와 첫 비밀번호가 그 자리에 뜬다(대전제-22)", /zz_tea1/.test(made) && /0000/.test(made), made.replace(/\s+/g, " ").slice(0, 90)); }
+  ok("낸 아이디와 첫 비밀번호가 그 자리에 뜬다(대전제-22)", /zz_tea1/.test(made) && made.includes(FIRST_PW), made.replace(/\s+/g, " ").slice(0, 90)); }
 ok("목록에 새 줄이 선다 · 역할은 선생님", (await nw().count()) === 1 && (await nw().getAttribute("data-role")) === "instructor");
 await act(nw().locator("[data-act=staff-role][data-r=assistant]"));
 await p.goto(APP + "/settings/staff");
@@ -182,10 +183,14 @@ ok("선생님 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs
 await p.goto(APP + "/ops/students?v=fee"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("선생님이 수강료 유형을 열면 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
-console.log("■ (어64) 낸 계정으로 들어간다 · 아이디만 친다 · 첫 비밀번호 0000");
-await login(p, "staff", "zz_tea1", "0000");
+console.log("■ (어64) 낸 계정으로 들어간다 · 아이디만 친다 · 첫 비밀번호는 FIRST_PW");
+await login(p, "staff", "zz_tea1", FIRST_PW);
 ok("아이디만 쳐도 들어간다(꼬리 도메인은 화면에 없다) · 첫 비밀번호라 바꾸는 화면", new URL(p.url()).pathname === "/password", p.url());
-await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await p.click("form.card button[type=submit]"); await p.waitForLoadState("networkidle").catch(() => {});
+await p.fill("#pw", FIRST_PW); await p.fill("#pw2", FIRST_PW);
+await Promise.all([p.waitForURL(/\/password\?e=/, { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);   // 서버 손이 돌아오길 기다린다 — networkidle 만으로는 글이 서기 전에 재게 된다
+{ const n = await p.locator("main [role=alert]:visible").count(); ok("(어65) 첫 비밀번호 그대로는 거절한다(같은 숫자만)", n === 1, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 120)); }
+await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1");
+await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/password"), { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
 { const t = await p.locator("header.appbar nav.tabs a").allTextContents();
   ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.join(",") === "대시보드", t.join(",")); }
 await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -195,8 +200,9 @@ console.log("■ 학생 · 처음 비밀번호는 바꿔야 들어간다");
 await login(p, "student", "chloe0000", PW);
 ok("비밀번호 바꾸기 화면으로 보낸다", new URL(p.url()).pathname === "/password", p.url());
 await p.goto(APP + "/"); ok("안 바꾸면 첫 화면으로 못 간다", new URL(p.url()).pathname === "/password");
-await p.fill("#pw", "0000"); await p.fill("#pw2", "0000"); await p.click("form.card button[type=submit]"); await p.waitForLoadState("networkidle").catch(() => {});
-{ const n = await p.locator("main [role=alert]:visible").count(); ok("0000 은 거절한다", n === 1, `url=${p.url()} alert ${n} · ${(await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 160)}`); }
+await p.fill("#pw", "123"); await p.fill("#pw2", "123");
+await Promise.all([p.waitForURL(/\/password\?e=/, { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
+{ const n = await p.locator("main [role=alert]:visible").count(); ok("(어65) 짧은 비밀번호는 거절한다(규칙 password.min_len · 인증도 여섯 자 미만은 안 받는다)", n === 1, `url=${p.url()} alert ${n} · ${(await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 160)}`); }
 await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await Promise.all([p.waitForURL((u) => u.pathname === "/me"), p.click("form.card button[type=submit]")]);   // 아이는 바꾸자마자 제 화면(/me)
 ok("바꾸면 「나」 화면(/me · 아이는 제 화면 하나)", new URL(p.url()).pathname === "/me", p.url());
 console.log("■ 아이 화면 07 · 아침: 등원 전에도 「오늘 낼 숙제」가 보인다 → 출석을 찍으면 판이 선다(원장 손과 같은 길)");

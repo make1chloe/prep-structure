@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
 import { addAct, setAct, answerAct, stageAct, convertAct, stageManyAct, answerManyAct } from "./actions.js";
 import { columnsOf, WAYS, SEVEN, STAGES, parseConvert } from "@/lib/inquiry-plan";
-import { suggestLoginId } from "@/lib/student-plan";
+import { suggestLoginId, FIRST_PW } from "@/lib/student-plan";
 import { classText } from "@/lib/schedule-plan";
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -61,7 +61,7 @@ export default function Board({ d }) {
             <label className="fl" style={{ margin: 0 }}>들어온 날</label><input type="date" className="dt" value={cv.joinedOn} aria-label="들어온 날" onChange={(x) => setCv({ ...cv, joinedOn: x.target.value })} style={{ width: "auto" }} /></div>
           <div className="fl">교재 배정{convCard.suggest ? ` · 제안: ${convCard.suggest}` : ""}</div>
           <div className="tags" data-g="conv-books">{(b.books ?? []).map((bk) => <label key={bk.id} className="ckl"><input type="checkbox" className="ck" checked={cv.bookIds.includes(bk.id)} onChange={() => setCv({ ...cv, bookIds: cv.bookIds.includes(bk.id) ? cv.bookIds.filter((x) => x !== bk.id) : [...cv.bookIds, bk.id] })} /> {bk.name}</label>)}</div>
-          <div className="wv" style={{ marginTop: 6 }}><label className="fl" style={{ margin: 0 }}>학생 아이디</label><input type="text" value={cv.loginId} aria-label="학생 아이디" data-g="conv-login" onChange={(x) => setCv({ ...cv, loginId: x.target.value })} style={{ maxWidth: 160 }} /><span className="note" style={{ margin: 0 }}>chloe + 숫자 넷 · 학부모 아이디는 전화번호 {convCard.phone} · 첫 비밀번호 0000</span></div>
+          <div className="wv" style={{ marginTop: 6 }}><label className="fl" style={{ margin: 0 }}>학생 아이디</label><input type="text" value={cv.loginId} aria-label="학생 아이디" data-g="conv-login" onChange={(x) => setCv({ ...cv, loginId: x.target.value })} style={{ maxWidth: 160 }} /><span className="note" style={{ margin: 0 }}>chloe + 숫자 넷 · 학부모 아이디는 전화번호 {convCard.phone} · 첫 비밀번호 {FIRST_PW}</span></div>
           <div className="fl" style={{ marginTop: 8 }}>이 아이에게만 덧붙일 말 · 첫 등원 안내 문자 끝에 붙습니다((커))</div>
           <textarea value={cv.extra ?? ""} onChange={(x) => setCv({ ...cv, extra: x.target.value })} rows={3} aria-label="덧붙일 말" data-g="conv-extra" name="conv-extra" placeholder="예: 셔틀은 3시 20분 정문에서 탑니다 · 첫 주는 교재를 학원에서 빌려 씁니다" style={{ width: "100%", fontFamily: "inherit" }} />
           <p className="note k" style={{ margin: "4px 0 0" }}>비우면 그 줄이 사라집니다 · 문구 자체(규정·교재·시간표)는 발송 화면의 「✉️ 문자 문구」에서 고치십니다</p>
