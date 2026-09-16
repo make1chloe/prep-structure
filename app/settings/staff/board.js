@@ -28,7 +28,7 @@ export default function Board({ rows = [], meId = null }) {
   return (<div className="card" data-card="staff">
     <div className="ctitle"><span className="cemo">👤</span>직원 계정</div>
     {err && <p className="note" role="alert" data-g="staff-err" style={{ color: "var(--miss)" }}>{err}</p>}
-    {made && <p className="note" data-g="staff-made" style={{ color: "var(--on-ok)" }}>{made.name} · {ROLE_NAME[made.role]} · 아이디 <b>{made.login_id}</b> · 첫 비밀번호 <b>{made.password}</b></p>}
+    {made && <p className="note" data-g="staff-made" style={{ color: "var(--on-ok)" }}>{made.name} · {ROLE_NAME[made.role]} · 아이디 <b>{made.login_id}</b> · {made.password ? <>첫 비밀번호 <b>{made.password}</b></> : <>이어 붙임 · 비밀번호는 쓰던 것 그대로</>}</p>}
     <div className="left" data-g="staff-list">
       {rows.map((p) => { const boss = p.role === ROLES.PRINCIPAL, shut = p.state !== "active"; return (
         <div className="lf" key={p.id} data-g="staff-row" data-staff={p.id} data-role={roleAt(p)} data-state={p.state}>

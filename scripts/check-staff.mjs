@@ -16,7 +16,7 @@ console.log("■ 직원(선생님·조교) 계정 · 원장님이 앱에서 낸�
 // ① 손은 한 곳
 const staff = text("lib/staff.js");
 const makers = src.filter(([, s]) => /auth\.admin\.createUser\(/.test(s)).map(([p]) => p);
-ok(`인증 계정을 만드는 파일은 둘뿐(아이 lib/student.js · 직원 lib/staff.js · 지금 ${makers.length})`, makers.length === 2 && makers.includes("lib/staff.js") && makers.includes("lib/student.js"), makers.join(", "));
+ok(`인증 계정을 만드는 자리는 lib/student.js 하나(ensureAuthUser · 아이도 직원도 이 길로 · (어66) · 지금 ${makers.length})`, makers.length === 1 && makers[0] === "lib/student.js", makers.join(", "));
 const roleWrite = src.filter(([p, s]) => p !== "lib/staff.js" && /from\("profiles"\)[\s\S]{0,120}?\.update\(\{\s*role/.test(s)).map(([p]) => p);
 ok("직원 역할을 고치는 자리는 lib/staff.js 하나(profiles.role 을 다른 데서 안 쓴다)", roleWrite.length === 0, roleWrite.join(", "));
 
@@ -24,6 +24,13 @@ ok("직원 역할을 고치는 자리는 lib/staff.js 하나(profiles.role 을 �
 ok(`원장이 줄 수 있는 역할은 선생님·조교 둘(지금 ${STAFF_ROLES.length} · principal 없음)`,
    STAFF_ROLES.length === 2 && !STAFF_ROLES.some(([k]) => k === ROLES.PRINCIPAL) && !isStaffRole(ROLES.PRINCIPAL) && isStaffRole(ROLES.INSTRUCTOR) && isStaffRole(ROLES.ASSISTANT),
    STAFF_ROLES.map(([k]) => k).join(", "));
+// (어66) 이미 있는 계정을 잇는다 — 원장님 2026-09-16 「계정을 못 만듦: A user with this email address has already been registered · 옛앱에서 만든 계정이 있는거 같은데 이거 목록에 왜 안떠」
+ok("이미 있는 아이디면 새로 안 만들고 잇는다(ensureAuthUser 한 벌 · 아이 쪽 (어36) 과 같은 길) — 앞선 발급이 사람 줄에서 걸려 계정만 남아도 다시 발급하면 이어진다",
+   /ensureAuthUser\(svc, email\)/.test(staff) && /from "\.\/student\.js"/.test(staff) && /export async function ensureAuthUser/.test(readFileSync("lib/student.js", "utf8")));
+ok("앱이 낸 계정이 아니면 비밀번호를 안 건드리고 바꾸라고 묻지도 않는다(대전제-12) · 화면도 「쓰던 것 그대로」로 갈라 말한다",
+   /must_change_pw: u\.issuedByApp/.test(staff) && /password: u\.issuedByApp \? FIRST_PW : null/.test(staff) && /made\.password \?/.test(text("app/settings/staff/board.js")));
+ok("그 계정에 이미 다른 역할의 사람 줄이 있으면 겹쳐 쓰지 않고 막는다(원장 줄도)",
+   /had\?\.role === ROLES\.PRINCIPAL/.test(staff) && /had && !isStaffRole\(had\.role\)/.test(staff));
 ok("계정 발급·역할 바꾸기 둘 다 isStaffRole 로 막는다(원장 줄은 손대지 않는다)",
    /export async function issueStaffAccount[\s\S]*?isStaffRole\(role\)/.test(staff) && /export async function setStaffRole[\s\S]*?isStaffRole\(role\)/.test(staff));
 
