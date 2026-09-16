@@ -2110,6 +2110,23 @@ console.log("■ (어36) 계정만 있고 사람 줄이 없는 아이디 · 첫 
   await op.goto(APP + "/"); await op.waitForLoadState("networkidle").catch(() => {});
   ok("그 아이가 다시 열면 제 화면(/me · 비밀번호 그대로 · 바꾸라고 안 묻는다) · 이름 zz_시험_학생셋", new URL(op.url()).pathname === "/me" && (await op.locator("header.appbar").textContent()).includes("zz_시험_학생셋"), op.url());
   await oc.close(); }
+console.log("■ (어54) + 학생에 전화번호가 있으면 앱 계정이 같이 난다(원장님 2026-09-16 「학생 추가하면 전화번호있으면 바로 로그인정보 함께 생성되고 로그인 가능하게해줘 계속안돼」)");
+{ await p.goto(APP + "/ops/students"); await p.waitForLoadState("networkidle").catch(() => {});
+  const sb14 = p.locator("main");
+  await sb14.locator("button[data-act=add-open]").click(); await p.waitForTimeout(200);
+  const af14 = sb14.locator("[data-g=add-form]");
+  await af14.locator("input[aria-label=이름]").fill("zz_자동계정_아이"); await af14.locator("input[aria-label='학부모 전화']").fill("01000009182");   // 뒤 4자리 9182 → 아이디 chloe9182(씨앗 chloe9901·chloe9837 과 안 겹친다)
+  await af14.locator("button[data-act=add-save]").click();
+  await p.waitForFunction(() => /아이디 chloe/.test(document.querySelector("[data-g=msg]")?.textContent ?? "") || document.querySelector("main [role=alert]"), null, { timeout: 20000 }).catch(() => {});
+  await p.waitForTimeout(900);
+  const m14 = (await sb14.locator("[data-g=msg]").textContent().catch(() => "")) ?? "";
+  ok("전화를 적고 저장하면 그 자리에서 「✓ 아이디 chloe9182 · 첫 비밀번호 0000」(따로 발급을 안 누른다)", /아이디 chloe9182/.test(m14) && /첫 비밀번호/.test(m14), m14.slice(0, 80));
+  ok("그 아이 머리에 🔑 아이디 알약 · 「앱 계정 없음」 0", (await sb14.locator("[data-g=head] [data-g=app-id]").textContent().catch(() => "")).includes("chloe9182") && (await sb14.locator("[data-g=head] [data-g=no-app-id]").count()) === 0, await sb14.locator("[data-g=head]").textContent().catch(() => ""));
+  const oc2 = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(oc2); const op2 = await oc2.newPage();
+  await op2.goto(APP + "/login"); await op2.fill("#id-student", "chloe9182"); await op2.fill("#pw-student", "0000");
+  await Promise.all([op2.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 }).catch(() => {}), op2.click("form:has(#id-student) button[type=submit]")]); await op2.waitForLoadState("networkidle").catch(() => {});
+  ok("그 아이디로 바로 들어가진다(0000 · 「아직 학원에 이어지지 않은 아이디」 카드 0)", !new URL(op2.url()).pathname.startsWith("/login") && (await op2.locator("main [data-g=no-profile]").count()) === 0, op2.url());
+  await oc2.close(); }
 console.log("■ (어41) 14 교재 진도 머리 「+ 교재 배정」 → 같은 모달 · 고르기 한 벌(여러 권 한 번에) · 배정하면 그 자리에 줄이 선다(학생셋 · 교재 0 → 2)");
 { await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000003`); await p.waitForLoadState("networkidle").catch(() => {});
   const bc = p.locator("main [data-g=books]"); const before = await bc.locator("[data-g=bkline]").count();

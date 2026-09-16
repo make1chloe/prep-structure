@@ -5,12 +5,13 @@ import { wrap as act } from "@/lib/act";
 import { attachConsult } from "@/lib/files";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
-import { addStudent, setStudent, setState, setStateMany, setClass, setClassMany, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
+import { addStudent, setStudent, setState, setStateMany, setClass, setClassMany, setFee, addConsult, linkSibling, issueStudentAccount, issueAccountsMany, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
 import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";
 import { linkCc } from "@/lib/cc";   // (녀) 🃏 아이 ↔ 클래스카드 아이디 — 확장이 보낸 짐은 이 아이디로 아이를 찾는다   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
 const wrap = (fn) => act(fn, "학생 14");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
-export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
+export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return addStudent(sb, f ?? {}, await today(sb), { svc: serviceClient() }); }); }   // (어54) 전화가 있으면 앱 계정도 같이 낸다(원장님 9/16 「학생 추가하면 전화번호있으면 바로 로그인정보 함께 생성되고」)
+export async function accountsManyAct(ids) { return wrap(async () => { const { sb } = await staff(); return issueAccountsMany(serviceClient(), sb, ids, await today(sb)); }); }   // (어54) 고른 아이 한 번에 계정 발급(이미 있는 아이 · 전화 없는 아이는 건너뛴다)
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}, seenAt); return {}; }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function stateAct(id, state, on = null) { return wrap(async () => { const { sb } = await staff(); await setState(sb, id, state, on); return {}; }); }
 export async function stateManyAct(ids, state, on = null) { return wrap(async () => { const { sb } = await staff(); return setStateMany(sb, ids, state, on); }); }   // (어28) 고른 아이 한 번에 퇴원·복귀
