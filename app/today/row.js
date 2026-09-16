@@ -5,7 +5,7 @@ import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -130,7 +130,7 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
       <ItemTree rows={parts.live} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
       {sheet.check.length === 0 && <div className="lf" data-g="check-none"><span className="ln">📭</span>
         <div><b>오늘 검사할 숙제 없음</b><small>{(student.books ?? []).length ? "지난 시간에 낸 숙제가 없어서 검사할 줄이 없음" : "배정한 교재 없음"}</small></div>
-        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("home")}>+ 숙제 주기</button>}
+        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("home")}>+ 숙제 배정</button>}
         {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
       {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
       {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
@@ -224,7 +224,8 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         <button type="button" className="btn sm gho" data-act="fold-more" aria-pressed={more} onClick={() => setMore((v) => !v)}>+ 항목{extras ? ` ${extras}` : ""}</button>
         {lateNode && <button type="button" className="btn sm gho" data-act="fold-late" aria-pressed={showLate} onClick={() => setShowLate((v) => !v)}>🌙 늦게 감{!showLate && folds.lateText && folds.lateText !== "늦게 가는 아이 아님" ? ` · ${folds.lateText}` : ""}</button>}
         {memoNode && <button type="button" className="btn sm gho" data-act="fold-memo" aria-pressed={showMemo} onClick={() => setShowMemo((v) => !v)}>🗺 메모{folds.memoText && folds.memoText !== "메모 없음" ? ` · ${folds.memoText}` : ""}</button>}
-        {!closed && sheet.home.length === 0 && <button type="button" className="btn sm" data-act="give" onClick={() => setGiveSlot("home")}>+ 숙제 주기</button>}
+        {/* (어56) 숙제가 있어도 보인다 · 잘못 나간 숙제를 고치는 자리이기도 하다(원장님 9/16) */}
+        {!closed && <button type="button" className="btn sm" data-act="give" onClick={() => setGiveSlot("home")}>+ 숙제 배정</button>}
       </div>
       {more && <>
       <div className="load">
@@ -672,22 +673,61 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
     </div>
   );
 }
-/** (어13) 숙제 주기 — 원장님 2026-09-14 「오늘 화면에 숙제가 없었을때 부여하는 버튼 필요해. 모달로 따로 뜨게.(기존 페이지에서 더 늘어나지않게)」.
- *  루틴이 안 깔린 날(교재 보류 · 루틴 없음)에 원장님이 직접 주시는 것 · 한 줄에 하나 · 집/학원 · 여러 줄 한 번에(lib/homework addItems). 페이지엔 단추 하나만 선다 */
+/** (어56) 숙제·학습 배정 — 원장님 2026-09-16 「숙제주기를 텍스트로 주면 루틴이 안 먹잖아. 밑에 숙제배정과 같은 방식으로 배정하도록 모달을 띄우게해. 숙제가 잘못나갔거나 고쳐야할수 있어서 필수 핵심기능중하나야」.
+ *  (어13) 때는 글 한 줄만 받아 `item_id`·`unit_id` 가 비었고, 그래서 검사 카드의 교재별 묶기·루틴 차례·진도가 그 줄을 못 잡았다. 이제 **교재 › 대단원 › 소단원 × 루틴 활동**으로 고른다.
+ *  단원을 고르면 그 자리(집·학원)의 **루틴 활동이 전부 체크된 채**로 뜨고 뺄 것만 푼다(원장님 답 「a인데 필요시 추가도 가능하게」).
+ *  오늘 이미 깔린 줄은 체크된 채로 열리므로 **잘못 나간 숙제도 이 자리에서 고친다** — 체크를 풀면 그 줄이 내려간다(지우지 않는다 · 대전제-6).
+ *  루틴에 없는 것은 맨 아래 「글로 한 줄」(옛 길을 남겨 둔다). 손은 lib/routine applyGive 하나 · 루틴이 깔 때(layRoutine)와 같은 줄 모양 */
 function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const [failM, errNode] = useModalErr();   // (어49) 모달 안 손의 실패는 모달 안에 선다 · 덮개 뒤 판에 뜨면 「단추가 안 먹힌다」로 보인다(원장님 9/16)
   const [slot, setSlot] = useState(at ?? "home");
+  const [pool, setPool] = useState(null);
+  const [bookId, setBookId] = useState("");
+  const [chapter, setChapter] = useState("");
+  const [units, setUnits] = useState([]);
+  const [items, setItems] = useState([]);
   const [text, setText] = useState("");
-  const lines = text.split("\n").map((x) => x.trim()).filter(Boolean);
-  const save = () => start(async () => { if (failM(await give(sheet.id, slot, text))) onClose(); });
+  const [busy, setBusy] = useState(false);
+  const seed = (p, sl) => {   // 이미 깔린 줄이 있으면 그것을 그대로 보여 고치게 하고, 없으면 진도 다음 단원 + 그 자리 루틴 활동 전부(답 ⓐ)
+    const mine = (p.have ?? []).filter((h) => h.slot === sl && !h.off);
+    const us = mine.length ? [...new Set(mine.map((h) => h.unit_id))] : p.next ? [p.next] : [];
+    const its = mine.length ? [...new Set(mine.map((h) => h.item_id))] : (p.lines?.[sl] ?? []).map((l) => l.item_id);
+    const ch = (p.units ?? []).find((u) => u.id === us[0])?.chapter ?? p.chapter ?? (p.units ?? [])[0]?.chapter ?? "";
+    return { us, its, ch };
+  };
+  const loadBook = (id) => { setBookId(id); if (!id) return; setBusy(true); start(async () => { const r = await givePool(sheet.id, id); setBusy(false); if (!failM(r)) return; const { us, its, ch } = seed(r, slot); setPool(r); setUnits(us); setItems(its); setChapter(ch); }); };
+  useEffect(() => { setBusy(true); start(async () => { const r = await givePool(sheet.id); setBusy(false); if (!failM(r)) return; setPool(r); const first = (r.books ?? [])[0]?.book_id ?? ""; if (first) loadBook(first); }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pickSlot = (k) => { setSlot(k); if (pool?.units?.length) { const { us, its, ch } = seed(pool, k); setUnits(us); setItems(its); setChapter(ch); } };
+  const books = pool?.books ?? [], allUnits = pool?.units ?? [], lines = pool?.lines?.[slot] ?? [];
+  const chapters = [...new Set(allUnits.map((u) => u.chapter).filter(Boolean))];
+  const here = allUnits.filter((u) => !chapter || u.chapter === chapter);
+  const flip = (arr, set, id) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+  const n = units.length * items.length;
+  const save = () => start(async () => {
+    const r = await giveApply(sheet.id, bookId, slot, { unitIds: units, itemIds: items });
+    if (!failM(r)) return;
+    if (text.trim() && !failM(await give(sheet.id, slot, text))) return;
+    onClose();
+  });
   return (
-    <div className="mdlov" role="dialog" aria-modal="true" aria-label="숙제 주기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="mdl" style={{ width: "min(480px,100%)" }} data-g="give-modal">
-        <div className="mdlh"><b>숙제 주기</b>
-          <div className="seg sm" data-g="give-slot">{[["home", "집"], ["class", "학원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => setSlot(k)}>{name}</button>)}</div>
+    <div className="mdlov" role="dialog" aria-modal="true" aria-label="숙제 배정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mdl" style={{ width: "min(620px,100%)" }} data-g="give-modal">
+        <div className="mdlh"><b>숙제 배정</b>
+          <div className="seg sm" data-g="give-slot">{[["home", "집"], ["class", "학원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => pickSlot(k)}>{name}</button>)}</div>
           <span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
-        <div className="mdlb">{errNode}<textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"한 줄에 하나\n예: 워크북 p.10 1-18"} aria-label="줄 항목" style={{ width: "100%" }} /></div>
-        <div className="mdlf"><button type="button" className="btn pri" data-act="give-save" disabled={!lines.length} onClick={save}>{lines.length ? `${lines.length}개 주기` : "주기"}</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
+        <div className="mdlb">{errNode}
+          {!books.length && !busy && <div className="lf over" data-g="no-book"><span className="ln">!</span><div><b>배정된 교재 없음</b><small>교재를 먼저 배정</small></div></div>}
+          {books.length > 0 && <div className="wv" data-g="give-pick">
+            <select value={bookId} onChange={(e) => loadBook(e.target.value)} aria-label="교재" data-g="give-book" style={{ width: "auto" }}>{books.map((b) => <option key={b.book_id} value={b.book_id}>{b.name}{b.area ? ` · ${b.area}` : ""}</option>)}</select>
+            {chapters.length > 1 && <select value={chapter} onChange={(e) => setChapter(e.target.value)} aria-label="대단원" data-g="give-chapter" style={{ width: "auto" }}>{chapters.map((c) => <option key={c} value={c}>{c}</option>)}</select>}
+            <span className="spacer" /><span className="tag" data-g="give-count">{n}줄</span></div>}
+          {here.length > 0 && <div className="left" style={{ marginTop: 8 }} data-g="give-units">{here.map((u) => <label key={u.id} className="ckl" data-g="give-unit" data-unit={u.id}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null, u.left ? null : "✓"].filter(Boolean).join(" · ")}</small></label>)}</div>}
+          {lines.length > 0 && <div className="left" style={{ marginTop: 8 }} data-g="give-items">{lines.map((l) => <label key={l.item_id} className="ckl" data-g="give-item" data-item={l.item_id}><input type="checkbox" className="ck" checked={items.includes(l.item_id)} onChange={() => flip(items, setItems, l.item_id)} /> <b>{l.name}</b> {l.required && <small>필수</small>}</label>)}</div>}
+          {bookId && !lines.length && !busy && <p className="note" data-g="no-line" style={{ margin: "8px 0 0" }}>집·학원 루틴 줄 없음 · 루틴 11</p>}
+          <div className="wv" style={{ marginTop: 8 }} data-g="give-free"><span className="fl" style={{ margin: 0 }}>글로 한 줄</span>
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 워크북 p.10 1-18" aria-label="글로 한 줄" style={{ flex: "1 1 200px" }} /></div>
+        </div>
+        <div className="mdlf"><button type="button" className="btn pri" data-act="give-save" disabled={busy || (!n && !text.trim())} onClick={save}>{n ? `${n}줄 배정` : "배정"}</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
       </div>
     </div>
   );

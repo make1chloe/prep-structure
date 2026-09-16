@@ -13,13 +13,14 @@ import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } fro
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { staffStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
-import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, moveBook, nextRound, relayBook } from "@/lib/routine";
+import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, givePool as givePoolOf, applyGive, moveBook, nextRound, relayBook } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
 const done = doneAt("/today", "오늘 수업 01");
+const wrap2 = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 배정 읽기");   // (어56) 읽기만 하는 손은 화면을 다시 안 그린다
 const quiet = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 진도 체크");   // (어49) 진도 체크는 누를 때마다 화면을 다시 안 그린다 · 모달이 먼저 바꾸고 닫을 때 한 번 읽는다(원장님 9/16 「버튼이 제대로 작동하지않음」)   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
@@ -35,6 +36,8 @@ export const stayAllDoneAct = done(async (sheetId) => { const { sb } = await sta
 export const stayCarryAct = done(async (sheetId) => { const { sb } = await staff(); return stayCarry(sb, sheetId); });
 export const add = done(async (form) => { const { sb } = await staff(); await addItem(sb, String(form.get("sheetId")), String(form.get("slot")), String(form.get("text") ?? "")); });
 export const give = done(async (sheetId, slot, text) => { const { sb } = await staff(); return addItems(sb, String(sheetId), String(slot), String(text ?? "")); });   // (어13) 숙제 주기 모달 — 여러 줄 한 번에
+export const givePool = wrap2(async (sheetId, bookId = null) => { const { sb } = await staff(); return givePoolOf(sb, String(sheetId), bookId ? String(bookId) : null); });   // (어56) 배정 모달이 읽는 것 — 교재 · 단원 · 그 자리의 루틴 활동 · 오늘 이미 깔린 줄
+export const giveApply = done(async (sheetId, bookId, slot, pick) => { const { sb } = await staff(); return applyGive(sb, String(sheetId), String(bookId), String(slot), pick ?? {}); });   // (어56) 고른 (단원 × 활동)이 그 교재·그 자리의 전부 — 넣고 · 되살리고 · 안 고른 것은 내린다
 export const itemText = done(async (itemId, text) => { const { sb } = await staff(); await editItemText(sb, itemId, text); });   // 대전제-19 · 손으로 더한 줄 고치기
 export const itemRemove = done(async (itemId) => { const { sb } = await staff(); await removeItem(sb, itemId); });
 export const itemRestore = done(async (itemId) => { const { sb } = await staff(); await restoreItem(sb, itemId); });
