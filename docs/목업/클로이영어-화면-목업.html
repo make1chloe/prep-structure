@@ -551,7 +551,7 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 .rowbar [data-act=collapse]{display:none}
 @media(max-width:760px),(pointer:coarse){.rowbar [data-act=collapse]{display:inline-flex}.rowbar .note{display:none}} /* 폰: 「닫기」가 저장줄에(머리의 닫기는 위로 멀다) · 설명은 접는다 */
 /* (어12) 2026-09-13 원장님 「pc부터 고쳐야되고 애초에 수업중에 업무를 할수가없는구조야」 — 01 을 PC 에서 두 열로: 왼쪽은 이름 줄(늘 보인다 · 아이가 무작위로 오는 수업 중에 찾는 자리) · 오른쪽은 열린 한 아이의 판. 줄(.row)·반(section)은 display:contents 로 격자에 풀고, 판만 오른쪽 열에 absolute 로 세워 이름 줄 사이가 안 벌어진다. 폰(<1100)은 그대로 세로 */
-@media(min-width:1100px){.split{display:grid;grid-template-columns:300px minmax(0,1fr);column-gap:16px;align-content:start;position:relative;min-height:calc(100vh - 190px)}}
+@media(min-width:1100px){.split{display:grid;grid-template-columns:clamp(300px,24vw,400px) minmax(0,1fr);column-gap:16px;align-content:start;position:relative;min-height:calc(100vh - 190px)}}
 @media(min-width:1100px){.split section,.split .row{display:contents}}
 @media(min-width:1100px){.split section>*,.split .row>*{grid-column:1}}
 @media(min-width:1100px){.split .row>.panel{grid-column:2;position:absolute;top:0;right:0;bottom:0;left:0;overflow:auto;border:1px solid var(--navy);border-radius:12px;box-shadow:0 0 0 2px var(--navy)}}
@@ -1047,6 +1047,8 @@ fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{back
 .tr.dense .trb{margin:2px 0 0;font-size:var(--fs-2)}
 .tr.dense .tru{margin:0}
 .tru.flat>.truh{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0;font-weight:700}
+.truh .trp{flex:0 0 auto;font-weight:800;font-size:var(--fs-3);color:var(--on-navy);background:var(--navy);border-radius:6px;padding:0 6px;letter-spacing:.2px;font-variant-numeric:tabular-nums}
+.tr.dense .truh .trp{font-size:var(--fs-2);padding:0 5px}
 .tru.flat>.truh .trc,.tru.flat>.truh small{color:var(--faint);font-weight:400;font-size:var(--fs-2)}
 .tr.dense .truh{padding:2px 0;gap:4px;font-size:var(--fs-2);font-weight:600}
 .tr.dense .trr{margin-left:2px;padding-left:6px}

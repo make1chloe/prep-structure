@@ -13,7 +13,7 @@ export function ItemTree({ rows = [], all = rows, row, unitHead = null, book = t
       {b.chapters.map((ch) => ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null;
         if (!g.unit && !unitHead) return <div key={`_${ch.key}_${gi}`} className="trr" data-g="tree-free">{g.rows.map((it, i) => row(it, i, g, ch))}</div>;   // 단원 없는 줄(손으로 더한 것)은 머리 없이 줄만 · 「단원 없음」 글은 노이즈(대전제-21) · 01 학습·숙제 안(unitHead)에서는 손이 있어 머리를 둔다
         const key = g.id ?? `_${ch.key}_${gi}`;
-        const head = <>{fold && <span className="ar">▸</span>}{ch.chapter && <span className="trc">{ch.chapter} ›</span>}<b>{bits ? bits.subs : "단원 없음"}</b>{bits && (bits.pages || bits.q) && <small>{[bits.pages, bits.q].filter(Boolean).join(" · ")}</small>}{unitHead?.(g, ch)}</>;
+        const head = <>{fold && <span className="ar">▸</span>}{bits?.pages && <span className="trp" data-g="tree-pages">{bits.pages}</span>}{ch.chapter && <span className="trc">{ch.chapter} ›</span>}<b>{bits ? bits.subs : "단원 없음"}</b>{bits?.q && <small>{bits.q}</small>}{unitHead?.(g, ch)}</>;   {/* (어52) 쪽수가 맨 앞 · 가장 눈에 띄게(원장님 2026-09-16 「숙제검사항목에서 페이지번호가 가장 잘 보이게, 앞쪽에 배치해 그게 더 빠르게 검사하는데 도움이될듯」) · 글은 lib/item-plan pagesText 한 벌 그대로 */}
         const body = <div className="trr">{g.rows.map((it, i) => row(it, i, g, ch))}</div>;
         if (!fold) return <div key={key} className="tru flat" data-g="tree-unit" data-unit={g.id ?? ""}><div className="truh" data-g="tree-head">{head}</div>{body}</div>;
         return (
