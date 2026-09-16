@@ -5,6 +5,7 @@ import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import ScopeForm from "@/app/_shell/scopeform";
 import SchoolsCard from "@/app/_shell/schoolscard";   // 학교 이름·급 고치기 · 닫기 · + 새 학교(대전제-19)
+import ExamForm from "@/app/_shell/examform";   // (어52) 원장님 9/16 「내신에도 그게 가능해」 — 12 일정 · 12b 가져오기와 같은 칸(원칙-1) · 넣으면 일정 달력에도 뜬다
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, hiddenManyAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, changeSeenAct, changeSeenManyAct } from "./actions.js";
@@ -15,7 +16,7 @@ const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderCo
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, exams = b.exams ?? [];
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(false); const [adding, setAdding] = useState(false);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const c = counts(exams, today);
   const school = exams.filter((e) => e.scope === "school" && !e.hidden), nat = exams.filter((e) => e.scope === "national" && !e.hidden), hidden = exams.filter((e) => e.hidden);
@@ -30,8 +31,10 @@ export default function Board({ d }) {
       <span className="pill" data-g="scopes">범위 {c.scopes}줄</span>
       {c.hidden > 0 && <button className="btn sm" type="button" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>🙈 숨긴 시험 {c.hidden}</button>}
       <span className="spacer" />
-      <Sibs here="/schedule/exams" /><Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 가져오기 · + 시험 ↗</Link>
+      <button className="btn sm pri" type="button" data-act="exam-add" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 시험</button>
+      <Sibs here="/schedule/exams" /><Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 ↗</Link>
     </div>
+    {adding && <ExamForm schools={b.schools ?? []} date={today} pending={pending} run={run} onDone={() => setAdding(false)} />}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 시험에 한 번에 · 숨기기(대비·알림·교재 보류에서 빠짐 · 지우지 않는다) · 복구 · 📡 봤음 */}

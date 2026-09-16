@@ -5,10 +5,10 @@ import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { scheduleBoard } from "@/lib/schedule";
+import { scheduleBoard, studentPicks } from "@/lib/schedule";
 import { ymOf } from "@/lib/cal-plan";
 import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, confirmState, confirmText, canConfirm, LEGEND, W } from "@/lib/schedule-plan";
-import Panel, { ClassMakeup, MonthConfirm } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
+import Panel, { AddTop, ClassMakeup, MonthConfirm } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Schedule({ searchParams }) {
@@ -20,7 +20,8 @@ export default async function Schedule({ searchParams }) {
     const date = await today(sb);
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date);
     const sel = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : ym === ymOf(date) ? date : `${ym}-01`;
-    d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board: await scheduleBoard(sb, ym, date) };
+    const [board, students] = await Promise.all([scheduleBoard(sb, ym, date), studentPicks(sb)]);   // 한 파도(속도-1) — 「+ 결석 예정」이 아이를 고른다((어52))
+    d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board, students };
   } catch (e) { { console.error("[화면] 일정 못 엶:", e); return frame(<Oops what="일정" e={e} />); } }
   const b = d.board, target = Number(b.rules?.["schedule.sessions_per_month"] ?? 8);
   const q = (m, day = null) => `/schedule?m=${m}${day ? `&d=${day}` : ""}${d.classId ? `&c=${d.classId}` : ""}`;
@@ -28,6 +29,7 @@ export default async function Schedule({ searchParams }) {
   const rows = dayRows(d.sel, b, d.classId), unsched = unscheduled(b, d.ym);
   const ct = confirmText(confirmState(b.confirm ?? [], b.classes ?? []), d.ym, b.confirm_sent ?? 0);   // 그 달 확정 도장(4단계-3b · ㉚) — 판단은 plan, 여기는 가져다 그린다
   return frame(<>
+    <AddTop d={{ sel: d.sel, ym: d.ym, classes: b.classes ?? [], schools: b.schools ?? [], students: d.students ?? [] }} />
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <Link prefetch={false} className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</Link><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><Link prefetch={false} className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</Link>
       <div className="seg sm" data-g="classes"><Link prefetch={false} className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</Link>{(b.classes ?? []).map((c) => <Link prefetch={false} key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</Link>)}</div>

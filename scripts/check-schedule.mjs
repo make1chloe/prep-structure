@@ -1,4 +1,5 @@
 /** 일정 판단 검사(검사-52) · lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어 시험일 › 시험 › 보강 › 지각 › 업무) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 · (처) 대시보드 「8회를 못 채웁니다」 */
+import { readFileSync } from "node:fs";
 import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, confirmState, confirmText, canConfirm, LEGEND, EVENT, shortClasses } from "../lib/schedule-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -39,5 +40,22 @@ console.log("■ (처) 대시보드 「8회를 못 채웁니다」 · dash_ops.c
 { const cls = { ym: "2026-09", target: "8", rows: [{ id: "c1", nickname: "화·목반", kind: "regular", weekdays: [2, 4], sessions: 7, extra: 0 }, { id: "c2", nickname: "", kind: "regular", weekdays: [1], start_time: "17:00:00", sessions: 4, extra: 1 }, { id: "c3", nickname: "특강", kind: "special", sessions: 2, extra: 0 }, { id: "c4", nickname: "월수", kind: "regular", sessions: 8, extra: 0 }] };
   const r = shortClasses(cls);
   ok("정규반 가운데 회차 + 반 보강일 < 기준 → 「화·목반 7회 · 8회를 못 채웁니다」 「월 17:00 5회 · …」(별명 없으면 요일·시각) · 특강·8회 채운 반은 없다 · 달·모자란 수 · 기준이 6 이면 그 셈 · 비면 []", r.map((x) => x.text).join(",") === "화·목반 7회 · 8회를 못 채웁니다,월 17:00 5회 · 8회를 못 채웁니다" && r[0].ym === "2026-09" && r[0].short === 1 && r[1].n === 5 && shortClasses(null).length === 0 && shortClasses({ ...cls, target: "6" }).map((x) => x.text).join(",") === "월 17:00 5회 · 6회를 못 채웁니다", JSON.stringify(r)); }
+// ── (어52) 시험 넣는 칸은 한 벌 · 최상단 「+ 일정」 다섯 갈래 · 결석 예정은 02c 와 같은 손(원장님 2026-09-16 · 대전제-24)
+console.log("■ (어52) 시험 입력 한 벌 · 최상단 더하기 · 결석 예정");
+{ const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+  const read = (f) => strip(readFileSync(f, "utf8"));
+  const form = read("app/_shell/examform.js"), panel = read("app/schedule/panel.js"), imp = read("app/schedule/import/board.js"), ex06 = read("app/schedule/exams/board.js"), page = read("app/schedule/page.js"), lib = read("lib/schedule.js"), act = read("app/schedule/actions.js");
+  const users = [["12 일정", panel], ["12b 가져오기", imp], ["06b 학교 시험", ex06]];
+  const owns = (x) => /data-g="exam-scope"/.test(x) && /aria-label="시험 이름"/.test(x);   // 칸을 제 손으로 그리는 파일
+  ok("시험 넣는 칸은 _shell/examform 한 벌 · 12 · 12b · 06b 셋이 들여다 쓴다(제 칸을 또 그리는 곳 0 · 원칙-1 · 원장님 9/16 「입력방식은 일정에서 입력하는 방식이 맞아보여」)",
+    owns(form) && users.every(([, x]) => /from "[^"]*_shell\/examform"?/.test(x) && !owns(x)), users.filter(([, x]) => owns(x) || !/_shell\/examform/.test(x)).map(([k]) => k).join(", "));
+  ok("06b 에도 기간(시작~끝)과 영어 시험일 칸이 있다(원장님 답 ⓐ) · 06b 머리에 「+ 시험」 · 손은 examAct 하나(칸이 제 손을 부른다)",
+    /aria-label="시작"/.test(form) && /aria-label="끝"/.test(form) && /aria-label="영어 시험일"/.test(form) && /data-act="exam-add"/.test(ex06) && /examAct\(/.test(form) && ![panel, imp, ex06].some((x) => /examAct\(/.test(x)));
+  ok("저장 뒤 글도 한 벌(SAVED) · 부르는 쪽이 같은 글을 또 적지 않는다", /export const SAVED = "/.test(form) && ![panel, imp, ex06].some((x) => /시험을 넣었습니다/.test(x)));
+  const kinds = [...(/export const ADD_KINDS = Object\.freeze\(\[(.*?)\]\);/s.exec(panel)?.[1] ?? "").matchAll(/\["(\w+)", "([^"]+)", "([^"]+)"\]/g)].map((m) => [m[1], m[2], m[3]]);
+  ok("최상단 「+ 일정」 다섯 갈래 · 시험 · 휴강 · 업무 · 보강 · 결석 예정(원장님 9/16 「종류를 선택하게해서 클릭을 하나줄여」) · 갈래마다 칸 하나", kinds.length === 5 && kinds.map(([k]) => k).join() === "exam,hol,todo,mk,abs" && kinds.map(([, nm]) => nm).join(" ").includes("결석 예정") && ["exam-form", "holiday-form", "todo-form", "makeup-top", "absence-form"].every((g) => new RegExp(`data-g="${g}"`).test(panel) || g === "exam-form"), JSON.stringify(kinds));
+  ok("더하기는 페이지 맨 위 하나 · 달력·머리보다 먼저 · 아래쪽 더하기 자리(day-acts)는 없앴다", /<AddTop /.test(page) && page.indexOf("<AddTop ") < page.indexOf('data-g="head"') && !/data-g="day-acts"/.test(panel));
+  ok("결석 예정은 02c 와 같은 손 — addAbsence 가 planSave 를 부른다(표를 직접 안 만진다) · 화면 손 absenceAct · 아이 목록은 파도에(속도-1)", /export async function addAbsence/.test(lib) && /addAbsence[\s\S]{0,240}planSave\(/.test(lib) && !/addAbsence[\s\S]{0,240}from\("makeup"\)/.test(lib) && /export async function absenceAct/.test(act) && /Promise\.all\(\[scheduleBoard\(/.test(page) && /studentPicks\(sb\)/.test(page));
+  ok("반 보강일도 한 부품(ClassMakeup) · 반 카드(반이 정해짐)와 최상단(반을 고름)이 같은 손·같은 글", /export function ClassMakeup\(\{ classId = null/.test(panel) && (panel.match(/classMakeupAct\(/g) ?? []).length === 1); }
 console.log(`\n■ 일정 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
