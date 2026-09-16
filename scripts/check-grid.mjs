@@ -1,6 +1,6 @@
 /** 학교별 표 판단 검사(검사-59) — lib/grid-plan.js 순수 셈: 본 여섯 · 칸 종류 여섯(확정-56 「앱에서 고르기」) · 칸 읽기 · 값 읽기·글(종류마다 · 비면 없음) · 체크 목록 손 · 줄 이름 · 셈 · 칸으로 이동 · 차례 옮기기 · 보드(선택 칸으로 묶기 · 없음은 숨긴 그룹 · ◀ ▶) · 카드 제목 · 따로 챙길 아이들 · 내 표/전체 표 ·
  *  종류 바꿀 때 값 옮겨 담기(되는 것만 · 안 되는 것은 그대로 · 못 옮긴 값이 남아도 화면이 거짓말을 안 한다) · 체크 목록 항목 빼기(5단계-⑥) */
-import { mineLines, TEMPLATES, COL_TYPES, colsFromTemplate, parseCol, parseCell, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, counts, jumpTargets, jumpStep, unitGroups, unitPick, focusRows, moveIn, boardOf, nextOption, cardTitle, watchSummary, visibleGrids, templateOf, convertCell, convertMany } from "../lib/grid-plan.js";
+import { mineLines, TEMPLATES, COL_TYPES, colsFromTemplate, parseCol, parseCell, cellText, toggleItem, addItem, removeItem, rowTitle, rowSub, jumpTargets, jumpStep, unitGroups, unitPick, focusRows, moveIn, boardOf, nextOption, cardTitle, watchSummary, visibleGrids, templateOf, convertCell, convertMany, sortRows, sortKey, SORT_DIRS, calendarOf, dateFrom, dateTo } from "../lib/grid-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -13,13 +13,13 @@ const sel = { type: "select", options: ["만들기", "인쇄"] }, chk = { type: 
 ok("글 · 날짜 · 선택 · 예/아니오 · 체크 목록(글줄 ☑/☐) · 고르기 · 비면 null · 틀린 것은 막는다", parseCell({ type: "text" }, "  hi ") === "hi" && parseCell({ type: "text" }, "") === null && parseCell({ type: "date" }, "2026-10-09") === "2026-10-09" && thr(() => parseCell({ type: "date" }, "10/9")) && parseCell(sel, "인쇄") === "인쇄" && thr(() => parseCell(sel, "배부")) && parseCell({ type: "yn" }, "예") === true && parseCell({ type: "yn" }, false) === false && J(parseCell(chk, "☑ 본책\n☐ 워크북")) === J([{ name: "본책", done: true }, { name: "워크북", done: false }]) && J(parseCell(pk, "b1")) === J({ of: "book", id: "b1" }) && parseCell(pk, { id: "" }) === null);
 const refs = { books: [{ id: "b1", name: "중등3800제3" }], exams: [{ id: "e1", name: "2학기 중간", school: "신정중" }], units: [{ id: "u1", chapter: "CH1", short: "1-1" }] };
 ok("글로 · 날짜 「10/9」 · 예/아니오 · 체크 「1/2 · ☑ 본책 ☐ 워크북」 · 교재 이름 · 회차 「신정중 2학기 중간」 · 단원 「CH1 › 1-1」 · 목록에 없으면 「(교재 하나 · 목록에 없음)」 · 없음은 빈 글", cellText({ type: "date" }, "2026-10-09") === "10/9" && cellText({ type: "yn" }, true) === "예" && cellText(chk, [{ name: "본책", done: true }, { name: "워크북", done: false }]) === "1/2 · ☑ 본책 ☐ 워크북" && cellText(pk, { of: "book", id: "b1" }, refs) === "중등3800제3" && cellText({ type: "pick", options: { of: "exam" } }, { of: "exam", id: "e1" }, refs) === "신정중 2학기 중간" && cellText({ type: "pick", options: { of: "unit" } }, { of: "unit", id: "u1" }, refs) === "CH1 › 1-1" && cellText(pk, { of: "book", id: "zz" }, refs) === "(교재 하나 · 목록에 없음)" && cellText({ type: "text" }, null) === "");
-ok("체크 목록 손 · 켜고 끄기 · 더하기(빈 것은 안 더함) · 「1/2」 · 비면 빈 글", toggleItem([{ name: "a", done: false }], 0)[0].done === true && addItem([], "x").length === 1 && addItem([], "  ").length === 0 && checkText([{ done: true }, { done: false }]) === "1/2" && checkText([]) === "");
+ok("체크 목록 손 · 켜고 끄기 · 더하기(빈 것은 안 더함)", toggleItem([{ name: "a", done: false }], 0)[0].done === true && addItem([], "x").length === 1 && addItem([], "  ").length === 0);
 console.log("■ 줄 · 셈 · 이동 · 차례");
 const g = { id: "g1", label: "학교별 교재", rows: "school", state: "active", created_by: "me", board_col: "c4",
   cols: [{ id: "c1", label: "학년", type: "select", options: ["중1", "중2"], sort: 10, state: "active" }, { id: "c2", label: "교재", type: "pick", options: { of: "book" }, sort: 20, state: "active" }, { id: "c3", label: "배부", type: "yn", sort: 30, state: "active" }, { id: "c4", label: "진행 상황", type: "select", options: ["만들기", "인쇄", "배부", "채점"], sort: 40, state: "active" }, { id: "c5", label: "마감", type: "date", sort: 50, state: "active" }, { id: "c9", label: "삭제한 칸", type: "text", sort: 5, state: "retired" }],
   rows_: [{ id: "r1", school: "옥련여고", sort: 10, state: "active", cells: { c1: "중1", c2: { of: "book", id: "b1" }, c4: "만들기", c5: "2026-10-09" } }, { id: "r2", school: "신정중", sort: 20, state: "active", cells: { c4: "인쇄" } }, { id: "r3", school: "신정중", sort: 30, state: "active", cells: {} }, { id: "r4", school: "삭제한 줄", sort: 40, state: "retired", cells: {} }] };
 ok("줄 이름 · 학교 · 학생(학교 · 학년) · 자유 · 없으면 (이름 없음)", rowTitle({ school: "신정중" }) === "신정중" && rowTitle({ student: "강민서", student_school: "신정중", grade: 2 }) === "강민서" && rowSub({ student: "강민서", student_school: "신정중", grade: 2 }) === "신정중 · 2학년" && rowTitle({ label: "메모" }) === "메모" && rowTitle({}) === "(이름 없음)");
-ok("셈 · 표 1종 · 줄 3(삭제한 줄 뺌) · 칸 5(삭제한 칸 뺌) · 삭제한 표 1 · 칸으로 이동 5(번호 · 이름)", J(counts([g, { ...g, id: "g2", state: "retired" }])) === J({ grids: 1, rows: 3, cols: 5, retired: 1 }) && jumpTargets(g.cols).length === 5 && jumpTargets(g.cols)[0].label === "학년", J(counts([g])));
+ok("칸으로 이동 5(번호 · 이름 · 삭제한 칸 뺌) · (어58) 군더더기 셈은 없앴다(원장님 9/16 「표 1종 · 줄 1 · 칸 3 이런거 쓸데없는것좀 뺴」)", jumpTargets(g.cols).length === 5 && jumpTargets(g.cols)[0].label === "학년");
 ok("차례 옮기기 · c2 를 왼쪽으로 → c2,c1,c3,c4,c5 (10씩 다시) · 맨 앞을 왼쪽은 null · 없는 것은 막는다", moveIn(g.cols, "c2", "left").map((x) => x.id).join() === "c2,c1,c3,c4,c5" && moveIn(g.cols, "c2", "left")[0].sort === 10 && moveIn(g.cols, "c1", "left") === null && thr(() => moveIn(g.cols, "zz", "left")));
 console.log("■ 보드 · 선택 칸으로 묶기 · 카드 = 줄");
 const bd = boardOf(g);
@@ -49,6 +49,32 @@ ok("(너) 아이·학부모 「우리 학교」 줄 · 공개한 학교 줄 표 
   const { readFileSync } = await import("node:fs");
   const 판 = strip(readFileSync("app/schedule/grid/board.js", "utf8"));
   ok("06c 에 「보기 둘이 무엇인가」 설명이 없다. ⓘ 도 걷었다((어14) 대전제-15 · 원장님 9/13 「쓸데없는 설명을 빼고」) · 표/보드 세그가 곧 말한다", !판.includes("보기 둘이 무엇인가") && !/줄과 칸은 하나입니다/.test(판) && !/<Tip\b/.test(판));
+}
+console.log("■ (어58) 06c 엉킨 것 여덟 — 원장님 9/16");
+const dcol = { id: "d", type: "date", label: "마감", state: "active", sort: 10 };
+ok("⑤ 날짜 칸은 하루 또는 기간 · 종료일이 비면 하루로 되돌아간다 · 종료일이 앞서면 막는다 · 옛 글자 하나도 그대로 · 글은 「3/4~3/8」", parseCell(dcol, { from: "2026-03-04", to: "" }) === "2026-03-04" && J(parseCell(dcol, { from: "2026-03-04", to: "2026-03-08" })) === J({ from: "2026-03-04", to: "2026-03-08" }) && parseCell(dcol, "2026-03-04") === "2026-03-04" && thr(() => parseCell(dcol, { from: "2026-03-09", to: "2026-03-08" })) && thr(() => parseCell(dcol, { from: "곧", to: "" })) && cellText(dcol, { from: "2026-03-04", to: "2026-03-08" }) === "3/4~3/8" && cellText(dcol, "2026-03-04") === "3/4", cellText(dcol, { from: "2026-03-04", to: "2026-03-08" }));
+ok("⑤ 시작일·종료일 읽기 한 벌 · 기간은 글로도 옮겨 담긴다(종류를 바꿔도 안 지운다)", dateFrom({ from: "2026-03-04", to: "2026-03-08" }) === "2026-03-04" && dateTo({ from: "2026-03-04", to: "2026-03-08" }) === "2026-03-08" && dateFrom("2026-03-04") === "2026-03-04" && dateTo("2026-03-04") === "" && dateFrom(null) === "" && convertCell(dcol, { type: "text" }, { from: "2026-03-04", to: "2026-03-08" }).value === "2026-03-04~2026-03-08");
+{
+  const cols = [dcol, { id: "s", type: "select", label: "진행", options: ["가", "나"], state: "active", sort: 20 }, { id: "k", type: "checklist", label: "체크", state: "active", sort: 30 }];
+  const rows = [{ id: "r1", label: "하나", state: "active", cells: { d: "2026-09-20", s: "나", k: [{ name: "a", done: true }, { name: "b", done: true }] } },
+                { id: "r2", label: "둘", state: "active", cells: { d: { from: "2026-09-03", to: "2026-09-06" }, s: "가", k: [{ name: "a", done: false }] } },
+                { id: "r3", label: "셋", state: "active", cells: {} }];
+  ok("③ 정렬은 만든 칸으로(원장님 9/16 「만든 칸을 기준으로 정렬하게 하면됨」) · 빈 칸은 방향과 상관없이 늘 뒤 · 기준이 없으면 내가 정한 차례 그대로 · 방향 둘", sortRows(rows, cols, "d", "asc").map((r) => r.label).join() === "둘,하나,셋" && sortRows(rows, cols, "d", "desc").map((r) => r.label).join() === "하나,둘,셋" && sortRows(rows, cols, null).map((r) => r.label).join() === "하나,둘,셋" && sortRows(rows, cols, "zz").map((r) => r.label).join() === "하나,둘,셋" && SORT_DIRS.length === 2, J(sortRows(rows, cols, "d", "asc").map((r) => r.label)));
+  ok("③ 견주는 열쇠 · 날짜는 시작일 · 예/아니오는 예 먼저 · 체크 목록은 덜 끝낸 것 먼저 · 선택은 글", sortKey(dcol, { from: "2026-09-03", to: "2026-09-06" }) === "2026-09-03" && sortKey({ type: "yn" }, true) < sortKey({ type: "yn" }, false) && sortKey(cols[2], [{ done: false }]) < sortKey(cols[2], [{ done: true }]) && sortRows(rows, cols, "k", "asc").map((r) => r.label).join() === "둘,하나,셋" && sortKey(cols[1], "가") === "가");
+  const cal = calendarOf({ cols, rows_: rows }, "2026-09");
+  const days = cal.cells.filter((c) => c.items.length);
+  ok("⑧ 📅 달력 보기(원장님 9/16 「달력보기만 좀 만들어줘」) · 날짜 칸이 축 · 하루는 한 칸 · 기간은 시작일부터 종료일까지 칸마다(첫 칸만 머리) · 날짜 없는 줄은 「안 적은 줄」 · 42칸", cal.axis.id === "d" && cal.cells.length === 42 && days.map((c) => c.date).join() === "2026-09-03,2026-09-04,2026-09-05,2026-09-06,2026-09-20" && days[0].items[0].head === true && days[1].items[0].head === false && days[0].items[0].span === true && cal.none.length === 1 && cal.out.length === 0, J(days.map((c) => c.date)));
+  ok("⑧ 날짜 칸이 없으면 달력이 없다(까닭을 말한다) · 다른 달이면 걸리는 줄이 없다 · 날짜 칸 둘이면 고를 수 있다", calendarOf({ cols: cols.slice(1), rows_: rows }, "2026-09").axis === null && calendarOf({ cols, rows_: rows }, "2027-05").cells.every((c) => !c.items.length) && calendarOf({ cols, rows_: rows }, "2027-05").out.length === 2 && calendarOf({ cols: [...cols, { id: "d2", type: "date", label: "끝", state: "active", sort: 40 }], rows_: rows }, "2026-09", "d2").axis.id === "d2" && calendarOf({ cols, rows_: rows }, "2026-09").dates.length === 1);
+}
+{
+  const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+  const { readFileSync } = await import("node:fs");
+  const 판 = strip(readFileSync("app/schedule/grid/board.js", "utf8"));
+  ok("① 탭은 표 이름 · 보기 셋은 작은 토글(원장님 9/16 「칸 내용이 똑같으면 탭을 전환할필요가없잖아」) · ⊞ 표 · ▦ 보드 · 📅 달력", /data-g="tabs"[\s\S]{0,400}data-act="tab"/.test(판) && /data-g="view"[\s\S]{0,400}data-act="view-cal"/.test(판) && /className="seg sm" data-g="view"/.test(판) && !/nb-viewbar/.test(판));
+  ok("② 표 이름은 탭에만 한 번(원장님 9/16 「학교별 학사일정이 전체의 제목이 아니고 탭의 이름이되야지」) · 제목 자리엔 ✎ 만", !/<b data-g="grid-label">/.test(판) && /data-act="rename" data-g="grid-label"/.test(판));
+  ok("③ 정렬은 진짜 고르개(가짜 「내가 정한 순서 ⌄」 글자가 아니다) · ④ 학생별로 더하는 자리는 맨 밑(따로 챙길 아이들 띠가 표 뒤) · ⑦ 군더더기 셈 없음", /data-g="sort"[\s\S]{0,200}<option value="">내가 정한 순서<\/option>/.test(판) && !/className="sel">내가 정한 순서/.test(판) && 판.indexOf('data-g="watch"') > 판.indexOf('data-g="tabs"') && !/data-g="grid-count"/.test(판) && !/data-g="bar-count"/.test(판));
+  ok("⑥ 체크 목록은 진짜 체크상자 · 접힌 단추 뒤에 숨지 않는다 · 누르면 화면부터(속도-3 낙관적 quick · pending 으로 안 막는다)", /data-g="chk-item"[\s\S]{0,300}type="checkbox"/.test(판) && /onChange=\{\(\) => quick\(r, col, toggleItem\(list, i\)\)\}/.test(판) && /const quick = \(r, col, v\)/.test(판) && /setEdit\(\(e\) => \(\{ \.\.\.e, \[key\]: prev \}\)\)/.test(판));
+  ok("⑤ 날짜 셀에 종료일 체크상자(원장님 9/16 「체크박스로 선택할수있게해」)", /data-g="date-span"/.test(판) && /종료일<\/label>/.test(판));
 }
 console.log(`\ncheck-grid ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
