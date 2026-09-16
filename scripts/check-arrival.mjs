@@ -40,13 +40,18 @@ console.log("■ (어55) 잘못 누른 하원을 취소(원장님 9/16 「하원
   const migs = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).map((f) => readFileSync(`supabase/migrations/${f}`, "utf8")).join("\n");
   ok("취소하는 손은 lib/arrival clearStamp 하나 · **학원 사람이 찍은 줄만** 내린다(아이 앱이 찍은 시각은 1차 기준이라 시각 고치기로만 바꾼다)",
     /export async function clearStamp\(/.test(arr) && /\.eq\("stamped_by", "staff"\)/.test(arr) && /아이 앱이 찍은 것은 취소할 수 없습니다/.test(arr));
-  ok("**지우지 않는다**(대전제-6) · undone_at 을 찍어 내리고(0170) · 다시 찍으면 staffStamp 의 upsert 가 undone_at 을 null 로 덮어 되살린다 · 앱 어디에도 arrival delete 0",
+  ok("**지우지 않는다**(대전제-6) · undone_at 을 찍어 내리고(0170) · 다시 찍으면 staffStamp 가 그 칸을 null 로 덮어 되살린다 · 앱 어디에도 arrival delete 0",
     /update\(\{ undone_at: new Date\(\)\.toISOString\(\) \}\)/.test(arr) && /\.is\("undone_at", null\)\.select\("id"\)/.test(arr)
-    && /stamped_by: "staff", undone_at: null/.test(arr) && !/from\("arrival"\)[\s\S]{0,80}\.delete\(\)/.test(arr)
+    && /undone_at: null/.test(arr) && !/from\("arrival"\)[\s\S]{0,80}\.delete\(\)/.test(arr)
     && /alter table v2\.arrival add column if not exists undone_at timestamptz/.test(migs));
-  { const reads = ["lib/me.js", "lib/day.js", "lib/parent.js", "lib/cal.js"].flatMap((f) => (strip(readFileSync(f, "utf8")).match(/from\("arrival"\)\.select\([^\n]*/g) ?? []).map((l) => [f, l]));
-    const 샌곳 = reads.filter(([, l]) => !/\.is\("undone_at", null\)/.test(l));
-    ok(`취소한 줄은 **읽는 자리 전부**가 뺀다(.is("undone_at", null)) · 하나라도 새면 취소한 하원이 그 화면에만 살아 있다 · 지금 ${reads.length}곳`,
-      reads.length >= 4 && 샌곳.length === 0, 샌곳.map(([f]) => f).join(" · ")); } }
+  ok("(어55b) **붙여넣기 SQL 이 아직 안 들어갔어도 화면은 선다** — 읽기는 lib/arrival-plan liveArrival 한 곳을 거쳐 칸이 없으면 안 거르고 읽고, 쓰기(staffStamp)는 칸 없이 한 번 더 넣는다(2026-09-16 학생 화면이 「column arrival.undone_at does not exist」 로 통째로 깨졌다 · 코드가 SQL 보다 먼저 배포됐다)",
+    /export async function liveArrival\(make\)/.test(readFileSync("lib/arrival-plan.js", "utf8"))
+    && /\/undone_at\/\.test\(r\?\.error\?\.message \?\? ""\)/.test(readFileSync("lib/arrival-plan.js", "utf8"))
+    && /if \(\/undone_at\/\.test\(got\?\.error\?\.message \?\? ""\)\) got = await put\(base\);/.test(arr));
+  { const FILES = ["lib/me.js", "lib/day.js", "lib/parent.js", "lib/cal.js"];
+    const 샌곳 = FILES.filter((f) => /(?<!liveArrival\(\(\) => )db\(sb\)\.from\("arrival"\)\.select/.test(strip(readFileSync(f, "utf8"))));
+    const 감싼곳 = FILES.filter((f) => /liveArrival\(\(\) => db\(sb\)\.from\("arrival"\)\.select/.test(strip(readFileSync(f, "utf8"))));
+    ok(`취소한 줄은 **읽는 자리 전부**가 liveArrival 하나를 거친다 · 맨손으로 읽으면 취소한 하원이 그 화면에만 살아 있거나(칸 있을 때) 화면이 통째로 깨진다(칸 없을 때) · 지금 ${감싼곳.length}곳`,
+      감싼곳.length === FILES.length && 샌곳.length === 0, 샌곳.join(" · ")); } }
 console.log(`\n■ 등원·하원 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

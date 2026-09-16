@@ -46,7 +46,7 @@ export default function ProgressModal({ b, api, closed = false, fail, start, onC
                 {!closed && <PickBox pick={pk} id={u.id} label={`${u.short} 고르기`} />}
                 <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pagesText(u) ? ` · ${pagesText(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{t.partsOf?.[u.id] ? <> · <span data-g="parts">{t.partsOf[u.id]}</span></> : null}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
                 {!closed && <button type="button" className="btn sm gho" data-act="done-upto" aria-label={`${u.short} 까지 모두 끝냄`} onClick={() => upTo(u)}>여기까지 ○</button>}
-                <div className="tri" data-g={u.id}>{TRI.map(([k, ch]) => <button key={k} type="button" data-p={k} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{ch}</button>)}</div>
+                <div className="tri" data-g={u.id}>{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{ch}</button>)}</div>
               </div>); })}
             <div style={{ marginTop: 12 }}><label className="fl">학습 메모</label><input type="text" value={t.memo} readOnly placeholder="(없음)" /></div>
             {!fin && !closed && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm" onClick={() => skip(c.chapter)}>이 대단원 건너뛰기</button></div>}

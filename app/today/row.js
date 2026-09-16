@@ -19,7 +19,8 @@ import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, 
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { examPhase } from "@/lib/exam-plan";
-import { TRI } from "@/lib/progress-plan";
+import { TRI } from "@/lib/progress-plan";   // (어63) 부호·말·CSS 열쇠는 lib/mark.js 한 곳에서 흘러온다(progress-plan 이 그대로 다시 내보낸다 · 02b 진도 체크와 같은 것)
+import { markText } from "@/lib/mark";
 import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
@@ -714,7 +715,6 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const [slot, setSlot] = useState(at ?? "home");
   const [pool, setPool] = useState(null);
   const [bookId, setBookId] = useState("");
-  const [chapter, setChapter] = useState("");
   const [units, setUnits] = useState([]);
   const [items, setItems] = useState([]);
   const [text, setText] = useState("");
@@ -723,18 +723,25 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
     const mine = (p.have ?? []).filter((h) => h.slot === sl && !h.off);
     const us = mine.length ? [...new Set(mine.map((h) => h.unit_id))] : p.next ? [p.next] : [];
     const its = mine.length ? [...new Set(mine.map((h) => h.item_id))] : (p.lines?.[sl] ?? []).map((l) => l.item_id);
-    const ch = (p.units ?? []).find((u) => u.id === us[0])?.chapter ?? p.chapter ?? (p.units ?? [])[0]?.chapter ?? "";
-    return { us, its, ch };
+    return { us, its };
   };
-  const loadBook = (id) => { setBookId(id); if (!id) return; setBusy(true); start(async () => { const r = await givePool(sheet.id, id); setBusy(false); if (!failM(r)) return; const { us, its, ch } = seed(r, slot); setPool(r); setUnits(us); setItems(its); setChapter(ch); }); };
+  const loadBook = (id) => { setBookId(id); if (!id) return; setBusy(true); start(async () => { const r = await givePool(sheet.id, id); setBusy(false); if (!failM(r)) return; const { us, its } = seed(r, slot); setPool(r); setUnits(us); setItems(its); }); };
   useEffect(() => { setBusy(true); start(async () => { const r = await givePool(sheet.id); setBusy(false); if (!failM(r)) return; setPool(r); const first = (r.books ?? [])[0]?.book_id ?? ""; if (first) loadBook(first); }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const pickSlot = (k) => { setSlot(k); if (pool?.units?.length) { const { us, its, ch } = seed(pool, k); setUnits(us); setItems(its); setChapter(ch); } };
+  const pickSlot = (k) => { setSlot(k); if (pool?.units?.length) { const { us, its } = seed(pool, k); setUnits(us); setItems(its); } };
   const books = pool?.books ?? [], allUnits = pool?.units ?? [], lines = pool?.lines?.[slot] ?? [];
-  const chapters = [...new Set(allUnits.map((u) => u.chapter).filter(Boolean))];
-  const here = allUnits.filter((u) => !chapter || u.chapter === chapter);
-  const ordUnits = [...here].sort((a, bb) => Number(Boolean(a.left ? 0 : 1)) - Number(Boolean(bb.left ? 0 : 1)));   // (어59) 안 한 단원이 먼저 · 이미 끝낸 단원은 「다 함」으로 흐리게(원장님 9/16 「이미 완료된 부분이 표시안되는점」)
+  const groups = (() => { const m = new Map();   // (어62) 대단원 고르개를 걷고 **교재 차례 그대로** 대단원 머리 + 소단원을 한 목록에 편다(원장님 2026-09-16 「대단원 목록불편함. 여러대단원에서 골라 배정하기어려움」)
+    for (const u of allUnits) { const c = u.chapter || "그 밖에"; if (!m.has(c)) m.set(c, []); m.get(c).push(u); }
+    return [...m].map(([name, us]) => ({ name, us })); })();
   const flip = (arr, set, id) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+  const allOn = (us) => us.length > 0 && us.every((u) => units.includes(u.id));
+  const flipGroup = (us) => setUnits(allOn(us) ? units.filter((x) => !us.some((u) => u.id === x)) : [...new Set([...units, ...us.map((u) => u.id)])]);
   const n = units.length * items.length;
+  const had = new Set((pool?.have ?? []).filter((h) => h.slot === slot && !h.off).map((h) => `${h.unit_id}|${h.item_id}`));   // (어62) 체크가 거짓말하지 않게 · **이미 나간 줄**과 **아직 저장 안 한 제안**을 갈라 센다(원장님 2026-09-16 「이미 내가 배정하기전에 체크박스에 체크가 되어있음」)
+  const nOut = units.flatMap((u) => items.map((i) => `${u}|${i}`)).filter((k) => had.has(k)).length;
+  const [seen, setSeen] = useState({});   // (어63) 진도를 그 자리에서 고친다(원장님 2026-09-16 「현재진도를 파악하고 수정하기에 쉬운 구조로」) · 화면 먼저 · 실패하면 되돌린다(속도-3) · 손은 lib/progress setUnit 하나(02b 와 같은 것)
+  const stOf = (u) => seen[u.id] ?? u.st ?? "none";
+  const setSt = (u, k) => { const prev = stOf(u); if (prev === k) return; setSeen((o) => ({ ...o, [u.id]: k }));
+    start(async () => { if (!failM(await progressSet(sheet.id, u.id, k))) setSeen((o) => ({ ...o, [u.id]: prev })); }); };
   const save = () => start(async () => {
     const r = await giveApply(sheet.id, bookId, slot, { unitIds: units, itemIds: items });
     if (!failM(r)) return;
@@ -751,10 +758,19 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
           {!books.length && !busy && <div className="lf over" data-g="no-book"><span className="ln">!</span><div><b>배정된 교재 없음</b><small>교재를 먼저 배정</small></div></div>}
           {books.length > 0 && <div className="wv" data-g="give-pick">
             <select value={bookId} onChange={(e) => loadBook(e.target.value)} aria-label="교재" data-g="give-book" style={{ width: "auto" }}>{books.map((b) => <option key={b.book_id} value={b.book_id}>{b.name}{b.area ? ` · ${b.area}` : ""}{b.stopName ? ` · ${b.stopName}` : ""}</option>)}</select>
-            {chapters.length > 0 && <select value={chapter} onChange={(e) => setChapter(e.target.value)} aria-label="대단원" data-g="give-chapter" style={{ width: "auto" }}><option value="">전체 단원 {allUnits.length}개</option>{chapters.map((c) => <option key={c} value={c}>{c}</option>)}</select>}{/* (어61) 대단원 고르개는 **늘** 보인다 · 맨 위가 「전체 단원」(원장님 2026-09-16 「숙제검사에서 숙제를 배정할때 교재단원이 극히 일부만 나오는데 이유가뭐지」 — 대단원 하나로 걸러 놓고 고르개는 둘 이상일 때만 나와 걸러진 줄이 안 보였다) */}
-            <span className="spacer" /><span className="tag" data-g="give-count">{n}줄</span></div>}
-          {here.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-units-h">📕 단원<span className="cnt">{units.length}/{here.length}{chapter ? ` · 교재 전체 ${allUnits.length}` : ""}</span></div>
-            <div className="left" data-g="give-units">{ordUnits.map((u) => <label key={u.id} className="ckl" data-g="give-unit" data-unit={u.id} data-done={u.left ? "0" : "1"} style={u.left ? undefined : { color: "var(--mute)" }}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null].filter(Boolean).join(" · ")}</small>{!u.left && <span className="tag" data-g="unit-done">다 함</span>}</label>)}</div></>}
+
+            <span className="spacer" /><span className="pill" data-g="give-count">{n}줄</span>
+            <span className={"pill" + (nOut ? "" : " warn")} data-g="give-saved">{nOut ? `지금 나감 ${nOut}` : "아직 안 나감"}</span></div>}{/* (어62) 체크는 제안일 뿐이라 저장 전에는 「아직 안 나감」 */}
+          {allUnits.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-units-h">📕 단원<span className="cnt">{units.length}/{allUnits.length}</span></div>
+            <div className="left" data-g="give-units" style={{ maxHeight: 280, overflow: "auto" }}>{groups.map((g) => <Fragment key={g.name}>
+              <div className="hh" data-g="give-chapter" data-chapter={g.name} style={{ margin: "6px 0 0" }}>{g.name}<span className="cnt">{g.us.filter((u) => u.left).length}/{g.us.length}</span>
+                <button type="button" className="btn sm gho" data-act="chapter-all" aria-pressed={allOn(g.us)} onClick={() => flipGroup(g.us)}>전체</button></div>
+              {g.us.map((u) => <div key={u.id} className="ckl" data-g="give-unit" data-unit={u.id} data-chapter={g.name} data-done={stOf(u) === "done" ? "1" : "0"} data-st={stOf(u)}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, flex: "1 1 auto", minWidth: 0, ...(stOf(u) === "done" ? { color: "var(--mute)" } : null) }}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null].filter(Boolean).join(" · ")}</small></label>
+                {stOf(u) === "skip" && <span className="tag" data-g="unit-skip">건너뜀</span>}
+                <span className="tri" data-g="unit-prog">{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(stOf(u) === "skip" ? "none" : stOf(u)) === k} {...icon(markText(k))} onClick={() => setSt(u, k)}>{ch}</button>)}</span>
+              </div>)}
+            </Fragment>)}</div></>}
           {lines.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-items-h">✓ 활동<span className="cnt">{items.length}/{lines.length}</span></div>
             <div className="left" data-g="give-items" style={{ marginLeft: 14 }}>{lines.map((l) => <label key={l.item_id} className="ckl" data-g="give-item" data-item={l.item_id}><input type="checkbox" className="ck" checked={items.includes(l.item_id)} onChange={() => flip(items, setItems, l.item_id)} /> <b>{l.name}</b> {l.required && <small>필수</small>}</label>)}</div></>}
           {bookId && !lines.length && !busy && <p className="note" data-g="no-line" style={{ margin: "8px 0 0" }}>집·학원 루틴 줄 없음 · 루틴 11</p>}

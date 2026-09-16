@@ -25,6 +25,8 @@ await p.goto(APP + "/login"); await p.fill("#id-staff", "zz_principal@e2e.test")
 await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.click("form:has(#id-staff) button[type=submit]")]);
 // ── 조회 수(속도-상한 오늘 20) — PostgREST 요청 로그(up.sh 가 log-level info 로 켠다)를 화면 한 번 여는 동안 센다. 층(4단)은 여기서 못 재고 check-fast 가 글자로 본다
 import { statSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { TRI } from "../../lib/mark.js";
+const P = Object.fromEntries(TRI.map(([k, , css]) => [k, css]));   // (어63) 진도 세그의 **CSS 열쇠**는 lib/mark.js 한 곳 · 걷기가 손으로 적으면 화면과 어긋나 「눌러도 안 먹힌다」가 된다
 const LOG = process.env.E2E_PGRST_LOG || "/var/tmp/e2e-pgrst.log";
 const mark = () => (existsSync(LOG) ? statSync(LOG).size : -1);
 const requestsSince = (at) => at < 0 ? -1 : readFileSync(LOG, "utf8").slice(at).split("\n").filter((l) => /"(GET|POST|PATCH|DELETE) \//.test(l)).length;
@@ -299,15 +301,15 @@ ok("나무 · 1회독 · 끝낸 대단원 0 / 2 · 지금 CHAPTER 1", (await pm.
 { const cs = await p.evaluate(() => { const el = document.querySelector(".mdlov .acc.open"); const st = getComputedStyle(el), root = getComputedStyle(document.documentElement); const hex = (v) => { const m = String(v).trim().match(/^#([0-9a-f]{6})$/i); return m ? `rgb(${parseInt(m[1].slice(0, 2), 16)}, ${parseInt(m[1].slice(2, 4), 16)}, ${parseInt(m[1].slice(4, 6), 16)})` : String(v).trim(); }; return { color: st.color, bg: st.backgroundColor, onNavy: hex(root.getPropertyValue("--on-navy")), navy: hex(root.getPropertyValue("--navy")) }; });   /* (아) 9/8 원장님 폰: 펼친 대단원이 줄의 펴기 단추 규칙(.row[data-open] .open)에 물려 파랗게 — 클래스 이름 겹침(폰-9) */
   ok("(아) 02b 펼친 대단원은 바탕이 파랑(--navy)이 아니고 글씨가 흰색(--on-navy)이 아니다. 줄의 「펴기」 단추 규칙에 안 물린다(폰-9 클래스 이름 겹침 · 원장님 폰이 잡음)", cs.bg !== cs.navy && cs.color !== cs.onNavy, `color ${cs.color} · bg ${cs.bg} · navy ${cs.navy}`);
   await snapModal("02b-progress"); }
-ok("어제 숙제 1-4 에 △ 를 줬으니 1-4 는 ◐ · 1-1~1-3 은 ○(seed)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000001'] button[aria-pressed=true]").getAttribute("data-p")) === "done");
+ok("어제 숙제 1-4 에 △ 를 줬으니 1-4 는 ◐ · 1-1~1-3 은 ○(seed)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000001'] button[aria-pressed=true]").getAttribute("data-p")) === P.done);
 ok("오늘 학습 소단원(1-4·대비문제)에 「✍ 메모로 자동 ○」 후보 표시", (await pm.locator(".ur", { hasText: "메모로 자동" }).count()) === 2);
 ok("02b 머리 · 아직 메모로 마감한 적이 없어 「✍ 메모로만 N회 연속」 없음(5단계-① · 규칙 3회부터 ⚠️)", (await pm.locator("[data-g=memo-streak]").count()) === 0 && (await pm.locator("[data-g=memo-warn]").count()) === 0);
 await pm.locator(".acch", { hasText: "CHAPTER 2" }).click(); await p.waitForTimeout(300);
-await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").click(); await p.waitForTimeout(200);
-ok("(어49) 진도 체크 ○ 는 누르는 순간 눌리고 대단원 셈도 그 자리에서 바뀐다(서버 답을 안 기다린다 · 원장님 9/16 「진도체크들어가면 버튼이 제대로 작동하지않음」)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").getAttribute("aria-pressed")) === "true" && (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1"), await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent());
+await pm.locator(`.tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=${P.done}]`).click(); await p.waitForTimeout(200);
+ok("(어49) 진도 체크 ○ 는 누르는 순간 눌리고 대단원 셈도 그 자리에서 바뀐다(서버 답을 안 기다린다 · 원장님 9/16 「진도체크들어가면 버튼이 제대로 작동하지않음」)", (await pm.locator(`.tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=${P.done}]`).getAttribute("aria-pressed")) === "true" && (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1"), await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent());
 await p.waitForTimeout(1000);
 ok("CHAPTER 2 의 2-1 에 ○ → 「1/1 끝냄」 · 끝낸 대단원 1 / 2", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1 끝냄") && (await pm.locator(".tag.on").first().textContent()) === "끝낸 대단원 1 / 2");
-await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=none]").click(); await p.waitForTimeout(1200);
+await pm.locator(`.tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=${P.none}]`).click(); await p.waitForTimeout(1200);
 ok("되돌리기 · → 「0/1」", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("0/1"));
 await pm.locator(".acc", { hasText: "CHAPTER 2" }).locator("button", { hasText: "이 대단원 건너뛰기" }).click(); await p.waitForTimeout(1200);
 ok("이 대단원 건너뛰기 → 「0/1 끝냄 · 건너뜀 1」 (지운 것이 아니다)", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("건너뜀 1"));
@@ -315,15 +317,15 @@ ok("이 대단원 건너뛰기 → 「0/1 끝냄 · 건너뜀 1」 (지운 것�
 await pm.locator(".acch", { hasText: "CHAPTER 1" }).click(); await p.waitForTimeout(300);
 ok("(어34) 소단원 줄마다 네모 · 「여기까지 ○」 · 대단원을 펴면 「이 대단원 전체」 네모 · 고른 것이 없으면 띠 없음", (await pm.locator("[data-g=prog-unit] [data-g=pick]").count()) === 6 && (await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()) === 6 && (await pm.locator(".acc.open [data-g=pick-group]").count()) === 1 && (await pm.locator("[data-g=pickbar]").count()) === 0, `pick ${await pm.locator("[data-g=prog-unit] [data-g=pick]").count()} · upto ${await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()}`);
 await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] button[data-act=done-upto]").click(); await p.waitForTimeout(1500);
-ok("1-5 「여기까지 ○」 → 1-1~1-5 가 ○(1-4 ◐ 도 ○) · 뒤의 대비문제는 그대로 · · CHAPTER 1 「5/6」", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "none" && (await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent()).includes("5/6"), await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent());
+ok("1-5 「여기까지 ○」 → 1-1~1-5 가 ○(1-4 ◐ 도 ○) · 뒤의 대비문제는 그대로 · · CHAPTER 1 「5/6」", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.done && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === P.done && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === P.none && (await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent()).includes("5/6"), await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent());
 await pm.locator(".acc.open [data-g=pick-group]").check(); await p.waitForTimeout(200);
 ok("「이 대단원 전체」 → 띠 「고른 6개」 · ○ 끝냄 · ◐ 하는 중 · · 아직 · 비우기", (await pm.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 6개" && (await pm.locator("[data-g=pickbar] button[data-act=pick-done]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-doing]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-none]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-clear]").count()) === 1);
 await pm.locator("[data-g=pickbar] button[data-act=pick-clear]").click(); await p.waitForTimeout(200);
 await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000004'] [data-g=pick]").check(); await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] [data-g=pick]").check(); await p.waitForTimeout(200);
 await pm.locator("[data-g=pickbar] button[data-act=pick-doing]").click(); await p.waitForTimeout(1500);
-ok("1-4·1-5 골라 「◐ 하는 중」 → 둘 다 ◐ · 띠는 비워진다", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator("[data-g=pickbar]").count()) === 0);
+ok("1-4·1-5 골라 「◐ 하는 중」 → 둘 다 ◐ · 띠는 비워진다", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm.locator("[data-g=pickbar]").count()) === 0);
 await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] [data-g=pick]").check(); await p.waitForTimeout(200); await pm.locator("[data-g=pickbar] button[data-act=pick-none]").click(); await p.waitForTimeout(1500);
-ok("1-5 만 골라 「· 아직」 → 1-5 · · 1-4 는 ◐ 그대로(되돌려 놓음)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "none" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing");
+ok("1-5 만 골라 「· 아직」 → 1-5 · · 1-4 는 ◐ 그대로(되돌려 놓음)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === P.none && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing);
 await pm.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 console.log("■ 🗺 진도 · 영역별 메모 · 📝 단원평가(목업 01 남긴 것 6)");
 await 펴기(row); await pick(row, "areamemo");   // 다시 읽으면 접힌 채로 선다 — 원장님이 ▾ 를 누른 것과 같게 편다
@@ -620,7 +622,7 @@ if (!(await closedRow.locator(".panel").count())) await closedRow.locator("butto
 console.log("■ 마감이 방아쇠 · 학습 메모가 있는 교재의 오늘 학습 소단원이 ○, 조각(이번에 1-20번)은 ◐ (확정-㊳ · 검사-⑭)");
 await pick(closedRow, "work"); await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
 const pm2 = p.locator(".mdlov .mdl");
-ok("1-4 ○ (메모로 자동) · 대비문제 ◐ (조각) · 마감된 판이라 단추는 잠김", (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm2.locator(".tri button").first().isDisabled()));
+ok("1-4 ○ (메모로 자동) · 대비문제 ◐ (조각) · 마감된 판이라 단추는 잠김", (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.done && (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm2.locator(".tri button").first().isDisabled()));
 ok("(러) 조각 줄 밑에 「낸 것 1-20 · 남은 것 21-62」 · 마감 메모가 조각(이번에 1-20번)을 progress_part 에 남겼다(확정-⑳ · 다 덮이면 저절로 ○)", (await pm2.locator(".ur", { hasText: "대비문제" }).locator("[data-g=parts]").textContent().catch(() => "")) === "낸 것 1-20 · 남은 것 21-62", (await pm2.locator(".ur", { hasText: "대비문제" }).textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
 ok("02b 머리 · 메모로 마감했지만 같은 날 02b 에서 손으로 ○·되돌리기·건너뛰기를 했으니 「메모로만」이 아니다(손 표시가 끊는다 · 검사만 있는 날은 세지도 끊지도 않는다) → 알약 없음", (await pm2.locator("[data-g=memo-streak]").count()) === 0 && (await pm2.locator("[data-g=memo-warn]").count()) === 0, await pm2.locator(".tags").first().textContent());
 await pm2.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
@@ -2051,14 +2053,33 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
     ok("(어59) 검사에서 연 배정 · 제목 「검사할 숙제 배정」 · 세그는 「지난 숙제」 하나(집·학원 없음) · 단원 머리 📕 와 활동 머리 ✓ 로 갈렸다(원장님 「학습항목과 단원이 구별이 안되는점」)", (await gm.locator(".mdlh b").textContent()) === "검사할 숙제 배정" && (await gm.locator("[data-g=give-slot] button").allTextContents()).join() === "지난 숙제" && (await gm.locator("[data-g=give-units-h]").count()) === 1 && (await gm.locator("[data-g=give-items-h]").count()) === 1 && (await gm.locator("[data-g=give-item]").count()) >= 1, (await gm.locator(".mdlh").textContent()) + " | " + (await gm.locator("[data-g=give-units-h]").textContent().catch(() => "머리 없음")));
     ok("(어59) 이미 끝낸 단원은 「다 함」으로 표시되고 안 한 단원이 먼저(원장님 「이미 완료된 부분이 표시안되는점」)", (await gm.locator("[data-g=give-unit]").count()) >= 1 && (await gm.locator("[data-g=give-unit][data-done]").count()) === (await gm.locator("[data-g=give-unit]").count()) && ((await gm.locator("[data-g=give-unit][data-done='1']").count()) === 0 || (await gm.locator("[data-g=give-unit][data-done='1'] [data-g=unit-done]").count()) >= 1) && (await gm.locator("[data-g=give-unit]").first().getAttribute("data-done")) === "0", `단원 ${await gm.locator("[data-g=give-unit]").count()} · 다 함 ${await gm.locator("[data-g=give-unit][data-done='1']").count()}`);
     const nChk = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
-    { const ch = gm.locator("select[data-g=give-chapter]"), nOne = await gm.locator("[data-g=give-unit]").count();   /* (어61) 원장님 9/16 「숙제검사에서 숙제를 배정할때 교재단원이 극히 일부만 나오는데 이유가뭐지」 */
-      const 전체 = (await ch.locator("option").first().textContent()) ?? "";
-      await ch.selectOption(""); await p.waitForTimeout(400);
-      const nAll = await gm.locator("[data-g=give-unit]").count();
-      ok("(어61) 대단원 고르개가 **늘 보이고** 맨 위가 「전체 단원 K개」 · 고르면 교재의 단원이 전부 선다(대단원 하나로 걸러 「극히 일부만」 보이던 것)",
-        (await ch.count()) === 1 && /^전체 단원 \d+개$/.test(전체.trim()) && nAll >= nOne, `한 대단원 ${nOne} → ${전체.trim()} ${nAll}`);
-      const back = (await ch.locator("option").nth(1).getAttribute("value")) ?? "";
-      if (back) { await ch.selectOption(back); await p.waitForTimeout(400); } }
+    { const heads = gm.locator("[data-g=give-chapter]"), nCh = await heads.count(), nU = await gm.locator("[data-g=give-unit]").count();   /* (어62) 원장님 9/16 「대단원 목록불편함. 여러대단원에서 골라 배정하기어려움」 · 「이미 내가 배정하기전에 체크박스에 체크가 되어있음」 */
+      ok("(어62) 대단원 고르개(한 번에 한 대단원) 대신 **대단원 머리 + 소단원**이 한 목록에 · 교재 단원이 전부 보인다",
+        (await gm.locator("select[data-g=give-chapter]").count()) === 0 && nCh >= 1 && nU >= nCh, `대단원 ${nCh}개 · 단원 ${nU}개`);
+      { const said = (await gm.locator("[data-g=give-saved]").textContent()) ?? "";   // 체크는 제안일 뿐 — 판에 실제로 있는 줄만 「지금 나감 N」 이고 없으면 「아직 안 나감」
+        const real = await gm.evaluate((m) => [...m.querySelectorAll("[data-g=give-unit] input:checked")].length > 0);
+        ok("(어62) 체크가 거짓말하지 않는다 — 체크가 있어도 판에 안 들어갔으면 「아직 안 나감」", /^(아직 안 나감|지금 나감 \d+)$/.test(said.trim()) && real, said); }
+      const ch1 = (await heads.first().getAttribute("data-chapter")) ?? "";
+      const inCh = () => gm.locator(`[data-g=give-unit][data-chapter="${ch1}"] input:checked`).count();
+      const outCh = () => gm.locator(`[data-g=give-unit]:not([data-chapter="${ch1}"]) input:checked`).count();
+      const nIn = await gm.locator(`[data-g=give-unit][data-chapter="${ch1}"]`).count(), out0 = await outCh();
+      await heads.first().locator("button[data-act=chapter-all]").click(); await p.waitForTimeout(300);
+      ok("(어62) 대단원 머리의 「전체」로 그 대단원을 한 번에 켠다(여러 대단원에서 골라 배정)", (await inCh()) === nIn && (await outCh()) === out0, `${ch1} ${await inCh()}/${nIn} · 다른 대단원 ${await outCh()}`);
+      await heads.first().locator("button[data-act=chapter-all]").click(); await p.waitForTimeout(300);
+      ok("(어62) 한 번 더 누르면 **그 대단원만** 꺼진다(다른 대단원은 그대로)", (await inCh()) === 0 && (await outCh()) === out0, `${ch1} ${await inCh()} · 다른 대단원 ${await outCh()}(처음 ${out0})`);
+      await heads.first().locator("button[data-act=chapter-all]").click(); await p.waitForTimeout(300); }
+    { const u1 = gm.locator("[data-g=give-unit]").first(), tri = u1.locator("[data-g=unit-prog] button");   /* (어63) 원장님 9/16 「현재진도를 파악하고 수정하기에 쉬운 구조로」 · ⚠️ 고친 진도는 **되돌려 놓는다**(뒤 걸음이 씨앗 진도를 본다) */
+      const IDX = { done: 0, doing: 1, none: 2 }, st0 = (await u1.getAttribute("data-st")) ?? "none";
+      const to = st0 === "done" ? "none" : "done", bg = (i) => tri.nth(i).evaluate((el) => getComputedStyle(el).backgroundColor);
+      await tri.nth(IDX[to]).click(); await p.waitForTimeout(1200);
+      ok("(어63) 배정 창에서 단원의 진도를 **그 자리에서** 고친다(창을 안 떠난다 · 손은 02b 진도 체크와 같은 것)", (await u1.getAttribute("data-st")) === to, `${st0} → ${await u1.getAttribute("data-st")}`);
+      { const on = await bg(IDX[to]), off = await bg(IDX[to] === 1 ? 2 : 1);
+        ok("(어63) 눌린 것이 **색으로 보인다**(CSS 열쇠가 어긋나면 안 보인다 · (어23) 과 같은 종류)", on !== off && (await tri.nth(IDX[to]).getAttribute("aria-pressed")) === "true", `누른 것 ${on} · 안 누른 것 ${off}`); }
+      await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+      await pick(rg, "check"); await rg.locator("[data-card=check] button[data-act=give-here]").click(); await p.waitForSelector("[data-g=give-modal]", { timeout: 15000 });
+      ok("(어63) 새로고침해도 그대로 · 진도가 진짜 저장됐다", (await gm.locator("[data-g=give-unit]").first().getAttribute("data-st")) === to);
+      await gm.locator("[data-g=give-unit]").first().locator("[data-g=unit-prog] button").nth(IDX[st0]).click(); await p.waitForTimeout(1200);
+      ok("(어63) 되돌려도 그 자리에서 바뀐다(양쪽 다) · 씨앗 진도를 제자리로", (await gm.locator("[data-g=give-unit]").first().getAttribute("data-st")) === st0, `${to} → ${st0}`); }
     await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1800);
     await pick(rg, "check");
     const btns = await rg.locator("[data-card=check] [data-v]").count(), chk1 = await chkN();

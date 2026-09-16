@@ -54,17 +54,19 @@ ok("(어59) 검사 카드에서 연 배정은 **「이미 해왔어야 하는 �
 ok("(어59) 배정 모달의 교재 목록은 **진행중이 먼저**(보류 교재에 배정하면 (어57) 대로 카드에서 접혀 안 보인다) · 보류면 이름 옆에 무엇으로 보류인지 적는다",
   (() => { const r = strip(readFileSync("lib/routine.js", "utf8")); return /const st = stopOn\(b, sheet\.date\)/.test(r) && /\.sort\(\(a, b\) => Number\(a\.stop !== "running"\) - Number\(b\.stop !== "running"\)\)/.test(r); })()
   && /b\.stopName \? ` · \$\{b\.stopName\}` : ""/.test(row), "givePool 차례 · 이름 꼬리");
-ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 「다 함」으로 흐리고 안 한 단원이 먼저(「이미 완료된 부분이 표시안되는점」)",
+ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 진도 세그의 ○ 와 흐림으로 보인다((어63) 로 「다 함」 꼬리표를 걷고 **그 자리에서 고치는** 세그가 대신한다 · 「이미 완료된 부분이 표시안되는점」 · (어62) 로 차례는 **교재 그대로** 두었다 — 대단원을 넘나들며 고르려면 차례가 흔들리면 안 된다)",
   /data-g="give-units-h">📕 단원/.test(row) && /data-g="give-items-h">✓ 활동/.test(row) && /data-g="give-items" style=\{\{ marginLeft: 14 \}\}/.test(row)
-  && /data-done=\{u\.left \? "0" : "1"\}/.test(row) && /data-g="unit-done">다 함/.test(row) && /const ordUnits = \[\.\.\.here\]\.sort\(/.test(row));
+  && /data-done=\{stOf\(u\) === "done" \? "1" : "0"\}/.test(row) && /data-g="unit-prog"/.test(row) && !/const ordUnits =/.test(row));
 ok("(어60) 검사 카드는 **검사에서 뒤늦게 적은 줄**이 있으면 보류 교재라도 안 접는다(원장님 2026-09-16 「숙제검사에서 배정한 지난시간 숙제가 검사할 것으로 떠야하는데 안뜸」) · 볼 것이 없을 때만 접는다((어57))",
   /const own = \(bid\) => sheet\.check\.some\(\(r\) => r\.units\?\.book_id === bid && !r\.carry_of\)/.test(row) && /stopOn\(b, date\) !== "running" && !own\(b\.book_id\)/.test(row));
-ok("(어61) 배정 모달의 대단원 고르개는 **늘 보이고** 맨 위가 「전체 단원 K개」(원장님 2026-09-16 「숙제검사에서 숙제를 배정할때 교재단원이 극히 일부만 나오는데 이유가뭐지」 — 대단원 하나로 걸러 놓고 고르개는 둘 이상일 때만 나와 걸러진 줄이 안 보였다) · 걸렀으면 「교재 전체 K」 를 셈에 적는다 · 손(givePool)은 그 교재의 active 단원을 **전부** 준다",
-  /\{chapters\.length > 0 && <select[\s\S]{0,240}data-g="give-chapter"[\s\S]{0,200}<option value="">전체 단원 \{allUnits\.length\}개<\/option>/.test(row)
-  && /\{units\.length\}\/\{here\.length\}\{chapter \? ` · 교재 전체 \$\{allUnits\.length\}` : ""\}/.test(row)
-  && !/chapters\.length > 1/.test(row)
+ok("(어61)(어62) 배정 모달은 **교재의 단원을 전부** 편다 · 대단원 고르개(한 번에 한 대단원)를 걷고 **대단원 머리 + 소단원**을 교재 차례 그대로 한 목록에(원장님 2026-09-16 「교재단원이 극히 일부만 나오는데 이유가뭐지」 · 「대단원 목록불편함. 여러대단원에서 골라 배정하기어려움」) · 대단원마다 「전체」 · 손(givePool)은 그 교재의 active 단원을 **전부** 준다",
+  /const groups = \(\(\) => \{ const m = new Map\(\);/.test(row) && /data-g="give-chapter" data-chapter=\{g\.name\}/.test(row) && /data-act="chapter-all"/.test(row)
+  && /\{units\.length\}\/\{allUnits\.length\}/.test(row) && !/<select[^>]*data-g="give-chapter"/.test(row) && !/const here = allUnits\.filter/.test(row)
   && (() => { const r = readFileSync("lib/routine.js", "utf8"); const i = r.indexOf("export async function givePool"); const body = r.slice(i, r.indexOf("export async function applyGive", i));
       return /from\("units"\)[\s\S]{0,200}\.eq\("book_id", bookId\)\.eq\("state", "active"\)\.order\("sort"\)/.test(body) && !/\.limit\(/.test(body); })());
+ok("(어62) 체크상자는 **제안**일 뿐이라 거짓말하지 않는다(원장님 2026-09-16 「이미 내가 배정하기전에 체크박스에 체크가 되어있음. 그러면서 아직도 실제 검사해야할 목록에는 나타나지않음」) · 저장된 줄이 0이면 「아직 안 나감」, 있으면 「지금 나감 N」 · 셈은 판에 실제로 있는 줄(have · off 아님)로만 한다",
+  /const had = new Set\(\(pool\?\.have \?\? \[\]\)\.filter\(\(h\) => h\.slot === slot && !h\.off\)/.test(row)
+  && /const nOut = units\.flatMap/.test(row) && /data-g="give-saved">\{nOut \? `지금 나감 \$\{nOut\}` : "아직 안 나감"\}/.test(row));
 ok("(어55) 세그는 **칸 안에 갇혀** 좁아지면 접어 내린다(max-width) · 안 가두면 칸 밖으로 249px 로 서서 옆 칸을 덮어 「하나 더」를 눌러도 이웃의 「✕ 받은 단원 다시」가 눌렸다(1열을 넓혀 3열 한 쪽이 198px 이 되자 터졌다) · 접힌 줄은 폭을 채우고(flex) 줄 사이는 1px 로 가른다 · 키는 min-height 라 한 줄일 때 모양은 그대로",
   /\.seg\{display:flex;flex-wrap:wrap;/.test(css) && /\.seg\{min-height:var\(--h-md\)[^}]*max-width:100%[^}]*row-gap:1px/.test(css) && /\.seg>button\{[^}]*flex:1 1 auto\}/.test(css) && /\.seg\.sm\{min-height:var\(--h-sm\)\}/.test(css) && !/\.seg\{height:var\(/.test(css));
 ok("(어55) 「그 밖에」 줄의 손도 아이콘+툴팁(원장님 2026-09-16 「3열에 오늘학습파트 버튼이 좀 빢빡해질거같은데 이름을 줄여 정 안되면 아이콘+툴팁」) · 좁은 칸에서 ✎ 를 누르려다 옆 단추가 눌리던 것",
