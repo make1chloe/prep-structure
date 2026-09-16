@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import ProgressModal from "../_shell/progressmodal.js";   // (어41) 진도 체크 모달 한 벌(대시보드와 같은 부품) · 손은 수업 일지 기준
@@ -115,22 +115,33 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   const left = sheet.check.filter(isUnchecked).length;
   const cc = student.cc ?? [], units = student.unitTests ?? [], quizzes = student.quizzes?.today ?? [];
   const has = checkIcons(student);   // 제목 줄이 오늘 볼 것을 말한다 — 업무 목록 꼬리표와 같은 글(day-plan · 원칙-1)
+  // (어47) 원장님 9/16 「숙제검사가 완료된 건 접어서 스크롤줄이고(완료미흡미완료여부는 보이게표시)」 · 「교재보류는 접힌채로 아예 검사에서 맨밑으로」 · 판단은 day-plan splitChecks(순수) · 이 자리에서 검사한 줄과 칩을 눌러 다시 연 줄은 다시 열 때까지 펴 둔다(opened)
+  const [opened, setOpened] = useState(() => new Set());
+  const [showStopped, setShowStopped] = useState(false);
+  const stopped = new Set((student.books ?? []).filter((b) => stopOn(b, date) === "book_off").map((b) => b.book_id));
+  const parts = splitChecks(sheet.check, { stopped, opened });
+  const glyph = (s) => CHECK.find(([v]) => v === s)?.[1] ?? "";
+  const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} onMarked={(id) => setOpened((s) => new Set(s).add(id))} />;
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
-      <ItemTree rows={sheet.check} row={(it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />} />{/* (어42) 영역 › 📕 교재 › ▸ 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · 원장님 9/15 「영역을 봐야 책을 보고 책을 봐야 단원을 보고 단원을 펼쳐봐야 항목검사를 할 거 아냐」 · (어30)(어32) 차례는 그대로(unitTree) */}
+      <ItemTree rows={parts.open} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
+      {parts.done.length > 0 && <div className="chkdone" data-g="check-done">{parts.done.map((b) => <div key={b.key} className="cdb" data-g="check-done-book"><span className="cdn">📕 {b.book ?? "그 밖에"}</span>
+        {b.rows.map((it) => <button key={it.id} type="button" className="cdc" data-act="unfold" data-id={it.id} data-v={CHECK_KEY[it.status]} onClick={() => setOpened((s) => new Set(s).add(it.id))}>{glyph(it.status)} {itemTitle(it)}{it.done_note ? ` · ${it.done_note}` : ""}</button>)}</div>)}</div>}
+      {parts.stopped.length > 0 && <div className="chkstop" data-g="check-stopped"><button type="button" className="btn sm gho" data-act="stopped-open" aria-pressed={showStopped} onClick={() => setShowStopped((v) => !v)}>{showStopped ? "▾" : "▸"} 교재 보류 · 검사 {parts.stopped.length}</button>
+        {showStopped && <ItemTree rows={parts.stopped} all={sheet.check} row={row} fold={false} dense />}</div>}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
       {quizzes.length > 0 && <QuizPart sheet={sheet} quizzes={quizzes} closed={closed} fail={fail} start={start} />}
     </div>
   );
 }
-function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32))
+function CheckItem({ it, closed, fail, start, grouped = false, onMarked = null }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32)) · onMarked: (어47) 이 자리에서 검사한 줄은 접지 않는다
   const [st, setSt] = useState(isUnchecked(it) ? null : it.status);
   const [upto, setUpto] = useState(it.done_note ?? "");
   const [restTo, setRestTo] = useState(null);
   const sub = itemSub(it, { unit: !grouped });   // 교재 · 단원 · 쪽 · 문항(단원 머리가 있으면 뺀다) · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
-  const pick = (v) => { if (closed) return; const prev = st; setSt(v); start(async () => { const r = await check(it.id, v, v === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
+  const pick = (v) => { if (closed) return; const prev = st; setSt(v); onMarked?.(it.id); start(async () => { const r = await check(it.id, v, v === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
   const pickRest = (w) => { setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
   return (
@@ -298,13 +309,13 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>오늘 단원</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={wave ? wave === o.key : same(o)} disabled={closed} onClick={() => pickUnits(o)}>{waveLabel(o)}</button>)}</div></div>}
-      <ItemTree rows={rows} book={false} bySort unitHead={(g) => <>{/* (어42) 나무 한 벌 · 단원 머리의 손은 summary 안이라 preventDefault 로 접힘을 막는다 */}
-            {!closed && slot === "class" && g.rows.length > 0 && <span className="wv" data-g="unit-acts" style={{ margin: 0, gap: 4 }} onClick={(e) => e.preventDefault()}><button type="button" className="btn sm" data-act="unit-skip" onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>건너뛰기</button><button type="button" className="btn sm" data-act="unit-next" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>다음 시간으로</button><button type="button" className="btn sm" data-act="unit-home" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>숙제로</button></span>}
-            {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={(e) => { e.preventDefault(); start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); }); }}>✕</button>}
+      <ItemTree rows={rows} book={false} bySort fold={false} dense unitHead={(g) => <>{/* (어42) 나무 한 벌 · (어47) 단원 머리는 안 접힌다(div) · 손은 아이콘(원장님 9/16 「건너뛰기(엑스) 다음시간으로(화살표) 숙제로(집) 이거를 아이콘화해버려」) · 이름은 aria-label(명사 하나) */}
+            {!closed && slot === "class" && g.rows.length > 0 && <span className="wv acts" data-g="unit-acts"><button type="button" className="btn sm gho icb" data-act="unit-skip" aria-label="건너뛰기" onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="unit-next" aria-label="다음 시간" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>→</button><button type="button" className="btn sm gho icb" data-act="unit-home" aria-label="숙제" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>🏠</button></span>}
+            {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho icb" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}
           </>}
-        row={(it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{it.started_at && <TimerTag it={it} />}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}
-            {!closed && slot === "class" && <span className="wv" data-g="line-acts" style={{ margin: "4px 0 0", gap: 4 }}><button type="button" className="btn sm gho" data-act="line-skip" onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>건너뛰기</button><button type="button" className="btn sm gho" data-act="line-next" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>다음 시간으로</button><button type="button" className="btn sm gho" data-act="line-home" onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>숙제로</button></span>}</div>
-            {!closed && slot === "home" && <button type="button" className="btn sm gho" data-act="line-class" style={{ flex: "0 0 auto" }} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>학습으로</button>}</div>; }} />
+        row={(it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{it.started_at && <TimerTag it={it} />}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}</div>
+            {!closed && slot === "class" && <span className="wv acts" data-g="line-acts"><button type="button" className="btn sm gho icb" data-act="line-skip" aria-label="건너뛰기" onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>✕</button><button type="button" className="btn sm gho icb" data-act="line-next" aria-label="다음 시간" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>→</button><button type="button" className="btn sm gho icb" data-act="line-home" aria-label="숙제" onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>🏠</button></span>}
+            {!closed && slot === "home" && <button type="button" className="btn sm gho icb" data-act="line-class" aria-label="학습" style={{ flex: "0 0 auto" }} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>🏫</button>}</div>; }} />
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
         <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "학습 메모" : "숙제 메모"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />

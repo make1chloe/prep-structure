@@ -70,6 +70,7 @@ const S1_ROW = "99999999-0000-4000-9000-000000000001";   // 리허설 학생 줄
     } else ok("내일은 그 반이 안 돌아 아이 줄이 없다(그 날 도는 반만 뜬다. 맞는 동작)", true); }
   await p.goto(`${APP}/today`); await p.waitForLoadState("networkidle").catch(() => {}); }
 const row = p.locator(`.row[data-student='${S1_ROW}']`);
+const unfoldAll = async () => { const u = row.locator("[data-g=check-done] button[data-act=unfold]"); while (await u.count()) { await u.first().click(); await p.waitForTimeout(150); } };   // (어47) 검사한 줄은 칩으로 접혀 있다 · 다시 누르려면 편다
 ok("리허설 학생 줄이 선다", (await row.count()) === 1, String(await p.locator(".row").count()));
 ok("어제 숙제 둘 + 그저께 하나 · 30일 안 안 본 숙제 전부가 검사 줄로 왔다(셋 · (카))", (await row.locator(".panel .chk").count()) === 3, String(await row.locator(".panel .chk").count()));
 ok("「검사 안 본 것 3」", (await p.locator(".pill.warn", { hasText: "검사 안 본 것 3" }).count()) === 1, "알약: " + (await p.locator("main .pill").allTextContents()).join(" | "));
@@ -91,12 +92,10 @@ ok("(카) 줄 머리 「2일째 안 봄」 · 안 본 줄 중 가장 오래된 �
     ok("(어27)(어32) 검사 줄 위에 교재 · 대단원 머리(📕 zz_리허설 문법책 · CHAPTER 1) → 단원 줄(PSS 1-3 · p.12 · 12문항 · 쪽은 단원마다) → 활동 줄 · 제목이 「(이름 없음)」·「(빈 줄)」인 줄 0", bookHead.includes("zz_리허설 문법책") && unitHead.includes("CHAPTER 1") && unitHead.includes("PSS 1-3") && unitHead.includes("p.12") && unitHead.includes("12문항") && titles.length >= 3 && titles.every((t) => t && !/\(이름 없음\)|\(빈 줄\)/.test(t)), `${bookHead} / ${unitHead} · ${titles.join("|")}`); }
   { const heads = await row.locator(".panel [data-card=check] [data-g=tree-book]").allTextContents(); const order = await row.locator(".panel [data-card=check] [data-g=tree-book], .panel [data-card=check] [data-g=tree-head], .panel [data-card=check] .trr > .hw .hwname b").evaluateAll((els) => els.map((e) => e.textContent.trim()));
     ok("(어30)(어32) 검사 줄은 교재·대단원 → 단원 → 활동(머리 「📕 zz_리허설 문법책 · CHAPTER 1」 → 「PSS 1-3 …」 → 그저께 줄 → … → 「그 밖에」) · 날짜보다 교재·단원이 먼저", heads.length === 2 && heads[0].startsWith("📕 zz_리허설 문법책") && heads[0].includes("문법") && heads[1] === "그 밖에" && order[0].startsWith("📕 zz_리허설 문법책") && order[1].includes("CHAPTER 1") && order[1].includes("PSS 1-3") && order[2].includes("zz_그저께") && order.indexOf("그 밖에") > 2, order.join(" > ")); }
-  { const tr = row.locator(".panel [data-card=check] [data-g=tree]").first(); const det = tr.locator("details[data-g=tree-unit]").first();   // (어42) 나무 한 벌 · 원장님 9/15 「영역을 봐야 책을 보고 책을 봐야 단원을 보고 단원을 펼쳐봐야」
-    ok("(어42) 나무 · 영역 색띠(data-area=문법 · 📐 문법) › 📕 교재 › ▸ 단원(펼쳐진 채) › 활동 줄 들여쓰기(.trr .hw)", (await tr.getAttribute("data-area")) === "문법" && (await tr.locator(".tra").first().textContent()) === "📐 문법" && (await det.getAttribute("open")) !== null && (await det.locator(".trr .hw").count()) >= 1, `${await tr.getAttribute("data-area")} · ${await tr.locator(".tra").first().textContent().catch(() => "?")}`);
-    await det.locator("summary").click(); await p.waitForTimeout(250);
-    ok("(어42) 단원 머리를 누르면 접힌다(줄 숨김) · 다시 누르면 펴진다", (await det.getAttribute("open")) === null && !(await det.locator(".trr .hw").first().isVisible()), String(await det.getAttribute("open")));
-    await det.locator("summary").click(); await p.waitForTimeout(250);
-    ok("(어42) 다시 펴짐 · 줄 보임", (await det.getAttribute("open")) !== null && (await det.locator(".trr .hw").first().isVisible())); }
+  { const tr = row.locator(".panel [data-card=check] [data-g=tree]").first(); const un = tr.locator("[data-g=tree-unit]").first();   // (어42) 나무 한 벌 · (어47) 단원 머리는 안 접힌다(원장님 9/16 「이 부분 왜 접히는거지? 단원이 안보이면 검사가안돼」) · 촘촘히(.tr.dense · 「여백 낭비가 심함」)
+    ok("(어42)(어47) 나무 · 영역 색띠(data-area=문법 · 📐 문법) › 📕 교재 › 단원 머리(div · details 0 · ▸ 0) › 활동 줄 들여쓰기(.trr .hw) · 촘촘히(.tr.dense)", (await tr.getAttribute("data-area")) === "문법" && (await tr.locator(".tra").first().textContent()) === "📐 문법" && (await tr.locator("details").count()) === 0 && (await un.locator(".truh .ar").count()) === 0 && (await un.locator(".trr .hw").count()) >= 1 && (await tr.evaluate((el) => el.classList.contains("dense"))), `${await tr.getAttribute("data-area")} · details ${await tr.locator("details").count()}`);
+    await un.locator(".truh").click(); await p.waitForTimeout(200);
+    ok("(어47) 단원 머리를 눌러도 줄이 안 숨는다", await un.locator(".trr .hw").first().isVisible()); }
   await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=x]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
 console.log("■ 출결 · 낙관적 · (어28)-② 고른 줄에 한 번에(원장님 2026-09-15 「ㅇㅇ넣음」)");
@@ -139,6 +138,9 @@ ok("△ 누르면 「어디까지·나머지는」이 열린다", (await first.l
 await first.locator(".seg[data-g=upto] button", { hasText: "절반" }).click(); await p.waitForTimeout(300);
 await first.locator(".seg[data-g=rest] button", { hasText: "다음 숙제로" }).click(); await p.waitForTimeout(800);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(어47) 다시 열면 검사한 줄은 교재 밑 칩 한 줄로 접혀 있다(△ zz_워크북 복습 · ✕ zz_그저께 · 원장님 9/16 「완료된 건 접어서 · 완료미흡미완료여부는 보이게」) · 안 본 줄(클카 문장훈련)은 그대로 펴져 있다", (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).getAttribute("data-v")) === "w" && (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "zz_그저께" }).getAttribute("data-v")) === "x" && (await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).count()) === 1 && (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).count()) === 0, await row.locator("[data-g=check-done]").textContent().catch(() => "없음"));
+await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).click(); await p.waitForTimeout(200);
+ok("(어47) 칩을 누르면 그 줄이 다시 펴져 고칠 수 있다(△ 눌린 채 · 어디까지 절반)", (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).count()) === 1 && (await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "워크북 복습" }).count()) === 0);
 ok("△·절반이 남아 있다", (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".chk button[data-v=w]").getAttribute("aria-pressed")) === "true" && (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".seg[data-g=upto] button", { hasText: "절반" }).getAttribute("aria-pressed")) === "true");
 ok("△ 를 주면 머리의 진도 점도 △", (await row.locator(".marks .dot").allTextContents()).includes("△"), (await row.locator(".marks .dot").allTextContents()).join(""));
 ok("나머지가 오늘 숙제 줄로 섰다(원본을 가리킨다)", (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li", { hasText: "지난 숙제의 나머지" }).count()) === 1);
@@ -172,7 +174,7 @@ const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
 ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 · 학습 회차 「1-3 다시」 눌림 · 학원 단원 머리 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시" && (await bkC.locator("[data-g=tree-head]").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator("[data-g=tree-head]").first().textContent().catch(() => "?")}`);
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^이번 단원$/ }).click(); await p.waitForTimeout(1000);
 await bkH.locator(".seg[data-g=wave-home] button", { hasText: "이번 단원 복습" }).click(); await p.waitForTimeout(1000);
-await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
+await pick(row, "check"); await row.locator("[data-g=check-done] button[data-act=unfold]", { hasText: "zz_그저께" }).click(); await p.waitForTimeout(200); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 · 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
 ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "이번 단원" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
@@ -464,7 +466,7 @@ ok("지각 예정도 물렸다가 다시 잡을 수 있다(late_plan_one_live)",
 await pl.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 ok("모달이 닫혔다", (await p.locator(".mdlov").count()) === 0);
 console.log("■ 하원 지연 · 사유 칩(검사 ✕ → 「＋ … 미제출」 → 누르면 사유에 · 다시 누르면 뺌) · 사유 한 줄 · +20분 · 보내기");
-await 펴기(row); await pick(row, "check");
+await 펴기(row); await pick(row, "check"); await unfoldAll();
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);
   await chk.locator("button[data-v=x]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   await 펴기(row); await pick(row, "late");
@@ -474,9 +476,10 @@ await 펴기(row); await pick(row, "check");
   ok("누르면 사유 글에 조각이 들어가고 ✓", (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출") && (await chipBtn.first().getAttribute("aria-pressed")) === "true");
   await chipBtn.first().click(); await p.waitForTimeout(200);
   ok("다시 누르면 빠진다", !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출"));
-  if (prevV) { await pick(row, "check"); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
+  if (prevV) { await pick(row, "check"); await unfoldAll(); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
 }
 await 펴기(row); await pick(row, "check");
+await unfoldAll();
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);   // 5단계-② 3b 「남」 줄(0141 · 목업 01)
   ok("3b 머리 · 「평소 HH:MM」(반 끝 시각 · 목업 「평소 9:40 → 10:20」) · 「남」 줄은 아직 없음(✕·△ 준 항목이 후보 · 고르는 것은 원장님)", /평소 \d{2}:\d{2}/.test(await row.locator("[data-g=stay-note]").textContent()) && (await row.locator("[data-g=stay-row]").count()) === 0, await row.locator("[data-g=stay-note]").textContent());
   await chk.locator("button[data-v=x]").click(); await p.waitForTimeout(1200); await row.locator("[data-card=check] .trr > .hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await pick(row, "late"); await row.locator("[data-g=stay-row]").first().waitFor({ timeout: 15000 }).catch(() => {});   // 숙제 검사 카드 안의 그 줄(🃏 카드도 .hw 를 써서 자리로는 못 집는다) · 「남」 줄은 **뜰 때까지** 기다린다(정해 둔 시간이 아니라)
@@ -487,7 +490,7 @@ await 펴기(row); await pick(row, "check");
   ok("「다 함」 → 그 줄만 다 함(줄 긋기) · 「다 함 1」", (await row.locator("[data-g=stay-row][data-state=done]").count()) === 1 && (await row.locator("[data-g=stay-note]").textContent()).includes("다 함 1"));
   await row.locator("button[data-act=stay-carry]").click(); await p.waitForTimeout(1500);
   ok("「⏭ 남은 것 다음 숙제로 넘기기」 → 남은 줄은 「넘김」(missing · 남아서 하려다 못 한 것으로 센다) · 숙제 자리에 조각 · 남은 것이 없어 단추 둘 사라짐", (await row.locator("[data-g=stay-row][data-state=missing]").count()) === 1 && (await row.locator("button[data-act=stay-carry]").count()) === 0 && (await row.locator("button[data-act=stay-all-done]").count()) === 0 && (await row.locator("[data-g=stay-note]").textContent()).includes("넘김 1"), await row.locator("[data-g=stay]").textContent());
-  if (prevV) { await pick(row, "check"); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); } }
+  if (prevV) { await pick(row, "check"); await unfoldAll(); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); } }
 await 펴기(row); await pick(row, "late");
 await row.locator("form.lategrid input[name=reason]").fill("워크북 나머지 10-18번");
 await row.locator("form.lategrid .seg button", { hasText: "+20분" }).click();

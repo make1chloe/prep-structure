@@ -4,7 +4,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { itemTitle, itemSub, itemLine, unitBits, unitsText, pagesText } from "../lib/item-plan.js";
-import { itemOrder, unitTree, itemForest } from "../lib/day-plan.js";   // (어30)(어32) 줄 차례 · 교재 → 단원 → 활동 · 단원 나무 · (어42) 영역·교재 마디
+import { splitChecks, itemOrder, unitTree, itemForest } from "../lib/day-plan.js";   // (어30)(어32) 줄 차례 · 교재 → 단원 → 활동 · 단원 나무 · (어42) 영역·교재 마디
 import { AREA_NAMES } from "../lib/book-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -51,7 +51,7 @@ console.log("■ (어30)(어32) 줄 차례 · 교재 → 단원 → 활동(루�
   ok("단원 나무: 교재·대단원 → 단원(쪽·문항은 단원마다) → 활동 · [ㄱ책 PART 2: ❷ 4줄 · ❸ 1줄] [ㄴ책 UNIT 1: 1-1 1줄] [없음 1줄]", JSON.stringify(tree.map((ch) => [ch.book, ch.chapter, ch.units.map((g) => [g.unit?.short ?? null, g.rows.length])])) === JSON.stringify([["ㄱ책", "PART 2", [["STEP 2 ❷", 4], ["STEP 2 ❸", 1]]], ["ㄴ책", "UNIT 1", [["1-1", 1]]], [null, null, [[null, 1]]]]) && pagesText(tree[0].units[0].unit) === "p.45" && pagesText(tree[0].units[1].unit) === "p.46", JSON.stringify(tree.map((ch) => [ch.book, ch.chapter, ch.units.map((g) => [g.unit?.short ?? null, g.rows.length])])));
   ok("(어32) 단원 머리 아래 줄은 단원 글을 뺀다(itemSub unit:false · 「이번에 …」·메모만)", itemSub({ ...laid, range_note: "1-20번" }, { unit: false }) === "이번에 1-20번" && itemSub(laid, { unit: false }) === "" && itemSub(laid).includes("CHAPTER 1 › PSS 1-3"));
   const dayJs = readFileSync("lib/day.js", "utf8"), rowJs = readFileSync("app/today/row.js", "utf8");
-  ok("한 벌: lib/day.js 가 끌어올 때(notYetChecked · 검사한 줄까지 넣고 센다)와 판을 깎을 때(shape) 다 itemOrder · 읽기에 단원 글·sort · 01 검사 카드 · 학습·숙제 카드는 (어42) 나무 부품 ItemTree(제 손 머리 0)", /return itemOrder\(\(h\.data \?\? \[\]\)\.filter\(\(x\) => !done\.has\(x\.id\)\), h\.data \?\? \[\]\)/.test(dayJs) && /check: itemOrder\(by\("check"\)\)/.test(dayJs) && (dayJs.match(/units\(id,book_id,chapter,page_start,page_end,q_count,label,short,sort,books\(name,area\)\)/g) ?? []).length === 2 && /<ItemTree rows=\{sheet\.check\}/.test(rowJs) && /<ItemTree rows=\{rows\} book=\{false\}/.test(rowJs) && !/unitTree\(/.test(rowJs) && !/bookGroups|checkOrder/.test(rowJs + dayJs));
+  ok("한 벌: lib/day.js 가 끌어올 때(notYetChecked · 검사한 줄까지 넣고 센다)와 판을 깎을 때(shape) 다 itemOrder · 읽기에 단원 글·sort · 01 검사 카드 · 학습·숙제 카드는 (어42) 나무 부품 ItemTree(제 손 머리 0)", /return itemOrder\(\(h\.data \?\? \[\]\)\.filter\(\(x\) => !done\.has\(x\.id\)\), h\.data \?\? \[\]\)/.test(dayJs) && /check: itemOrder\(by\("check"\)\)/.test(dayJs) && (dayJs.match(/units\(id,book_id,chapter,page_start,page_end,q_count,label,short,sort,books\(name,area\)\)/g) ?? []).length === 2 && /<ItemTree rows=\{parts\.open\} all=\{sheet\.check\}/.test(rowJs) && /<ItemTree rows=\{rows\} book=\{false\}/.test(rowJs) && !/unitTree\(/.test(rowJs) && !/bookGroups|checkOrder/.test(rowJs + dayJs));
   console.log("■ (어42) 항목 나무 한 벌 · 영역 › 📕 교재 › ▸ 단원 › 활동(원장님 9/15 「영역을 봐야 책을 보고 책을 봐야 단원을 보고 단원을 펼쳐봐야 항목검사를 할 거 아냐」)");
   const f = itemForest(rows, all);
   ok("나무: [문법 ㄱ책: PART 2(❷·❸)] [독해 ㄴ책: UNIT 1(1-1)] [그 밖에] · 영역·교재 마디 위에 unitTree 그대로", JSON.stringify(f.map((b) => [b.area, b.book, b.chapters.map((ch) => [ch.chapter, ch.units.map((g) => g.unit?.short ?? null)])])) === JSON.stringify([["문법", "ㄱ책", [["PART 2", ["STEP 2 ❷", "STEP 2 ❸"]]]], ["독해", "ㄴ책", [["UNIT 1", ["1-1"]]]], [null, null, [[null, [null]]]]]), JSON.stringify(f.map((b) => [b.area, b.book])));
@@ -61,5 +61,11 @@ console.log("■ (어30)(어32) 줄 차례 · 교재 → 단원 → 활동(루�
   ok(`소비처 ≥ 5(01 검사·학습·숙제 · 07 셋 · 09) · 지금 ${uses}곳 ${users.length}파일 · 01 에 제 손 단원 머리(hw-book · unit-head) 0`, uses >= 5 && ["app/today/row.js", "app/me/page.js", "app/parent/page.js"].every((p) => users.includes(p)) && !/hw-book|hw-unit|unit-block|unit-head|chapter-head/.test(rowJs), users.join(" · "));
   const css = readFileSync("app/globals.css", "utf8");
   ok("영역 색은 CSS 한 곳([data-area=…] --tr · 목업 CSS → globals) · 일곱 영역 다 있다 · 접힘 표시 ▸ 회전", AREA_NAMES.every((a) => css.includes(`[data-area="${a}"]{--tr:`)) && /\.tr\{border-left:4px solid var\(--tr/.test(css) && /\.tru\[open\]>summary \.ar/.test(css), AREA_NAMES.filter((a) => !css.includes(`[data-area="${a}"]{--tr:`)).join(",")); }
+console.log("■ (어47) 검사 줄 나누기 splitChecks(원장님 9/16 「완료된 건 접어서 · 여부는 보이게 · 교재보류는 맨밑」)");
+{ const U = (id, book) => ({ id, book_id: book, chapter: "C", short: id, sort: 1, books: { name: book, area: "문법" } });
+  const rs = [{ id: "a", status: "none", item_id: "i", unit_id: "u1", units: U("u1", "b1"), sort: 1 }, { id: "b", status: "done", item_id: "i", unit_id: "u1", units: U("u1", "b1"), sort: 2 }, { id: "c", status: "weak", done_note: "절반", item_id: "j", unit_id: "u2", units: U("u2", "b2"), sort: 3 }, { id: "d", status: "none", item_id: "i", unit_id: "u3", units: U("u3", "b3"), sort: 4 }, { id: "e", status: null, item_id: null, unit_id: null, units: null, sort: 5 }];
+  const r = splitChecks(rs, { stopped: new Set(["b3"]), opened: new Set(["c"]) });
+  ok("안 본 줄 + 다시 연 줄(c)은 open · 검사한 줄(b)은 done 에 교재별 · 보류 교재(b3)의 줄은 stopped 로 빠진다 · 교재 없는 안 본 줄(e)도 open", r.open.map((x) => x.id).join() === "a,c,e" && r.done.length === 1 && r.done[0].book === "b1" && r.done[0].rows.map((x) => x.id).join() === "b" && r.stopped.map((x) => x.id).join() === "d", JSON.stringify({ open: r.open.map((x) => x.id), done: r.done.map((b) => [b.book, b.rows.map((x) => x.id)]), stopped: r.stopped.map((x) => x.id) }));
+  ok("아무것도 안 주면 · 안 본 줄은 open · 검사한 줄은 done · stopped 0 · 빈 목록도 산다", splitChecks(rs).open.map((x) => x.id).join() === "a,d,e" && splitChecks(rs).done.flatMap((b) => b.rows.map((x) => x.id)).join() === "b,c" && splitChecks(rs).stopped.length === 0 && splitChecks([]).open.length === 0); }
 console.log(`\n■ 항목 줄 글 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

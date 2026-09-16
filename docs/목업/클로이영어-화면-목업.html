@@ -1042,6 +1042,30 @@ fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{back
 .tru[open]>summary .ar{transform:rotate(90deg)}
 .tru>summary .trc,.tru>summary small{color:var(--faint);font-weight:400;font-size:var(--fs-2)}
 .trr{margin-left:6px;padding-left:10px;border-left:1px dashed var(--hair)}
+/* (어47) 01 검사·학습·숙제 촘촘히(원장님 9/16 「한화면에 최대한의 정보를 압축적으로 담을 수 있게 · 최대한 스크롤을 줄여봐 · 여백 낭비가 심함」) · 단원 머리는 안 접힌다(.tru.flat · 「단원이 안보이면 검사가안돼」) · 손은 아이콘 .icb(「건너뛰기(엑스) 다음시간으로(화살표) 숙제로(집) 이거를 아이콘화해버려」) · 검사한 줄은 교재별 칩 한 줄 .chkdone(「완료된 건 접어서 · 완료미흡미완료여부는 보이게」 · ○△✕ 색은 .chk 와 같다) · 보류 교재 줄은 맨 밑 .chkstop(「교재보류는 접힌채로 아예 검사에서 맨밑으로」) */
+.tr.dense{margin:2px 0;padding-left:6px}
+.tr.dense .trb{margin:2px 0 0;font-size:var(--fs-2)}
+.tr.dense .tru{margin:0}
+.tru.flat>.truh{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0;font-weight:700}
+.tru.flat>.truh .trc,.tru.flat>.truh small{color:var(--faint);font-weight:400;font-size:var(--fs-2)}
+.tr.dense .truh{padding:2px 0;gap:4px;font-size:var(--fs-2);font-weight:600}
+.tr.dense .trr{margin-left:2px;padding-left:6px}
+.tr.dense .hw{padding:2px 0;gap:6px;align-items:center}
+.tr.dense .hw b{font-size:var(--fs-2)}
+.tr.dense .hw small{margin-top:0}
+.tr.dense .li{padding:2px 0;gap:6px;align-items:center}
+.tr.dense .li b{font-size:var(--fs-2)}
+.tr.dense .li .n{margin-top:0}
+.acts{margin:0;gap:2px;flex:0 0 auto}
+.icb{width:var(--h-sm);min-width:var(--h-sm);padding:0!important;font-size:var(--fs-2)}
+.chkdone{display:flex;flex-direction:column;gap:2px;margin:4px 0 0;padding-top:4px;border-top:1px dashed var(--hair)}
+.cdb{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.cdn{font-size:var(--fs-1);font-weight:700;color:var(--faint);margin-right:2px}
+.cdc{border:1px solid var(--hair);background:var(--sunk);border-radius:6px;padding:2px 8px;font-size:var(--fs-2);color:var(--mid);display:inline-flex;align-items:center;gap:4px;min-height:22px;font-family:var(--sans)}
+.cdc[data-v="o"]{border-color:transparent;color:var(--surface);background:var(--ok)}
+.cdc[data-v="w"]{border-color:transparent;color:#111827;background:var(--weak)}
+.cdc[data-v="x"]{border-color:transparent;color:var(--surface);background:var(--miss)}
+.chkstop{margin-top:6px;padding-top:4px;border-top:1px dashed var(--hair)}
 /* (어43) 08 로드맵 · 책 차례 한 줄 · 대단원 줄(상태 말 · 막대) · 소단원 큰 네모 */
 .rlist{display:flex;flex-direction:column;gap:8px}
 .rd{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface)}
