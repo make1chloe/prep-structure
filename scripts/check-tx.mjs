@@ -12,7 +12,6 @@ const KNOWN = {
   "lib/student.js:setState": "퇴원 = 학생 상태 + 반 줄 닫기 · 반 줄은 학생 상태를 보고 다시 닫을 수 있다",
   "lib/student.js:issueStudentAccount": "auth 계정 + profiles + 학생 연결 · 계정이 서고 줄이 안 서면 다음 발급이 그 계정을 찾아 잇는다((어36) · 「이미 있는 아이디」로 막지 않는다)",
   "lib/student.js:issueParentAccount": "auth 계정 + profiles + parent_student · 같은 결",
-  "lib/staff.js:issueStaffAccount": "(어64) auth 계정 + profiles(선생님·조교) · 계정이 서고 줄이 안 서면 그 아이디로는 로그인해도 사람 줄이 없어 화면이 까닭을 말하고((어36) 과 같은 길), 원장님이 같은 아이디로 다시 내면 「이미 쓰는 아이디」로 막혀 드러난다(조용히 어긋나지 않는다 · 대전제-0)",
   "lib/todo.js:addMaterial": "자료 + 항목 + 배정 + 업무 셋 · 자료가 서면 업무는 sync_material_todos(SQL) 가 다시 세운다",
   "lib/todo.js:reuseMaterial": "같은 결(♻️)",
   "lib/fee.js:savePayments": "수납(student, ym 유니크 upsert) + 단가 줄 · 단가 줄이 안 서면 다음 달 화면에 「금액 없음」으로 드러나 다시 적으면 선다",

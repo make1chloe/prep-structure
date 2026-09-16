@@ -26,6 +26,7 @@ await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.click("form:has(#i
 // ── 조회 수(속도-상한 오늘 20) — PostgREST 요청 로그(up.sh 가 log-level info 로 켠다)를 화면 한 번 여는 동안 센다. 층(4단)은 여기서 못 재고 check-fast 가 글자로 본다
 import { statSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { TRI } from "../../lib/mark.js";
+import { FIRST_PW } from "../../lib/student-plan.js";   // (어65) 첫 비밀번호는 한 곳 — 걷기가 제 손으로 적으면 어긋난다
 const P = Object.fromEntries(TRI.map(([k, , css]) => [k, css]));   // (어63) 진도 세그의 **CSS 열쇠**는 lib/mark.js 한 곳 · 걷기가 손으로 적으면 화면과 어긋나 「눌러도 안 먹힌다」가 된다
 const LOG = process.env.E2E_PGRST_LOG || "/var/tmp/e2e-pgrst.log";
 const mark = () => (existsSync(LOG) ? statSync(LOG).size : -1);
@@ -1739,9 +1740,9 @@ ok("zz_시험_학생 · 하원 지연 KPI 「3회」(21일 안 셋 · bad) · �
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-students-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 { const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
-  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe9901"); await cp.fill("#pw-student", "0000");
+  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe9901"); await cp.fill("#pw-student", FIRST_PW);
   await Promise.all([cp.waitForURL((u) => u.pathname === "/password" || u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
-  ok("새 계정 chloe9901 / 0000 으로 들어가면 첫 비밀번호 바꾸기 문(/password)으로 · 앱이 발급한 계정은 must_change_pw", new URL(cp.url()).pathname === "/password", cp.url());
+  ok("새 계정 chloe9901 / 첫 비밀번호로 들어가면 첫 비밀번호 바꾸기 문(/password)으로 · 앱이 발급한 계정은 must_change_pw", new URL(cp.url()).pathname === "/password", cp.url());
   await cs.close(); }
 console.log("■ 자료실 20 · 방금 온 것(학부모가 보낸 사진) → 유형 고르기 → 유형별 칸 · 열기 200 · 유형 옮기기 → 아이별 · 📤 보내기(아이 → 숙제 줄 → 파일, 폰이 줄여 보낸다) → 보낸 것 「아직」 0/1");
 const STORE9 = process.env.E2E_STORAGE_DIR || "/var/tmp/e2e-storage"; mkdirSync(`${STORE9}/files/e2e`, { recursive: true });
@@ -2264,7 +2265,7 @@ console.log("■ (어54) + 학생에 전화번호가 있으면 앱 계정이 같
   ok("전화를 적고 저장하면 그 자리에서 「✓ 아이디 chloe9182 · 첫 비밀번호 0000」(따로 발급을 안 누른다)", /아이디 chloe9182/.test(m14) && /첫 비밀번호/.test(m14), m14.slice(0, 80));
   ok("그 아이 머리에 🔑 아이디 알약 · 「앱 계정 없음」 0", (await sb14.locator("[data-g=head] [data-g=app-id]").textContent().catch(() => "")).includes("chloe9182") && (await sb14.locator("[data-g=head] [data-g=no-app-id]").count()) === 0, await sb14.locator("[data-g=head]").textContent().catch(() => ""));
   const oc2 = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(oc2); const op2 = await oc2.newPage();
-  await op2.goto(APP + "/login"); await op2.fill("#id-student", "chloe9182"); await op2.fill("#pw-student", "0000");
+  await op2.goto(APP + "/login"); await op2.fill("#id-student", "chloe9182"); await op2.fill("#pw-student", FIRST_PW);
   await Promise.all([op2.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 }).catch(() => {}), op2.click("form:has(#id-student) button[type=submit]")]); await op2.waitForLoadState("networkidle").catch(() => {});
   ok("그 아이디로 바로 들어가진다(0000 · 「아직 학원에 이어지지 않은 아이디」 카드 0)", !new URL(op2.url()).pathname.startsWith("/login") && (await op2.locator("main [data-g=no-profile]").count()) === 0, op2.url());
   await oc2.close(); }
