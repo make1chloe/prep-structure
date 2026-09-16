@@ -161,11 +161,27 @@ ok("학원 줄이 하나 섰다", (await row.locator(".half", { hasText: "그 �
   ok("(어26) ✕ 로 빼면 줄이 사라지고 「뺀 줄 1」+ 복구(지우지 않는다 · off)", (await cls.locator(".li").count()) === 0 && (await cls.locator("[data-g=off-lines]").textContent()).includes("뺀 줄 1") && (await cls.locator("[data-g=off-lines] button[data-act=item-restore]").count()) === 1);
   await cls.locator("[data-g=off-lines] button[data-act=item-restore]").click(); await p.waitForTimeout(900);
   ok("(어26) 복구 → 줄이 돌아오고 「뺀 줄」이 사라진다", (await cls.locator(".li").count()) === 1 && (await cls.locator("[data-g=off-lines]").count()) === 0 && (await cls.locator(".li b").first().textContent()) === "의미 단위 구두테스트 · PSS 1-4"); }
-await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li button", { hasText: "미루기" }).click(); await p.waitForTimeout(800);
-ok("미루면 숙제로 간다(지우지 않는다)", (await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li").count()) === 0 && (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2);
+await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li button[data-act=item-move]").click(); await p.waitForTimeout(800);   /* (어55) 글 단추 → 🏠 아이콘+툴팁 · 좁은 칸에서 옆 단추가 눌리던 것 */
+ok("🏠 로 옮기면 숙제로 간다(지우지 않는다)", (await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li").count()) === 0 && (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2);
 console.log("■ 검사가 끝나면 오늘 학습·숙제가 저절로 깔린다(확정-⑨)");
 await pick(row, "work");
 ok("(어35) 문법책 검사 둘(워크북 △ · 그저께 ✕)이 끝났으니 검사 줄 하나(클카 문장훈련 · 교재 없음)가 남았어도 문법책은 이미 깔렸다(검사 먼저 끝난 교재부터 · 원장님 9/15 「숙제검사를 먼저 한 영역이 오늘학습에 먼저 배정」) · 「검사 끝나면 채워집니다」 0 · 교재 한 권 · 학습·숙제 반쪽 둘", (await row.locator(".bk .stopnote", { hasText: "검사 끝나면" }).count()) === 0 && (await row.locator(".bk").count()) === 1 && (await row.locator(".bk").first().locator(".half").count()) === 2, (await row.locator("[data-card=work]").textContent()).replace(/\s+/g, " ").slice(0, 240));
+{ const bad = await row.locator(".panel").first().evaluate((pn) => {   /* (어55) 단추가 제 자리에 있나 · 세그가 칸 밖으로 나가 옆 칸을 덮으면 누른 것과 눌리는 것이 달라진다(원장님 9/15 「이거 버튼 안 먹힘」의 되풀이) */
+    const out = [];
+    for (const s of pn.querySelectorAll(".seg")) {
+      const sr = s.getBoundingClientRect(), pr = s.parentElement.getBoundingClientRect();
+      if (sr.right > pr.right + 1 || sr.left < pr.left - 1) out.push(`세그[${s.dataset.g ?? "?"}]가 칸 밖으로 ${Math.round(Math.max(sr.right - pr.right, pr.left - sr.left))}px`);
+      for (const b of s.querySelectorAll("button")) {
+        const r = b.getBoundingClientRect(); if (!r.width) continue;
+        const x = r.x + r.width / 2, y = r.y + r.height / 2;
+        if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;   // 화면 밖(접힌 판·아래로 밀린 카드)은 elementFromPoint 가 null 이라 못 잰다 — 자리(위 줄)가 이미 본다
+        const top = document.elementFromPoint(x, y);
+        if (top && top.closest("button") !== b) out.push(`「${b.textContent.trim()}」를 누르면 「${(top.textContent ?? top.tagName ?? "?").trim().slice(0, 14)}」가 눌린다`);
+      }
+    }
+    return out;
+  });
+  ok("(어55) 3단이 좁아져도 세그는 칸 안에 있고 단추는 제가 눌린다(안 그러면 「하나 더」를 눌러도 이웃 칸의 「✕ 받은 단원 다시」가 눌린다)", bad.length === 0, bad.join(" · ") || "덮은 것 없음"); }
 await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);
 { const hw = row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }); const bg = async (v) => hw.locator(`.chk button[data-v=${v}]`).evaluate((el) => getComputedStyle(el).backgroundColor); const on = await bg("o"), off = await bg("x");   // (어23) 눌림이 눈에 보이나 — aria-pressed 만 재던 구멍(원장님 9/15 「숙제검사 ox는 표시가 안되는데」)
   ok("○ 를 누르면 그 단추가 색으로 눌린다(배경이 안 누른 단추와 다르다 · CSS data-v o·w·x = 앱 CHECK_KEY)", on !== off && (await hw.locator(".chk button[data-v=o]").getAttribute("aria-pressed")) === "true", `${on} / ${off}`); }
@@ -568,6 +584,10 @@ if (!(await two2.locator("[data-card=work]").count())) {   // 오늘 결석 예�
     ok("(어48) 출결을 누르면 도착 시각이 남는다(아이가 안 찍었으면 원장이 찍은 것으로)", (await at.locator("[data-g=arr-in]").count()) === 1 && /^도착 \d\d:\d\d · 원장$/.test((await at.locator("[data-g=arr-in]").textContent()).trim()), await at.textContent().catch(() => "없음"));
     await at.locator("button[data-act=leave-now]").click(); await p.waitForTimeout(1200);
     ok("(어48) 출결 곁 「하원」 · 누르면 그 자리에서 하원 시각 · 단추는 사라진다", /^하원 \d\d:\d\d · 원장$/.test((await at.locator("[data-g=arr-out]").textContent()).trim()) && (await at.locator("button[data-act=leave-now]").count()) === 0, await at.textContent());
+    ok("(어55) 하원 단추는 눈에 띈다(pri) · 찍은 뒤엔 ↩ 로 무를 수 있다(원장님 2026-09-16 「하원버튼 실수할거같으니 강조해주고, 다시 누르면 취소가능하게」)", (await at.locator("button[data-act=leave-undo]").count()) === 1, await at.textContent());
+    await at.locator("button[data-act=leave-undo]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    ok("(어55) ↩ 를 누르면 하원이 지워지고 단추가 돌아온다 · 새로고침해도 그대로(잘못 누른 것을 무른 것)", (await two2.locator("[data-g=arr-out]").count()) === 0 && (await two2.locator("button[data-act=leave-now]").count()) === 1, await two2.locator("[data-g=att-times]").textContent());
+    await two2.locator("button[data-act=leave-now]").click(); await p.waitForTimeout(1500);
     await at.locator("button[data-act=time-edit]").click(); await p.waitForTimeout(200);
     await at.locator("[data-g=time-which] button", { hasText: "하원" }).click();
     await at.locator("input[aria-label=시각]").fill("21:05");
@@ -2031,10 +2051,18 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
     ok("(어59) 검사에서 연 배정 · 제목 「검사할 숙제 배정」 · 세그는 「지난 숙제」 하나(집·학원 없음) · 단원 머리 📕 와 활동 머리 ✓ 로 갈렸다(원장님 「학습항목과 단원이 구별이 안되는점」)", (await gm.locator(".mdlh b").textContent()) === "검사할 숙제 배정" && (await gm.locator("[data-g=give-slot] button").allTextContents()).join() === "지난 숙제" && (await gm.locator("[data-g=give-units-h]").count()) === 1 && (await gm.locator("[data-g=give-items-h]").count()) === 1 && (await gm.locator("[data-g=give-item]").count()) >= 1, (await gm.locator(".mdlh").textContent()) + " | " + (await gm.locator("[data-g=give-units-h]").textContent().catch(() => "머리 없음")));
     ok("(어59) 이미 끝낸 단원은 「다 함」으로 표시되고 안 한 단원이 먼저(원장님 「이미 완료된 부분이 표시안되는점」)", (await gm.locator("[data-g=give-unit]").count()) >= 1 && (await gm.locator("[data-g=give-unit][data-done]").count()) === (await gm.locator("[data-g=give-unit]").count()) && ((await gm.locator("[data-g=give-unit][data-done='1']").count()) === 0 || (await gm.locator("[data-g=give-unit][data-done='1'] [data-g=unit-done]").count()) >= 1) && (await gm.locator("[data-g=give-unit]").first().getAttribute("data-done")) === "0", `단원 ${await gm.locator("[data-g=give-unit]").count()} · 다 함 ${await gm.locator("[data-g=give-unit][data-done='1']").count()}`);
     const nChk = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
+    { const ch = gm.locator("select[data-g=give-chapter]"), nOne = await gm.locator("[data-g=give-unit]").count();   /* (어61) 원장님 9/16 「숙제검사에서 숙제를 배정할때 교재단원이 극히 일부만 나오는데 이유가뭐지」 */
+      const 전체 = (await ch.locator("option").first().textContent()) ?? "";
+      await ch.selectOption(""); await p.waitForTimeout(400);
+      const nAll = await gm.locator("[data-g=give-unit]").count();
+      ok("(어61) 대단원 고르개가 **늘 보이고** 맨 위가 「전체 단원 K개」 · 고르면 교재의 단원이 전부 선다(대단원 하나로 걸러 「극히 일부만」 보이던 것)",
+        (await ch.count()) === 1 && /^전체 단원 \d+개$/.test(전체.trim()) && nAll >= nOne, `한 대단원 ${nOne} → ${전체.trim()} ${nAll}`);
+      const back = (await ch.locator("option").nth(1).getAttribute("value")) ?? "";
+      if (back) { await ch.selectOption(back); await p.waitForTimeout(400); } }
     await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1800);
     await pick(rg, "check");
     const btns = await rg.locator("[data-card=check] [data-v]").count(), chk1 = await chkN();
-    ok(`(어59) 검사 줄 ${nChk}개가 그 교재에 붙고 **오늘 낼 숙제 수는 안 는다**(집에 가서 해올 것이 아니다) · 교재가 보류면 (어57) 대로 목록에 「검사 N」 으로 접힌다`, (await rg.locator(".pill.hw").textContent()) === before && (btns >= nChk || chk1 >= chk0 + nChk), `${before} → ${await rg.locator(".pill.hw").textContent()} · 검사 단추 ${btns} · 보류 목록 검사 ${chk0} → ${chk1}(배정 ${nChk})`); }
+    ok(`(어59)(어60) 검사 줄 ${nChk}개가 **그 자리에서 ○△✕ 할 줄로 선다**(원장님 9/16 「숙제검사에서 배정한 지난시간 숙제가 검사할 것으로 떠야하는데 안뜸」 — 교재가 보류라도 접지 않는다) · **오늘 낼 숙제 수는 안 는다**(집에 가서 해올 것이 아니다)`, (await rg.locator(".pill.hw").textContent()) === before && btns >= nChk && (await rg.locator("[data-card=check] [data-g=paused-book]").count()) === 0, `${before} → ${await rg.locator(".pill.hw").textContent()} · 검사 단추 ${btns}(배정 ${nChk}) · 보류 목록 검사 ${chk0} → ${chk1}`); }
   await p.setViewportSize(VIEWS[0].viewport); }
 console.log("■ (어15) 카드 차례를 끌어서 · 01 판 · 14 학생(원장님 2026-09-14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게 하면 될거같은데」) · 기본은 생각의 흐름 · 바꾸면 그 사람 것(screen_pref · 사람마다)");
 const dragTop = async (pg, grip, first) => { await grip.scrollIntoViewIfNeeded(); const gb = await grip.boundingBox(), fb = await first.boundingBox(); await pg.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await pg.mouse.down(); await pg.mouse.move(gb.x + gb.width / 2, fb.y + 2, { steps: 10 }); await pg.mouse.up(); await pg.waitForTimeout(200); };

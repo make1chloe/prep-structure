@@ -1,4 +1,6 @@
 /** 등원·하원 검사(검사-㊺ · 목업 07 🕘 · 0078·0083) — 순수 판단 lib/arrival-plan.js: 걸음 셋 + 집에 가요 · 도착은 가장 이른 등원 걸음 · 지각 분은 반 시작과 견줘(유예 분) · 학원 회선(IPv4 그대로 · IPv6 앞 4덩어리 · ::ffff: · 빈 목록은 아무도 못 찍음) · 요청 주소 읽기 · 반 고르기(하나·둘·보강·없음) · 「앞으로」 줄 · 학원 줄의 차례 */
+import { readFileSync, readdirSync } from "node:fs";
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 · lib 글자를 훑기 전에 주석을 지운다
 import { STEPS, LEAVE, stepName, arrivalState, arrivalTimes, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps, homeSteps, timerText } from "../lib/arrival-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -33,5 +35,18 @@ console.log("■ (어48) 출결 곁의 도착·하원 시각 · 누가 찍었나
 { const t = arrivalTimes([{ step: 2, at: "2026-09-16T08:02:00Z", stamped_by: "student" }, { step: 1, at: "2026-09-16T08:00:30Z", stamped_by: "student" }, { step: 4, at: "2026-09-16T13:10:00Z", stamped_by: "staff" }]);
   ok("도착은 가장 이른 등원 걸음(17:00 · 앱이 찍음) · 하원은 걸음 4(22:10 · 원장이 찍음) · 이름까지", t.in.at === "17:00" && t.in.by === "student" && t.in.name === "앱" && t.out.at === "22:10" && t.out.by === "staff" && t.out.name === "원장", JSON.stringify(t));
   ok("안 찍었으면 null · 찍은이가 비면 아이가 찍은 것으로 본다(옛 줄 · 0169 앞)", arrivalTimes([]).in === null && arrivalTimes([]).out === null && arrivalTimes([{ step: 2, at: "2026-09-16T08:02:00Z" }]).in.by === "student" && arrivalTimes([{ step: 4, at: "2026-09-16T13:10:00Z" }]).in === null); }
+console.log("■ (어55) 잘못 누른 하원을 취소(원장님 9/16 「하원버튼 실수할거같으니 강조해주고, 다시 누르면 취소가능하게」)");
+{ const arr = strip(readFileSync("lib/arrival.js", "utf8"));
+  const migs = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).map((f) => readFileSync(`supabase/migrations/${f}`, "utf8")).join("\n");
+  ok("취소하는 손은 lib/arrival clearStamp 하나 · **학원 사람이 찍은 줄만** 내린다(아이 앱이 찍은 시각은 1차 기준이라 시각 고치기로만 바꾼다)",
+    /export async function clearStamp\(/.test(arr) && /\.eq\("stamped_by", "staff"\)/.test(arr) && /아이 앱이 찍은 것은 취소할 수 없습니다/.test(arr));
+  ok("**지우지 않는다**(대전제-6) · undone_at 을 찍어 내리고(0170) · 다시 찍으면 staffStamp 의 upsert 가 undone_at 을 null 로 덮어 되살린다 · 앱 어디에도 arrival delete 0",
+    /update\(\{ undone_at: new Date\(\)\.toISOString\(\) \}\)/.test(arr) && /\.is\("undone_at", null\)\.select\("id"\)/.test(arr)
+    && /stamped_by: "staff", undone_at: null/.test(arr) && !/from\("arrival"\)[\s\S]{0,80}\.delete\(\)/.test(arr)
+    && /alter table v2\.arrival add column if not exists undone_at timestamptz/.test(migs));
+  { const reads = ["lib/me.js", "lib/day.js", "lib/parent.js", "lib/cal.js"].flatMap((f) => (strip(readFileSync(f, "utf8")).match(/from\("arrival"\)\.select\([^\n]*/g) ?? []).map((l) => [f, l]));
+    const 샌곳 = reads.filter(([, l]) => !/\.is\("undone_at", null\)/.test(l));
+    ok(`취소한 줄은 **읽는 자리 전부**가 뺀다(.is("undone_at", null)) · 하나라도 새면 취소한 하원이 그 화면에만 살아 있다 · 지금 ${reads.length}곳`,
+      reads.length >= 4 && 샌곳.length === 0, 샌곳.map(([f]) => f).join(" · ")); } }
 console.log(`\n■ 등원·하원 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -12,7 +12,7 @@ import { ccSkip } from "@/lib/cc";
 import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
-import { staffStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
+import { staffStamp, clearStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, givePool as givePoolOf, applyGive, moveBook, nextRound, relayBook } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
@@ -46,6 +46,7 @@ export const late = done(async (form) => { const { sb } = await staff(); await s
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
 export const lateLeft = done(async (studentId, date, hhmm) => { const { sb } = await staff(); return staffStamp(sb, { studentId: String(studentId), date: String(date), step: 4, hhmm: String(hhmm ?? "").trim() }); });   // 실제 하원 · 등원 표 걸음 4(판이 아니라 마감과 무관)
 export const stampAt = done(async (studentId, date, step, hhmm = null) => { const { sb } = await staff(); return staffStamp(sb, { studentId: String(studentId), date: String(date), step: Number(step), hhmm: hhmm ? String(hhmm).trim() : null }); });   // (어48) 출결 곁 · 하원 누르기(시각 없으면 지금) · 도착·하원 시각 고치기
+export const clearStampAt = done(async (studentId, date, step) => { const { sb } = await staff(); return clearStamp(sb, { studentId: String(studentId), date: String(date), step: Number(step) }); });   // (어55) 잘못 누른 하원 취소 · 원장님 2026-09-16
 export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
 export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
 export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 · 키는 서버에서만

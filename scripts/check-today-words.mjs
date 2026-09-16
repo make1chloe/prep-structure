@@ -57,6 +57,25 @@ ok("(어59) 배정 모달의 교재 목록은 **진행중이 먼저**(보류 교
 ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 「다 함」으로 흐리고 안 한 단원이 먼저(「이미 완료된 부분이 표시안되는점」)",
   /data-g="give-units-h">📕 단원/.test(row) && /data-g="give-items-h">✓ 활동/.test(row) && /data-g="give-items" style=\{\{ marginLeft: 14 \}\}/.test(row)
   && /data-done=\{u\.left \? "0" : "1"\}/.test(row) && /data-g="unit-done">다 함/.test(row) && /const ordUnits = \[\.\.\.here\]\.sort\(/.test(row));
+ok("(어60) 검사 카드는 **검사에서 뒤늦게 적은 줄**이 있으면 보류 교재라도 안 접는다(원장님 2026-09-16 「숙제검사에서 배정한 지난시간 숙제가 검사할 것으로 떠야하는데 안뜸」) · 볼 것이 없을 때만 접는다((어57))",
+  /const own = \(bid\) => sheet\.check\.some\(\(r\) => r\.units\?\.book_id === bid && !r\.carry_of\)/.test(row) && /stopOn\(b, date\) !== "running" && !own\(b\.book_id\)/.test(row));
+ok("(어61) 배정 모달의 대단원 고르개는 **늘 보이고** 맨 위가 「전체 단원 K개」(원장님 2026-09-16 「숙제검사에서 숙제를 배정할때 교재단원이 극히 일부만 나오는데 이유가뭐지」 — 대단원 하나로 걸러 놓고 고르개는 둘 이상일 때만 나와 걸러진 줄이 안 보였다) · 걸렀으면 「교재 전체 K」 를 셈에 적는다 · 손(givePool)은 그 교재의 active 단원을 **전부** 준다",
+  /\{chapters\.length > 0 && <select[\s\S]{0,240}data-g="give-chapter"[\s\S]{0,200}<option value="">전체 단원 \{allUnits\.length\}개<\/option>/.test(row)
+  && /\{units\.length\}\/\{here\.length\}\{chapter \? ` · 교재 전체 \$\{allUnits\.length\}` : ""\}/.test(row)
+  && !/chapters\.length > 1/.test(row)
+  && (() => { const r = readFileSync("lib/routine.js", "utf8"); const i = r.indexOf("export async function givePool"); const body = r.slice(i, r.indexOf("export async function applyGive", i));
+      return /from\("units"\)[\s\S]{0,200}\.eq\("book_id", bookId\)\.eq\("state", "active"\)\.order\("sort"\)/.test(body) && !/\.limit\(/.test(body); })());
+ok("(어55) 세그는 **칸 안에 갇혀** 좁아지면 접어 내린다(max-width) · 안 가두면 칸 밖으로 249px 로 서서 옆 칸을 덮어 「하나 더」를 눌러도 이웃의 「✕ 받은 단원 다시」가 눌렸다(1열을 넓혀 3열 한 쪽이 198px 이 되자 터졌다) · 접힌 줄은 폭을 채우고(flex) 줄 사이는 1px 로 가른다 · 키는 min-height 라 한 줄일 때 모양은 그대로",
+  /\.seg\{display:flex;flex-wrap:wrap;/.test(css) && /\.seg\{min-height:var\(--h-md\)[^}]*max-width:100%[^}]*row-gap:1px/.test(css) && /\.seg>button\{[^}]*flex:1 1 auto\}/.test(css) && /\.seg\.sm\{min-height:var\(--h-sm\)\}/.test(css) && !/\.seg\{height:var\(/.test(css));
+ok("(어55) 「그 밖에」 줄의 손도 아이콘+툴팁(원장님 2026-09-16 「3열에 오늘학습파트 버튼이 좀 빢빡해질거같은데 이름을 줄여 정 안되면 아이콘+툴팁」) · 좁은 칸에서 ✎ 를 누르려다 옆 단추가 눌리던 것",
+  /data-act="item-move" \{\.\.\.icon\(mvName, mvTip\)\}/.test(row) && /data-act="item-next" \{\.\.\.icon\("다음 시간", "다음 시간으로 미루기"\)\}/.test(row)
+  && /"🏠", "숙제로", "집에서 할 숙제로"/.test(row) && /"🏫", "학원으로", "학원에서 할 것으로"/.test(row) && !/숙제로 미루기|↩ 학원에서/.test(row));
+ok("(어55) 01 3단 폭 · 2열(업무 250)만 그대로 · 1열(학생)과 3열(내용)이 비슷하다(원장님 2026-09-16 「2열만 현재 유지하고 1, 3열은 비슷한 너비로 해도 되는거아냐?」) · 1열 알약은 한 덩어리라 2회독·경고가 붙어도 안 꺾인다",
+  /\.split\{[^}]*grid-template-columns:clamp\(300px,calc\(50% - 139px\),560px\)/.test(css) && /\.split \.row>\.panel\{[^}]*grid-template-columns:250px/.test(css)
+  && /\.rowtop \.pills\{[^}]*flex-wrap:nowrap[^}]*margin-left:auto/.test(css) && /\.rowtop \.pill\{white-space:nowrap\}/.test(css) && /<span className="pills" data-g="row-pills">/.test(row));
+ok("(어55) 하원은 눈에 띄고(pri) **다시 눌러 취소된다**(원장님 2026-09-16 「하원버튼 실수할거같으니 강조해주고, 다시 누르면 취소가능하게」) · 취소는 학원 사람이 찍은 것만(아이 앱이 찍은 것은 1차 기준) · 화면 먼저(속도-3)",
+  /className="btn sm pri" data-act="leave-now"/.test(row) && /data-act="leave-undo"/.test(row) && /t\.out\.by === "staff" &&/.test(row) && /setT\(\{ \.\.\.t, out: null \}\)/.test(row)
+  && (() => { const a = strip(readFileSync("lib/arrival.js", "utf8")); return /export async function clearStamp\(/.test(a) && /\.eq\("stamped_by", "staff"\)/.test(a); })(), "하원 강조·취소");
 ok("(어57) 보류된 교재는 **속을 안 그린다**(원장님 9/16 「숙제검사와 오늘학습에서 보류된 교재는 내용을 볼 필요가 없잖아. 진행중으로 바꾸면 그때 상세내용보이고, 그전에는 목록과 상태버튼만 카드 맨밑에」) · 두 카드가 같은 부품(PausedBooks) · 상태 세그는 한 벌(useStop · 교재 카드와 같은 것) · 오늘 학습은 보류 교재의 블록을 아예 안 세운다",
   /function PausedBooks\(/.test(row) && /function useStop\(/.test(row) && (row.match(/<PausedBooks /g) ?? []).length === 2
   && /const \[stop, stopSeg\] = useStop\(b, sheet, date, closed, fail, start\)/.test(row)
