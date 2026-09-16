@@ -257,7 +257,9 @@ await row.locator(".seg[data-g=mode] button", { hasText: "그대로" }).click();
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("그대로 → 셋으로 되살아난다(단원마다)", (await bk.locator(".half").nth(0).locator("[data-g=tree-unit]").first().locator(".li").count()) === 3);
 console.log("■ 교재 상태 · 숙제 보류이면 숙제 반쪽이 「숙제 없음」");
-await bk.locator(".stopseg button", { hasText: "숙제 보류" }).click(); await p.waitForTimeout(1000);
+await bk.locator(".stopseg button", { hasText: "숙제 보류" }).click(); await p.waitForTimeout(150);
+ok("(어49) 교재 상태는 누르는 순간 눌린다(새로고침 전 · 서버 답을 안 기다린다 · 원장님 9/16 「교재 진행중/ 숙제보류/ 교재보류도 버튼작동이 상당히 느림」)", (await bk.locator(".stopseg button", { hasText: "숙제 보류" }).getAttribute("aria-pressed")) === "true", await bk.locator(".stopseg").textContent());
+await p.waitForTimeout(900);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await pick(row, "more");
 ok("숙제 반쪽 muted · 숙제 없음", (await bk.locator(".half.muted .stopnote", { hasText: "숙제 없음" }).count()) === 1 && (await row.locator(".load .ldn").nth(1).locator("> b").textContent()) === "2");
@@ -279,7 +281,9 @@ ok("어제 숙제 1-4 에 △ 를 줬으니 1-4 는 ◐ · 1-1~1-3 은 ○(seed)
 ok("오늘 학습 소단원(1-4·대비문제)에 「✍ 메모로 자동 ○」 후보 표시", (await pm.locator(".ur", { hasText: "메모로 자동" }).count()) === 2);
 ok("02b 머리 · 아직 메모로 마감한 적이 없어 「✍ 메모로만 N회 연속」 없음(5단계-① · 규칙 3회부터 ⚠️)", (await pm.locator("[data-g=memo-streak]").count()) === 0 && (await pm.locator("[data-g=memo-warn]").count()) === 0);
 await pm.locator(".acch", { hasText: "CHAPTER 2" }).click(); await p.waitForTimeout(300);
-await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").click(); await p.waitForTimeout(1200);
+await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").click(); await p.waitForTimeout(200);
+ok("(어49) 진도 체크 ○ 는 누르는 순간 눌리고 대단원 셈도 그 자리에서 바뀐다(서버 답을 안 기다린다 · 원장님 9/16 「진도체크들어가면 버튼이 제대로 작동하지않음」)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").getAttribute("aria-pressed")) === "true" && (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1"), await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent());
+await p.waitForTimeout(1000);
 ok("CHAPTER 2 의 2-1 에 ○ → 「1/1 끝냄」 · 끝낸 대단원 1 / 2", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1 끝냄") && (await pm.locator(".tag.on").first().textContent()) === "끝낸 대단원 1 / 2");
 await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=none]").click(); await p.waitForTimeout(1200);
 ok("되돌리기 · → 「0/1」", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("0/1"));
@@ -673,7 +677,7 @@ await gap.locator("[data-g=gap-chip]").first().click(); await p.waitForTimeout(4
   ok("진도 체크 모달이 그 자리에(수업 일지 없이 · 아이·오늘 기준 손) · 01 과 같은 부품 · 대단원 접이 ≥ 1 · ○◐· 셋", (await pm.locator(".acc").count()) >= 1 && (await pm.locator(".mdlh b").textContent()) === "진도 체크", (await pm.locator(".mdlh").textContent()));
   await pm.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(400);
   await p.locator("button[data-act=gap-assign]").click(); await p.waitForSelector("[data-g=assign-list], [data-g=assign-none]", { timeout: 15000 });
-  ok("+ 교재 배정 → 같은 모달 · 학생둘은 두 교재가 다 배정돼 있어 「배정할 교재 없음」(대전제-0 · 빈 목록 대신 까닭) · 「배정」 잠김 · 페이지는 그대로(주소 /)", (await p.locator("[data-g=assign-none]").count()) === 1 && (await p.locator("[data-g=assign-row]").count()) === 0 && (await p.locator("button[data-act=assign-save]").isDisabled()) && new URL(p.url()).pathname === "/", (await p.locator(".mdlov[aria-label='교재 배정']").textContent()).replace(/\s+/g, " ").slice(0, 120));
+  ok("+ 교재 배정 → 같은 모달 · 학생둘은 두 교재가 다 배정돼 있어 「배정할 교재 없음」(대전제-0 · 빈 목록 대신 까닭) · 「배정」 잠김 · 페이지는 그대로(주소 /)", (await p.locator("[data-g=assign-none]").textContent()).includes("다 배정됨") && (await p.locator("[data-g=assign-row]").count()) === 0 && (await p.locator("button[data-act=assign-save]").isDisabled()) && new URL(p.url()).pathname === "/", (await p.locator(".mdlov[aria-label='교재 배정']").textContent()).replace(/\s+/g, " ").slice(0, 120));
   await p.locator(".mdlov[aria-label='교재 배정'] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(200);
   await p.locator(".mdlov[aria-label='빈 배정'] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(200);
   ok("모달 둘 다 닫힘 · 칩 그대로", (await p.locator(".mdlov").count()) === 0 && (await gap.locator("[data-g=gap-chip]").count()) === 1); }

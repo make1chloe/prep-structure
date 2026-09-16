@@ -55,7 +55,7 @@ ok("못 넘긴 것만 말한다. 「스펠 다시 돌립니다」 · 다 넘었�
   && shortText(modeLines({ spell: 100 }, { spell: 100 })) === "다 넘었습니다" && shortText(modeLines({}, { spell: 82 })) === null && shortText([]) === null);
 { const row = src("app/today/row.js"), act = src("app/today/actions.js"), day = src("lib/day.js");
   ok("🃏 카드는 **판단을 안 한다** · 목표 대 실제·못 넘긴 것 글을 lib/cc-plan.js 에서 가져다 쓴다(원칙-1)",
-    /plannerLine|shortText/.test(row) && !/목표 \$\{/.test(row) && !/toLocaleString\("ko-KR"\)[^;]*목표/.test(row));
+    /plannerLine|shortText/.test(row) && !/목표 \$\{/.test(row) && !row.split("\n").some((l) => /toLocaleString\("ko-KR"\)/.test(l) && /목표/.test(l)));
   ok("**앱이 스스로 안 넘긴다**(확정-⑱) · 넘기기는 원장님이 누른 것만 적는다(손 하나 · 자동 부름이 없다)",
     /data-act="cc-skip"/.test(row) && /ccSkipAct/.test(act) && !/ccSkip\(/.test(day));
   ok("플래너 줄은 **화면 파도에 태운다**(속도-1) · lib/day.js 의 Promise.all 안에서 한 조회", /ccDay\(sb, p\.studentIds, date\)/.test(day) && /Promise\.all\(\[[\s\S]{0,4000}ccDay\(/.test(day));

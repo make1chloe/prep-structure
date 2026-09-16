@@ -2,7 +2,7 @@
 /** 오늘 수업의 손 — 전부 guard(학원 사람) → lib 의 판단 한 벌 → 다시 그리기. 판단은 여기 없다.
  *  ⚠️ 마감된 판은 lib 의 assertOpen 이 막는다(검사-⑤). 실패는 던지지 않고 {ok:false, msg} 로 돌려 화면이 그 자리에서 말한다 */
 import { revalidatePath } from "next/cache";
-import { done as doneAt } from "@/lib/act";
+import { done as doneAt, wrap } from "@/lib/act";
 import { guard, staff } from "@/lib/session";
 import { ensureSheet, saveComment, closeSheet, closeMany as closeManySheets } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
@@ -18,7 +18,8 @@ import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
-const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
+const done = doneAt("/today", "오늘 수업 01");
+const quiet = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 진도 체크");   // (어49) 진도 체크는 누를 때마다 화면을 다시 안 그린다 · 모달이 먼저 바꾸고 닫을 때 한 번 읽는다(원장님 9/16 「버튼이 제대로 작동하지않음」)   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
@@ -63,11 +64,11 @@ export const tuneApply = done(async (sheetId, bookId, payload) => { const { sb }
 export const reflectAs = done(async (sheetId, disposal) => { const { sb, user } = await staff(); return reflect(sb, sheetId, disposal, user.id); });
 export const warnReset = done(async (month, action) => { const { sb, user } = await staff(); await resetWarnings(sb, month, action, user.id); });
 // 진도 체크(02b) — 나무는 읽기(마감된 판도) · 찍기·건너뛰기는 손. 판단은 lib/progress.js
-export const progressOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { tree: await tree(sb, sheetId, bookId) }; });
-export const progressSet = done(async (sheetId, unitId, status) => { const { sb } = await staff(); return setUnit(sb, sheetId, unitId, status); });
-export const progressSkip = done(async (sheetId, bookId, chapter) => { const { sb } = await staff(); return skipChapter(sb, sheetId, bookId, chapter); });
-export const progressSetMany = done(async (sheetId, unitIds, status) => { const { sb } = await staff(); return setUnits(sb, sheetId, unitIds, status); });   // (어34) 고른 소단원 한 번에
-export const progressUpTo = done(async (sheetId, bookId, unitId) => { const { sb } = await staff(); return doneUpTo(sb, sheetId, bookId, unitId); });   // (어34) 여기까지 모두 끝냄
+export const progressOpen = quiet(async (sheetId, bookId) => { const { sb } = await staff(); return { tree: await tree(sb, sheetId, bookId) }; });
+export const progressSet = quiet(async (sheetId, unitId, status) => { const { sb } = await staff(); return setUnit(sb, sheetId, unitId, status); });
+export const progressSkip = quiet(async (sheetId, bookId, chapter) => { const { sb } = await staff(); return skipChapter(sb, sheetId, bookId, chapter); });
+export const progressSetMany = quiet(async (sheetId, unitIds, status) => { const { sb } = await staff(); return setUnits(sb, sheetId, unitIds, status); });   // (어34) 고른 소단원 한 번에
+export const progressUpTo = quiet(async (sheetId, bookId, unitId) => { const { sb } = await staff(); return doneUpTo(sb, sheetId, bookId, unitId); });   // (어34) 여기까지 모두 끝냄
 export const warnLimit = done(async (studentId, n) => { const { sb } = await staff(); await setLimit(sb, studentId, n); });
 // 결석·지각 예정(02c) — 달력은 읽기, 저장·알림은 손. 판단은 lib/plan.js
 export const slotView = done(async (date, time) => { const { sb } = await staff(); return { slot: await slotCount(sb, String(date), String(time)) }; });   // 02c 그 시각 아이 수(확정-㉔ 보여만 준다)
