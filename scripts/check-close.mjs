@@ -11,7 +11,7 @@ for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js
     do { if (s[j] === "{") d++; else if (s[j] === "}") d--; j++; } while (d > 0 && j < s.length);
     const body = s.slice(i, j);
     const writes = /\.(update|insert|upsert)\(/.test(body);
-    if (writes && !["ensureSheet", "assertOpen", "resetWarnings", "setLimit", "markFromCheck", "autoDoneOnClose", "planSave", "planNotify", "setLeft", "addItem", "editItem", "retireItem", "setLine", "moveLine", "customizeStudent", "customizeBook", "resetBook", "endBook", "resetStudent", "reviveStudentLine", "setBook", "assignBook", "setAcademyEdit", "setStudentEdit", "confirmMark", "revertMark", "confirmAllMarks", "resolveFlag"].includes(name) && !/assertOpen\(|sheetOf\(|sheetRow\(/.test(body)) bad.push(`${f} ${name}(): 판에 쓰면서 마감을 안 본다`);
+    if (writes && !["ensureSheet", "assertOpen", "resetWarnings", "setLimit", "markFromCheck", "autoDoneOnClose", "planSave", "planNotify", "setLeft", "addItem", "editItem", "retireItem", "setLine", "moveLine", "customizeStudent", "customizeBook", "resetBook", "endBook", "resetStudent", "reviveStudentLine", "setBook", "assignBook", "nextRound", "setAcademyEdit", "setStudentEdit", "confirmMark", "revertMark", "confirmAllMarks", "resolveFlag"].includes(name) && !/assertOpen\(|sheetOf\(|sheetRow\(/.test(body)) bad.push(`${f} ${name}(): 판에 쓰면서 마감을 안 본다`);
   }
 }
 const act = strip(readFileSync("app/today/actions.js", "utf8"));

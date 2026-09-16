@@ -680,6 +680,7 @@ const pills = await p.locator("main > .wv .pill").allTextContents();
 ok("알약 · 「N월 N일 요일」 · 「🚨 빌 아이 1」 · 「오늘 2명 · 17:00」", /^\d+월 \d+일 [일월화수목금토]$/.test(pills[0] ?? "") && (await p.locator("[data-g=gap-count]").textContent()) === "🚨 빌 아이 1" && pills.includes("오늘 2명 · 17:00"), pills.join(" | "));
 const gap = p.locator("[data-g=gap]");
 // (어41) 이름(개수) 칩 → 모달 → 진도 체크·교재 배정 그 자리에서(원장님 9/15 「학생이름 (진도체크필요한 갯수) 만 쫙 나열하면 … 저장 하면 페이지도 안 벗어나고」)
+ok("(어50) 띠 이름은 뜻대로 「오늘 줄이 안 나갈 아이 N명」(원장님 9/16 「배정이 빌 아이 … 이게 무슨 의도 말이야 진도체크되어있는데」 · 교재 배정이 아니라 오늘 나갈 줄이 0인 아이다)", /오늘 줄이 안 나갈 아이 \d+명/.test(await gap.locator(".gaph b").textContent()), await gap.locator(".gaph b").textContent());
 ok("(어41) 빈 배정은 이름(개수) 칩 하나 · 「zz_시험_학생둘 (2)」 · 줄마다 문장 0 · 「진도 체크 ↗」 0 · 나머지 1명 다 참 · 「오늘 수업 ↗」", (await gap.locator("[data-g=gap-chip]").count()) === 1 && (await gap.locator("[data-g=gap-chip]").first().textContent()) === "zz_시험_학생둘 (2)" && (await gap.locator("a", { hasText: "진도 체크" }).count()) === 0 && (await gap.locator(".gapok").textContent()).includes("나머지 1명 다 참") && (await gap.locator("a", { hasText: "오늘 수업 ↗" }).count()) === 1, (await gap.textContent()).replace(/\s+/g, " ").slice(0, 200));
 ok("진도 신호(5단계-①) · 「메모로만 진도가 올라간 교재」 블록 없음(메모 마감은 1회 · 규칙 3회)", (await p.locator("[data-g=memo-calls]").count()) === 0);
 await gap.locator("[data-g=gap-chip]").first().click(); await p.waitForTimeout(400); await snapModal("17-gap");
@@ -692,7 +693,7 @@ await gap.locator("[data-g=gap-chip]").first().click(); await p.waitForTimeout(4
   await p.locator("button[data-act=gap-assign]").click(); await p.waitForSelector("[data-g=assign-list], [data-g=assign-none]", { timeout: 15000 });
   ok("+ 교재 배정 → 같은 모달 · 학생둘은 두 교재가 다 배정돼 있어 「배정할 교재 없음」(대전제-0 · 빈 목록 대신 까닭) · 「배정」 잠김 · 페이지는 그대로(주소 /)", (await p.locator("[data-g=assign-none]").textContent()).includes("다 배정됨") && (await p.locator("[data-g=assign-row]").count()) === 0 && (await p.locator("button[data-act=assign-save]").isDisabled()) && new URL(p.url()).pathname === "/", (await p.locator(".mdlov[aria-label='교재 배정']").textContent()).replace(/\s+/g, " ").slice(0, 120));
   await p.locator(".mdlov[aria-label='교재 배정'] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(200);
-  await p.locator(".mdlov[aria-label='빈 배정'] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(200);
+  await p.locator(".mdlov[aria-label='오늘 줄 0'] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(200);
   ok("모달 둘 다 닫힘 · 칩 그대로", (await p.locator(".mdlov").count()) === 0 && (await gap.locator("[data-g=gap-chip]").count()) === 1); }
 const cards = p.locator(".dash .dcard");
 ok("카드 여섯 · 오늘 수업 · 발송 · 오늘 안 · 안 돌고 있는 것 · 이 달 · 답할 것", (await cards.evaluateAll((els) => els.map((e) => e.dataset.card))).join(",") === "today,send,soon,ops,month,answer");
@@ -800,6 +801,10 @@ const freeOpt = await rm2.locator("[data-g=book-pick] option").allTextContents()
 ok("연결 양식 「이 날부터」는 오늘이 기본(4단계-5 · 고를 수 있다)", (await rm2.locator("[data-g=assign] input[aria-label='이 날부터']").inputValue()) === todayText, await rm2.locator("[data-g=assign] input[aria-label='이 날부터']").inputValue());
 await rm2.locator("[data-g=book-pick]").selectOption({ label: freeOpt.find((t) => t.includes("독해책")) }); await rm2.locator("button[data-act=assign]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("독해책을 이으면 교재 줄이 서고 「독해 루틴이 없습니다. 위에서 만드세요」(대시보드 빵꾸와 같은 판단) · 이대로면 남은 소단원 N/N · 오늘부터", (await rm2.locator("[data-g=book]").count()) === 2 && (await rm2.locator("[data-g=book-gap]").count()) === 1 && (await rm2.locator("[data-g=book-gap]").textContent()).includes("독해 루틴이 없습니다") && (await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).textContent()).includes(`${todayText}부터`), (await rm2.locator("[data-g=books]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+{ const bk11 = rm2.locator("[data-g=book]").filter({ hasText: "독해책" });   // (어50) 다음 회독 · 원장님 9/16 「교재에 진도 2회독은 체크가안돼」
+  const was = await bk11.locator("[data-g=book-span]").textContent();
+  await bk11.locator("button[data-act=next-round]").click(); await p.waitForTimeout(1200);
+  ok("(어50) 루틴 11 교재 줄 「다음 회독」 → 1회독이 2회독이 된다(진도는 회독마다 따로라 1회독 기록은 남고 2회독은 처음부터)", was.startsWith("1회독") && (await bk11.locator("[data-g=book-span]").textContent()).startsWith("2회독"), `${was} → ${await bk11.locator("[data-g=book-span]").textContent()}`); }
 await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).locator("button[data-act=book-end]").click(); await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).locator("[data-g=sure] button[data-act=sure-yes]").click();   /* (라) 확인 창 → 화면 안 물음 줄 */ await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.startsWith("끝냈습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 ok(`끝내기(4단계-5) → 「끝냈습니다. ${todayText}까지」(오늘 이은 것은 오늘까지 · 내일부터 안 쓴다 · 줄은 남는다) · 교재 칸에 「${todayText}까지」`, (await rm2.locator("[data-g=msg]").textContent()).includes(`${todayText}까지`) && (await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).locator("[data-g=book-span]").textContent()).includes(`${todayText}까지`), await rm2.locator("[data-g=msg]").textContent());
 console.log("■ 루틴 11 · 항목 자체 삭제((가)-⑨ · 남긴 것 11): ✎ → 「항목 삭제」 → 그 항목을 쓰는 줄이 모든 영역·아이에서 빠진다 · + 항목에 같은 이름이면 되살아난다");

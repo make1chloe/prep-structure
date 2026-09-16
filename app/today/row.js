@@ -5,7 +5,7 @@ import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -270,7 +270,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
       {prog && <ProgressModal b={b} api={progApi(sheet)} closed={closed} fail={fail} start={start} onClose={() => { setProg(false); router.refresh(); }} />}
       {stop === "book_off" ? <div className="stopnote big"><b>교재 보류</b>{b.stop_until ? ` · ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
-      : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b></div>
+      : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b>{!closed && mark.waves.why === "안 한 소단원이 없다" && <button type="button" className="btn sm pri" data-act="next-round" style={{ marginLeft: 8 }} onClick={() => start(async () => { fail(await bookNextRound(sheet.id, b.id, b.book_id)); })}>다음 회독 시작</button>}</div>
       : <div className="two">
           <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
           {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제 보류</span></div><div className="stopnote"><b>숙제 없음</b> · 수업에서만 씁니다</div></div>

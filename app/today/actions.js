@@ -13,7 +13,7 @@ import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } fro
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { staffStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
-import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, moveBook } from "@/lib/routine";
+import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, moveBook, nextRound, relayBook } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
@@ -49,6 +49,7 @@ export const commentDraft = done(async (sheetId, payload) => { const { sb } = aw
 // 오늘 학습·숙제 · 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 오늘 단원 · 교재마다 메모. 판단은 lib/routine.js
 export const mode = done(async (sheetId, m) => { const { sb } = await staff(); await setMode(sb, sheetId, m); });
 export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });
+export const bookNextRound = done(async (sheetId, studentBookId, bookId) => { const { sb } = await staff(); const r = await nextRound(sb, { studentBookId: String(studentBookId) }); await relayBook(sb, String(sheetId), String(bookId)); return r; });   // (어50) 한 바퀴 끝난 교재를 다음 회독으로 · 그 자리에서 오늘 줄이 다시 깔린다(원장님 9/16)
 export const wave = done(async (sheetId, bookId, slot, unitIds) => { const { sb } = await staff(); await pickWave(sb, sheetId, bookId, slot, unitIds); });
 export const memo = done(async (form) => { const { sb } = await staff(); await setMemo(sb, String(form.get("sheetId")), String(form.get("bookId")), String(form.get("slot")), String(form.get("text") ?? "")); });
 export const bookMove = done(async (sheetId, bookId, dir) => { const { sb } = await staff(); return moveBook(sb, String(sheetId), String(bookId), String(dir)); });   // (어35) 교재 카드 ▲▼ · 오늘 학습·숙제의 교재 차례(원장님 9/15 「배정 선생님이 고칠 수 있음」)

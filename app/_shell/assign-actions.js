@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { staff } from "@/lib/session";
 import { done as doneAt } from "@/lib/act";
 import { today } from "@/lib/day";
-import { bookChoices, assignBook, layRoutine, whyNotLaid } from "@/lib/routine";
+import { bookChoices, assignBook, layRoutine, whyNotLaid, nextRoundToday } from "@/lib/routine";
 const done = doneAt("/", "교재 배정");
 export const assignChoices = done(async (studentId) => { const { sb } = await staff(); const date = await today(sb); return bookChoices(sb, String(studentId), date); });   // { choices, total }
 export const assignBooksFor = done(async (studentId, bookIds, date, sheetId = null) => {   // 여러 권 한 번에(고르기 한 벌 · 대전제-20) · 같은 날부터
@@ -17,4 +17,10 @@ export const assignBooksFor = done(async (studentId, bookIds, date, sheetId = nu
   if (sheetId) { const r = await layRoutine(sb, String(sheetId)); laid = r.rows; if (!r.rows) why = await whyNotLaid(sb, String(studentId), books, on); }   // 01 에서 · 오늘 수업 일지에 그 교재 줄이 바로 선다 · 0줄이면 까닭
   revalidatePath("/today"); revalidatePath("/ops"); revalidatePath("/settings/routine");
   return { ids, laid, why };
+});
+export const nextRoundFor = done(async (studentId, bookId) => {   // (어50) 대시보드 17 · 한 바퀴 끝난 교재를 다음 회독으로 · 오늘 수업 일지가 있으면 그 교재 줄도 다시 선다
+  const { sb } = await staff(); const date = await today(sb);
+  const r = await nextRoundToday(sb, { studentId: String(studentId), bookId: String(bookId), date });
+  revalidatePath("/today"); revalidatePath("/settings/routine");
+  return r;
 });

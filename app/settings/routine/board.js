@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-④ · 대전제-20) */
-import { addItemAct, editItemAct, retireItemAct, setLineAct, setLineManyAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
+import { addItemAct, editItemAct, retireItemAct, setLineAct, setLineManyAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, nextRoundAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
@@ -162,7 +162,7 @@ export default function Board({ d }) {
               <div className="endd" data-g="endd"><small>이대로면</small><b>{pj.sessions === 0 ? "다 했습니다" : pj.endDate ?? "수업일이 모자랍니다"}</b><span>남은 소단원 {x.remaining}/{x.total} · 수업 {pj.sessions}회{pj.months != null ? ` · ${pj.months}개월` : ""}</span></div></div>
             <div className="bsr"><label className="ckl"><input type="checkbox" className="ck" checked={ut !== "off"} disabled={pending} data-g="ut" onChange={(e) => run(() => setBookAct(x.id, { unit_test: e.target.checked ? "per_chapter" : "off" }))} />단원평가 본다</label>
               {ut !== "off" && <div className="seg sm" data-g="ut-seg">{[["per_chapter", null, "대단원마다"], ["per_n_sub", 5, "소단원 5개마다"], ["per_n_sub", 10, "소단원 10개마다"]].map(([k, n, name]) => <button key={name} type="button" aria-pressed={ut === k && (n == null || Number(x.unit_test_n) === n)} disabled={pending} onClick={() => run(() => setBookAct(x.id, { unit_test: k, unit_test_n: n }))}>{name}</button>)}</div>}
-              <span className="spacer" /><span className="note" style={{ margin: 0 }} data-g="book-span">{x.round}회독 · {x.from_date}부터{x.to_date ? ` · ${x.to_date}까지` : ""}{x.stop_mode !== "running" ? ` · ${x.stop_mode === "hw_off" ? "숙제 보류" : "교재 보류"}` : ""}</span></div>
+              <span className="spacer" /><button type="button" className="btn sm" data-act="next-round" disabled={pending} onClick={() => run(() => nextRoundAct(x.id))}>다음 회독</button><span className="note" style={{ margin: 0 }} data-g="book-span">{x.round}회독 · {x.from_date}부터{x.to_date ? ` · ${x.to_date}까지` : ""}{x.stop_mode !== "running" ? ` · ${x.stop_mode === "hw_off" ? "숙제 보류" : "교재 보류"}` : ""}</span></div>
           </div>);
       })}
       {student && <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="assign">
