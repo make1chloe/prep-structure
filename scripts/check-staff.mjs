@@ -1,0 +1,64 @@
+/** (어64) 직원 계정 검사 — 원장님 2026-09-16 「원장말고 다른 테스트 계정도 추가해줘 역할 선생님 권한 - 설정페이지에서 열람페이지 조절가능하게」 · 「근데 선생님조교어디서추가해」.
+ *  지키는 것 일곱: ① 손은 lib/staff.js 하나 ② 원장 역할은 못 준다 ③ 지우지 않는다(대전제-6) ④ 아이디 꼴이 표(0171)와 글자까지 같다
+ *  ⑤ 그 아이디로 로그인이 된다(toLoginEmail 을 실제로 불러 본다) ⑥ 원장만 연다 ⑦ 볼 것은 여기서 안 정한다(🔐 누가 무엇을 보나 한 곳 · 원칙-1). */
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { STAFF_ID, toLoginEmail, INTERNAL_DOMAIN, ROLES } from "../lib/roles.js";
+import { STAFF_ROLES, isStaffRole, parseStaffLoginId, staffIdNag } from "../lib/staff-plan.js";
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 · 주석을 먼저 지운다
+const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = join(d, e); statSync(p).isDirectory() ? walk(p, out) : /\.js$/.test(p) && out.push(p); } return out; };
+const src = [...walk("app").filter((p) => !p.includes("/api/")), ...readdirSync("lib").filter((f) => f.endsWith(".js")).map((f) => "lib/" + f)].map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p, "utf8"))]);
+const text = (p) => src.find(([f]) => f === p)?.[1] ?? "";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
+console.log("■ 직원(선생님·조교) 계정 · 원장님이 앱에서 낸다((어64))");
+
+// ① 손은 한 곳
+const staff = text("lib/staff.js");
+const makers = src.filter(([, s]) => /auth\.admin\.createUser\(/.test(s)).map(([p]) => p);
+ok(`인증 계정을 만드는 파일은 둘뿐(아이 lib/student.js · 직원 lib/staff.js · 지금 ${makers.length})`, makers.length === 2 && makers.includes("lib/staff.js") && makers.includes("lib/student.js"), makers.join(", "));
+const roleWrite = src.filter(([p, s]) => p !== "lib/staff.js" && /from\("profiles"\)[\s\S]{0,120}?\.update\(\{\s*role/.test(s)).map(([p]) => p);
+ok("직원 역할을 고치는 자리는 lib/staff.js 하나(profiles.role 을 다른 데서 안 쓴다)", roleWrite.length === 0, roleWrite.join(", "));
+
+// ② 원장 역할은 못 준다
+ok(`원장이 줄 수 있는 역할은 선생님·조교 둘(지금 ${STAFF_ROLES.length} · principal 없음)`,
+   STAFF_ROLES.length === 2 && !STAFF_ROLES.some(([k]) => k === ROLES.PRINCIPAL) && !isStaffRole(ROLES.PRINCIPAL) && isStaffRole(ROLES.INSTRUCTOR) && isStaffRole(ROLES.ASSISTANT),
+   STAFF_ROLES.map(([k]) => k).join(", "));
+ok("계정 발급·역할 바꾸기 둘 다 isStaffRole 로 막는다(원장 줄은 손대지 않는다)",
+   /export async function issueStaffAccount[\s\S]*?isStaffRole\(role\)/.test(staff) && /export async function setStaffRole[\s\S]*?isStaffRole\(role\)/.test(staff));
+
+// ③ 지우지 않는다(대전제-6)
+ok("lib/staff.js 에 지우는 글 0 · 닫기는 state='left'(되돌릴 수 있다 · 대전제-6)",
+   !/\.delete\(/.test(staff) && /state/.test(staff) && /"left"/.test(staff) && /"active"/.test(staff));
+ok("제 계정은 못 닫는다(원장이 스스로를 잠그면 아무도 못 연다)", /profileId === meId/.test(staff));
+
+// ④ 아이디 꼴이 표(0171)와 글자까지 같다
+const sql = readFileSync("supabase/migrations/0171_staff_login.sql", "utf8");
+const inSql = /login_id ~ '(\^\[a-z\]\[a-z0-9_\]\{3,19\}\$)'/.exec(sql)?.[1] ?? "";
+ok(`직원 아이디 꼴이 lib/roles.js STAFF_ID 와 0171 이 같다(${STAFF_ID.source})`, inSql === STAFF_ID.source && /login_id !~ '\^chloe'/.test(sql), `표 쪽 ${inSql || "못 찾음"}`);
+ok("chloe 로 시작하면 막는다(학생 아이디와 헷갈린다 · (어46) 과 같은 사고)", staffIdNag("chloe12") !== "" && staffIdNag("park1") === "" && staffIdNag("ab") !== "" && staffIdNag("") === "");
+ok("아이디는 대소문자·앞뒤 공백을 다듬어 받는다(원장님이 치신 그대로 튕기지 않는다)", parseStaffLoginId("  Park_1  ") === "park_1");
+
+// ⑤ 그 아이디로 로그인이 된다
+const em = toLoginEmail("staff", "park1");
+ok(`직원 아이디로 로그인이 된다(park1 → park1@${INTERNAL_DOMAIN})`, em.ok && em.email === `park1@${INTERNAL_DOMAIN}`, JSON.stringify(em));
+ok("원장님 진짜 이메일은 그대로 간다(도메인을 덧붙이면 못 들어오신다)", toLoginEmail("staff", "bdyj10@gmail.com").email === "bdyj10@gmail.com");
+ok("chloe 로 시작하는 것은 직원 칸에서 막힌다", toLoginEmail("staff", "chloe0515").ok === false);
+ok("로그인 00 직원 칸 이름이 아이디도 받는 것을 말한다", /label: "이메일 · 아이디"/.test(text("app/login/page.js")));
+
+// ⑥ 원장만 연다
+const page = text("app/settings/staff/page.js"), acts = text("app/settings/staff/actions.js");
+ok("화면은 원장만(설정 › 👤 직원 계정)", /ROLES\.PRINCIPAL/.test(page));
+const hands = [...acts.matchAll(/export const (\w+) = done\(/g)].map((m) => m[1]);
+ok(`손 ${hands.length}개가 전부 원장인지 먼저 본다(${hands.join(" · ")})`, hands.length >= 3 && (acts.match(/onlyPrincipal\(\)/g) ?? []).length >= hands.length + 1);
+ok("설정 화면에 가는 길이 있다(원장에게만 보인다)", /href="\/settings\/staff"/.test(text("app/settings/page.js")) && /principal &&[\s\S]{0,80}\/settings\/staff/.test(text("app/settings/page.js")));
+
+// ⑦ 볼 것은 여기서 안 정한다(원칙-1)
+const board = text("app/settings/staff/board.js");
+const perm = [page, acts, board].filter((s) => /role_access|lib\/perm|setAccess/.test(s)).length;
+ok("직원 계정 화면은 볼 것을 안 정한다(🔐 누가 무엇을 보나 한 곳 · 원칙-1)", perm === 0);
+ok("옆 화면(🔐 누가 무엇을 보나)으로 가는 길이 있다", /href="\/settings\/access"/.test(page));
+ok("역할 세그는 누르면 먼저 바뀌고 실패면 되돌린다(속도-3)", /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: k \}\)\)/.test(board) && /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: prev \}\)\)/.test(board));
+ok("첫 비밀번호는 발급 뒤 화면에 뜬다(원장님이 그 자리에서 불러 주신다 · 대전제-22)", /staff-made/.test(board) && /made\.password/.test(board));
+
+console.log(`\n■ 직원 계정 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

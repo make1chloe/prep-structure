@@ -17,7 +17,7 @@ import { prefOf } from "@/lib/pref";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
-/** 머리 세그 · 학생 · 💰 수납((어28) 운영 탭을 학생에 합침). 수강료는 키(ops.fee)가 있는 사람에게만 보인다(답 ⑮ 「강사는 수강료 못 보게」) */
+/** 머리 세그 · 학생 · 💰 수납((어28) 운영 탭을 학생에 합침). 수강료는 키(ops.fee)가 있는 사람에게만 보인다(답 ⑮ 「강사는 수강료 못 보게」(원장님 원문 · 화면 이름만 선생님으로 바뀌었다)) */
 const ViewSeg = ({ view, fee, ym }) => <div className="seg sm" data-g="view" style={{ marginBottom: 8 }}>
   <Link prefetch={false} href="/ops/students" aria-pressed={view !== "fee"}>학생</Link>{fee && <Link prefetch={false} href={`/ops/students?v=fee${ym ? `&m=${ym}` : ""}`} aria-pressed={view === "fee"}>💰 수납</Link>}</div>;
 export default async function Students({ searchParams }) {

@@ -17,7 +17,7 @@ const ctx = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(c
 const p = await ctx.newPage();
 console.log("■ 로그인 화면");
 await p.goto(APP + "/login");
-ok("카드 셋(학생·학부모·원장 강사 조교)", (await p.locator("form.card").count()) === 3);
+ok("카드 셋(학생·학부모·원장 선생님 조교)", (await p.locator("form.card").count()) === 3);
 ok("꼬리 도메인이 화면에 없다", !(await p.content()).includes("chloe-eng.internal"));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-login-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
@@ -127,11 +127,11 @@ await rm.locator("[data-g=book] [data-g=ut]").click(); await p.waitForTimeout(15
 ok("단원평가 본다 → 「대단원마다」 세그먼트가 열린다 → 끄면 닫힌다(오늘 수업 일지엔 영향 없음)", utOn === "대단원마다" && (await rm.locator("[data-g=book] [data-g=ut-seg]").count()) === 0, utOn);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-routine-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
-console.log("■ 누가 무엇을 보나 · 강사에게 대시보드를 켠다");
+console.log("■ 누가 무엇을 보나 · 선생님에게 대시보드를 켠다");
 await p.goto(APP + "/settings/access");
 ok("표가 뜬다", (await p.locator("table").count()) >= 1);
-const cell = p.locator("form.seg[aria-label='강사 대시보드']");
-ok("강사·대시보드 칸이 있다", (await cell.count()) === 1);
+const cell = p.locator("form.seg[aria-label='선생님 대시보드']");   // (어64) 역할 이름은 lib/roles.js ROLE_NAME 한 곳에서 온다(원장님 9/16 「이름만 강사말고 선생님이라고 해줘」)
+ok("선생님·대시보드 칸이 있다", (await cell.count()) === 1);
 await cell.locator("button[value='1']").click(); await p.waitForLoadState("networkidle").catch(() => {});
 await p.goto(APP + "/settings/access");
 ok("켬이 눌린 채로 남는다", (await cell.locator("button[value='1']").getAttribute("aria-pressed")) === "true");
@@ -140,17 +140,56 @@ const leftAfter = (await p.locator("main .card .ctitle b").first().textContent()
 ok("안 정한 칸이 하나 줄었다", Number(leftAfter) === Number(leftBefore) - 1, `${leftBefore} → ${leftAfter}`);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.goto(APP + "/settings/access"); await p.screenshot({ path: `.tmp/e2e-access-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
+console.log("■ (어64) 직원 계정 · 원장이 선생님·조교를 낸다(원장님 2026-09-16 「근데 선생님조교어디서추가해」)");
+const nw = () => p.locator('[data-g=staff-row]:has-text("zz_새선생")');
+// 손이 끝나기를 기다린다 — 세그는 **먼저** 바뀌고(속도-3) 저장은 뒤라, 답을 안 기다리고 화면을 옮기면 저장이 날아간다(게이트 91 에서 한 번 빨개졌다)
+const act = async (loc) => { await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 15000 }).catch(() => {}), loc.click()]); await p.waitForLoadState("networkidle").catch(() => {}); };
+await p.goto(APP + "/settings");
+ok("설정에 👤 직원 계정 카드가 있다", (await p.locator("main [data-card=staff]").count()) === 1);
+await p.goto(APP + "/settings/staff");
+ok("직원 목록이 뜬다(원장·선생님·조교)", (await p.locator("[data-g=staff-row]").count()) >= 1);
+ok("원장 줄에는 닫는 단추가 없다(스스로를 잠그면 아무도 못 연다)", (await p.locator('[data-g=staff-row][data-role=principal] [data-act=staff-open]').count()) === 0);
+await p.click("[data-act=staff-new]");
+await p.fill("#staff-name", "zz_새선생"); await p.fill("#staff-id", "chloe9999");
+ok("chloe 로 시작하면 적는 그 자리에서 막는다((어46) 과 같은 사고)", (await p.locator("[data-g=staff-nag]").count()) === 1 && (await p.locator("[data-act=staff-issue]").isDisabled()));
+await p.fill("#staff-id", "zz_tea1");
+ok("바른 아이디면 막이 사라지고 발급이 열린다", (await p.locator("[data-g=staff-nag]").count()) === 0 && !(await p.locator("[data-act=staff-issue]").isDisabled()));
+await act(p.locator("[data-act=staff-issue]"));
+{ const made = (await p.locator("[data-g=staff-made]").textContent().catch(() => "")) ?? "";
+  ok("낸 아이디와 첫 비밀번호가 그 자리에 뜬다(대전제-22)", /zz_tea1/.test(made) && /0000/.test(made), made.replace(/\s+/g, " ").slice(0, 90)); }
+ok("목록에 새 줄이 선다 · 역할은 선생님", (await nw().count()) === 1 && (await nw().getAttribute("data-role")) === "instructor");
+await act(nw().locator("[data-act=staff-role][data-r=assistant]"));
+await p.goto(APP + "/settings/staff");
+ok("역할을 조교로 바꾸면 그대로 남는다", (await nw().getAttribute("data-role")) === "assistant", (await p.locator("[data-g=staff-err]").textContent().catch(() => "")) ?? "");
+await act(nw().locator("[data-act=staff-open]"));
+await p.goto(APP + "/settings/staff");
+ok("닫아도 줄은 그대로 있다 · 상태만 바뀐다(지우지 않는다 · 대전제-6)", (await nw().count()) === 1 && (await nw().getAttribute("data-state")) === "left");
+await act(nw().locator("[data-act=staff-open]"));
+await p.goto(APP + "/settings/staff");
+ok("복구하면 그대로 돌아온다", (await nw().getAttribute("data-state")) === "active");
+await act(nw().locator("[data-act=staff-role][data-r=instructor]"));   // 다음 걸음이 이 계정으로 들어간다
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.goto(APP + "/settings/staff"); await p.screenshot({ path: `.tmp/e2e-staff-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
 await ctx.storageState({ path: ".tmp/state-principal.json" });
 console.log("■ 로그아웃");
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 ok("로그인 화면으로 돌아온다", new URL(p.url()).pathname === "/login");
 await p.goto(APP + "/"); ok("나간 뒤 첫 화면은 로그인으로 보낸다", new URL(p.url()).pathname === "/login");
-console.log("■ 강사 · 켠 만큼만");
+console.log("■ 선생님 · 켠 만큼만");
 await login(p, "staff", "zz_instructor@e2e.test", PW);
 const tabs2 = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("강사 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.join(",") === "대시보드", tabs2.join(","));
+ok("선생님 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.join(",") === "대시보드", tabs2.join(","));
 await p.goto(APP + "/ops/students?v=fee"); await p.waitForLoadState("networkidle").catch(() => {});
-ok("강사가 수강료 유형을 열면 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
+ok("선생님이 수강료 유형을 열면 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
+console.log("■ (어64) 낸 계정으로 들어간다 · 아이디만 친다 · 첫 비밀번호 0000");
+await login(p, "staff", "zz_tea1", "0000");
+ok("아이디만 쳐도 들어간다(꼬리 도메인은 화면에 없다) · 첫 비밀번호라 바꾸는 화면", new URL(p.url()).pathname === "/password", p.url());
+await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await p.click("form.card button[type=submit]"); await p.waitForLoadState("networkidle").catch(() => {});
+{ const t = await p.locator("header.appbar nav.tabs a").allTextContents();
+  ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.join(",") === "대시보드", t.join(",")); }
+await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
+ok("선생님은 직원 계정 화면을 못 연다(원장만)", !(await p.locator("main [data-card=staff]").count()), (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 80));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 console.log("■ 학생 · 처음 비밀번호는 바꿔야 들어간다");
 await login(p, "student", "chloe0000", PW);

@@ -1,4 +1,4 @@
-/** 설정 · 배색(이 브라우저만) · (터) 🔌 연동 설정(원장 · 솔라피·나이스·AI 를 여기서 넣고 고친다 · 가린 것만 내려간다) · 누가 무엇을 보나(원장) · 학원 회선(등원 관문, 원장 · 답 ⑨ 「로그인한 아이피를 자동 인식해 추가·저장」). 판단은 lib/arrival.js */
+/** 설정 · 배색(이 브라우저만) · (터) 🔌 연동 설정(원장 · 솔라피·나이스·AI 를 여기서 넣고 고친다 · 가린 것만 내려간다) · 누가 무엇을 보나(원장) · 👤 직원 계정(원장 · (어64) 선생님·조교 계정 발급) · 학원 회선(등원 관문, 원장 · 답 ⑨ 「로그인한 아이피를 자동 인식해 추가·저장」). 판단은 lib/arrival.js */
 import Link from "next/link";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
@@ -16,6 +16,7 @@ export default async function Settings() {
     principal ? keyBoard().catch((e) => ({ error: String(e?.message ?? e) })) : Promise.resolve(null),   // (터) 🔌 연동 설정 · 가린 것만 온다
   ]);
   return <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🎨</span>배색</div><Skins /></div><div className="card"><div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div><Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link></div>
+    {principal && <Link prefetch={false} className="card" href="/settings/staff" data-card="staff" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">👤</span>직원 계정</div></Link>}
     {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏫</span>학원 회선</div>
       {cfg.error ? <p className="note">{cfg.error}</p> : <>
         <p className="note">유예 {cfg.graceMin}분</p>

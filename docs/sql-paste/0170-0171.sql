@@ -1,4 +1,4 @@
--- 클로이영어 새 앱(v2) — 실 DB 에 돌릴 마이그레이션 (0170~0170 · 1개 · 2026-09-16 만듦)
+-- 클로이영어 새 앱(v2) — 실 DB 에 돌릴 마이그레이션 (0170~0171 · 2개 · 2026-09-16 만듦)
 --
 -- 어디서 왔나 : supabase/migrations/*.sql 을 **번호 차례대로** 이어 붙인 것이다.
 --               규칙은 docs/개발자-인수인계.md 3절 「실 DB 에 돌리는 법」.
@@ -23,9 +23,9 @@ set local lock_timeout = 0;
 do $guard$
 declare 든것 int; 앞것 int;
 begin
-  select count(*) into 든것 from v2.migration where file = any(array['0170_arrival_undo.sql']);
-  if 든것 = 1 then
-    raise exception '0170~0170 · 1개 은 이미 다 들어가 있습니다 — 더 돌릴 것이 없습니다. 이 창을 닫으셔도 됩니다.';
+  select count(*) into 든것 from v2.migration where file = any(array['0170_arrival_undo.sql', '0171_staff_login.sql']);
+  if 든것 = 2 then
+    raise exception '0170~0171 · 2개 은 이미 다 들어가 있습니다 — 더 돌릴 것이 없습니다. 이 창을 닫으셔도 됩니다.';
   end if;
   select count(*) into 앞것 from v2.migration where file = any(array['0100_new_app_skeleton.sql', '0101_today.sql', '0102_day_item_free.sql', '0103_routine_lay.sql', '0104_quiz_card.sql', '0105_tune.sql', '0106_warn.sql', '0107_progress_staff.sql', '0108_warn_per_student.sql', '0109_attend_plan.sql', '0110_import_makeup_key.sql', '0111_comment.sql', '0112_row_head.sql', '0113_late_rest.sql', '0114_dash.sql', '0115_me.sql', '0116_service_role.sql', '0117_material_child.sql', '0118_send.sql', '0119_routine.sql', '0120_schedule.sql', '0121_fee.sql', '0122_exam.sql', '0123_score.sql', '0124_books.sql', '0125_board.sql', '0126_grid.sql', '0127_student.sql', '0128_files_video.sql', '0129_files_video_more.sql', '0130_fixture_schedule_end.sql', '0131_do_it_all.sql', '0132_today_finish.sql', '0133_send_kinds.sql', '0134_monthly.sql', '0135_classes.sql', '0136_touchups.sql', '0137_routine_todo.sql', '0138_notice_pref.sql', '0139_month_confirm.sql', '0140_progress_signals.sql', '0141_stay_slot.sql', '0142_excel_undo.sql', '0143_quiz_pos.sql', '0144_book_mode.sql', '0145_material_submit.sql', '0146_quiz_skip_visible.sql', '0147_unit_label_mode.sql', '0148_grid_share.sql', '0149_unit_test_due.sql', '0150_mine_reflections.sql', '0151_scheduled_other.sql', '0152_exam_change.sql', '0153_dash_classes.sql', '0154_sms.sql', '0155_road_parts.sql', '0156_student_month.sql', '0157_sms_kinds.sql', '0158_cc_skip.sql', '0159_site_import.sql', '0160_child_guard.sql', '0161_stop_one_rule.sql', '0162_exam_word.sql', '0163_today_prep.sql', '0164_no_dash.sql', '0165_legacy_choice_rows.sql', '0166_attend_reason.sql', '0167_timer.sql', '0168_login_id_fifth.sql', '0169_stamp_by.sql']);
   if 앞것 <> 70 then
@@ -35,7 +35,7 @@ end
 $guard$;
 
 -- ─────────────────────────────────────────────────────────────
--- 1/1 · 0170_arrival_undo.sql
+-- 1/2 · 0170_arrival_undo.sql
 -- ─────────────────────────────────────────────────────────────
 -- 0170 (어55) 잘못 누른 하원을 취소한다 · 원장님 2026-09-16 「하원버튼 실수할거같으니 강조해주고, 다시 누르면 취소가능하게」
 --   ⚠️ 지우지 않는다(대전제-6) — 줄은 그대로 두고 undone_at 을 찍어 **없던 것으로 내린다.** 읽는 자리가 그 줄을 빼고 센다.
@@ -52,6 +52,31 @@ comment on column v2.arrival.undone_at is
 notify pgrst, 'reload schema';
 
 insert into v2.migration(file, sha) values ('0170_arrival_undo.sql', 'd1aee186cdea2921')
+  on conflict (file) do update set sha = excluded.sha, applied_at = now();
+
+-- ─────────────────────────────────────────────────────────────
+-- 2/2 · 0171_staff_login.sql
+-- ─────────────────────────────────────────────────────────────
+-- 0171 (어64) 직원(선생님·조교) 계정을 앱에서 낸다 · 원장님 2026-09-16 「원장말고 다른 테스트 계정도 추가해줘 역할 선생님 권한 - 설정페이지에서 열람페이지 조절가능하게」
+--   지금 아이디 규칙(0168 profiles_login_id_shape)이 **학생·학부모 꼴만** 허용해서 직원 아이디를 넣을 수 없었다.
+--   직원 아이디는 원장님이 손으로 적는다 — 영문 소문자로 시작하는 4~20자(영문 소문자·숫자·밑줄). chloe 로 시작하는 것은 막는다(학생 아이디와 헷갈린다 · (어46) 과 같은 사고).
+--   ⚠️ 몇 번을 돌려도 같은 결과여야 한다.
+alter table v2.profiles drop constraint if exists profiles_login_id_shape;
+alter table v2.profiles add constraint profiles_login_id_shape check (
+  login_id is null
+  or (role = 'student' and login_id ~ '^chloe[0-9]{4}([0-9]|-[0-9]{1,2})?$')
+  or (role = 'parent'  and login_id ~ '^01[0-9]{8,9}$')
+  or (role in ('principal','instructor','assistant') and login_id ~ '^[a-z][a-z0-9_]{3,19}$' and login_id !~ '^chloe')
+) not valid;
+alter table v2.profiles validate constraint profiles_login_id_shape;
+
+comment on constraint profiles_login_id_shape on v2.profiles is
+  '(어46) 학생 chloe + 숫자 넷 + 다섯째 숫자 하나 · 옛 -2·-3 도 됨 · 학부모 전화 11자리 · '
+  '(어64) 직원(원장·선생님·조교)은 영문 소문자로 시작하는 4~20자 · chloe 로 시작 못 함(학생 아이디와 헷갈린다)';
+
+notify pgrst, 'reload schema';
+
+insert into v2.migration(file, sha) values ('0171_staff_login.sql', '26ed780a6ccd98d4')
   on conflict (file) do update set sha = excluded.sha, applied_at = now();
 
 commit;

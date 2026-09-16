@@ -1,5 +1,5 @@
 /** ☎️ 신규 상담 18 — 전화 끊고 바로. 칸 다섯(🔥 오늘 답할 것 · 상담 잡힘 · 레벨 봄 · 등록 · 안 옴) · + 전화 문의 받기 · 📨 안내 보내기 · 등록 전환 — 한 번 누르면 일곱이 저절로. 판단은 lib/inquiry-plan(순수) · 손은 lib/inquiry.
- *  층: 로그인 확인 → 오늘 → 문의 판 한 벌(inquiry_board) = 3단. 학원 사람만 · 강사·조교는 ops.inquiry 로 */
+ *  층: 로그인 확인 → 오늘 → 문의 판 한 벌(inquiry_board) = 3단. 학원 사람만 · 선생님·조교는 ops.inquiry 로 */
 import { guard } from "@/lib/session";
 import { Oops } from "../../_shell/oops.js";
 import { isStaff, ROLE_NAME } from "@/lib/roles";

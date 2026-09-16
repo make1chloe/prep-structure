@@ -2,7 +2,7 @@
  *  ⚠️ 곁의 안내는 **그 오류일 때만** 붙는다 — 2026-09-11 첫 주 돌려보기에서, 앱 안의 오류(`c is not iterable`)에도
  *     「마이그레이션을 안 돌린 것입니다」가 늘 붙어 있었다. 엉뚱한 데를 가리키는 안내는 없느니만 못하다. */
 import { saidBy } from "@/lib/sqlError";
-export function Oops({ what, e, kind = "card" }) {   // kind: "card" 원장·강사 쪽 · "task" 아이·학부모 쪽(껍데기가 다르다)
+export function Oops({ what, e, kind = "card" }) {   // kind: "card" 원장·선생님 쪽 · "task" 아이·학부모 쪽(껍데기가 다르다)
   const raw = String(e?.message ?? e);
   const 말 = saidBy(raw);
   const DB = 말 !== raw;   // saidBy 가 바꿨다 = DB 가 한 말이고, 원장님이 고치실 수 있는 것

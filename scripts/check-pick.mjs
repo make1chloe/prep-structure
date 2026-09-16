@@ -34,7 +34,7 @@ for (const key of DONE) { const pr = pairs.find((x) => x.key === key); const fil
 { const am = readFileSync("app/_shell/assignmodal.js", "utf8"), dg = readFileSync("app/dashgaps.js", "utf8");   // (어41) 교재 배정 모달(17·01·14) · 대시보드 아이 모달의 교재 줄은 줄마다 손이 달라 고르기 없음(-row 아님)
   ok("(어41) 교재 배정 모달 목록도 고르기 한 벌(줄에 PickBox · 「전체」 PickAll · 「배정」은 고른 것 전부 assignBooksFor) · 아이 모달의 교재 줄은 gap-book · call-book(일괄 손 없음)", /data-g="assign-row"[\s\S]{0,300}<PickBox\b/.test(am) && /<PickAll\b/.test(am) && /assignBooksFor\(studentId, picked/.test(am) && /usePick\(ids\)/.test(am) && /data-g="gap-book"/.test(dg) && /data-g="call-book"/.test(dg) && !/-row"/.test(dg)); }
 const noPick = pairs.filter((x) => !x.picked).map((x) => x.key);
-ok(`아직 고르기 없는 목록(파일:유형) ≤ 36(지금 ${noPick.length} · 새 목록을 고르기 없이 더하면 여기서 잡힌다) · 붙은 목록 ${pairs.length - noPick.length}`, noPick.length <= 36 && pairs.length - noPick.length >= DONE.length, noPick.map((k) => k.replace(/^app\//, "")).join(" · "));
+ok(`아직 고르기 없는 목록(파일:유형) ≤ 37(지금 ${noPick.length} · 새 목록을 고르기 없이 더하면 여기서 잡힌다 · +1 은 (어64) 설정 › 직원 계정 — 줄이 두셋이고 줄마다 손이 다르다(역할 세그 · 닫기·복구)라 일괄 손이 없다) · 붙은 목록 ${pairs.length - noPick.length}`, noPick.length <= 37 && pairs.length - noPick.length >= DONE.length, noPick.map((k) => k.replace(/^app\//, "")).join(" · "));
 ok("고르기 띠는 savebar pickbar 한 벌 · 「고른 N」이 앞 · 비우기(data-act=pick-clear)가 끝 · 고른 것이 없으면 안 그린다", /className="savebar pickbar"/.test(pickJs) && /data-g="picked"/.test(pickJs) && /data-act="pick-clear"/.test(pickJs) && /if \(!pick\.count\) return null/.test(pickJs));
 console.log(`\n■ 고르기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
