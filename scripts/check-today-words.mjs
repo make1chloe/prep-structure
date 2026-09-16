@@ -47,6 +47,16 @@ ok("(어26) 항목은 더하고 고치고 빼는 것이 기본(대전제-19 · �
 ok("(어24) 업무는 끝나면 ✓(data-done · taskDone 한 곳) · 검사 「다 ○」(check-all) · 오늘 학습 접이(fold-more · fold-late · fold-memo · quiz-edit) · 글 「고치기」(comment-edit) · 「저장하고 마감 → 다음 아이」(onNext · useOpen nextOf)", /data-done=\{h\.done/.test(row) && /taskDone\(c\.id/.test(row) && /data-act="check-all"/.test(row) && ["fold-more", "fold-late", "fold-memo", "quiz-edit", "comment-edit"].every((a) => row.includes(`data-act="${a}"`)) && /onNext\?\.\(\)/.test(row) && /저장하고 마감 → 다음 아이/.test(row));
 ok("목업에서 갈라낸 3단 규칙 · ≥1100px 판은 grid 두 열(업무 250 · 내용) · 안 고른 몸은 display:none · 폰은 업무 목록·다음 → 이 안 보인다", /\.split \.row>\.panel\{[^}]*grid-template-columns:250px/.test(css) && /\.split \.tbody:not\(\[data-sel="1"\]\)\{[^}]*display:none/.test(css) && /\.tasks\{display:none\}/.test(css) && /\.tnext\{display:none\}/.test(css));
 ok("(어21) 📄 내신 자료는 업무 하나 · 교재가 멈춘 아이만(prepOf · stopOn 한 벌) · 판단·부품·손이 한 벌(PrepCard → todo-plan prepOf · _shell/scopeform · 04·06b 의 손)", /id: "prep", name: "내신 자료"/.test(row) && /filter\(\(c\) => c\.id !== "prep" \|\| prepList\.length > 0\)/.test(row) && /prepOf\(prep, date, stopOn\)/.test(row));
+ok("(어59) 검사 카드에서 연 배정은 **「이미 해왔어야 하는 숙제」**(원장님 9/16 「숙제검사에서 배정한 숙제는 오늘 집에가서 해올 숙제가 아니라, 이미 해왔어야하는 숙제라는 점이 반영안됨」) — give-here 는 check 자리로 열고 · 제목과 세그가 다르고 · 검사 줄에는 원본(carry_of)을 안 붙인다 · 검사 자리 활동은 집 루틴 그대로",
+  /setGiveHere\("check"\)/.test(row) && /at === "check" \? \[\["check", "지난 숙제"\]\]/.test(row) && /at === "check" \? "검사할 숙제 배정"/.test(row)
+  && (() => { const r = strip(readFileSync("lib/routine.js", "utf8")); return /\["class", "home", "check"\]\.includes\(slot\)/.test(r) && /slot === "check"\n?\s*\? \{ sheet_id: sheetId, slot, item_id: l\.item_id, unit_id: u, range_note: range \|\| null, sort: \+\+sort \}/.test(r) && /check: home/.test(r); })(),
+  "give-here/세그/제목/lib");
+ok("(어59) 배정 모달의 교재 목록은 **진행중이 먼저**(보류 교재에 배정하면 (어57) 대로 카드에서 접혀 안 보인다) · 보류면 이름 옆에 무엇으로 보류인지 적는다",
+  (() => { const r = strip(readFileSync("lib/routine.js", "utf8")); return /const st = stopOn\(b, sheet\.date\)/.test(r) && /\.sort\(\(a, b\) => Number\(a\.stop !== "running"\) - Number\(b\.stop !== "running"\)\)/.test(r); })()
+  && /b\.stopName \? ` · \$\{b\.stopName\}` : ""/.test(row), "givePool 차례 · 이름 꼬리");
+ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 「다 함」으로 흐리고 안 한 단원이 먼저(「이미 완료된 부분이 표시안되는점」)",
+  /data-g="give-units-h">📕 단원/.test(row) && /data-g="give-items-h">✓ 활동/.test(row) && /data-g="give-items" style=\{\{ marginLeft: 14 \}\}/.test(row)
+  && /data-done=\{u\.left \? "0" : "1"\}/.test(row) && /data-g="unit-done">다 함/.test(row) && /const ordUnits = \[\.\.\.here\]\.sort\(/.test(row));
 ok("(어57) 보류된 교재는 **속을 안 그린다**(원장님 9/16 「숙제검사와 오늘학습에서 보류된 교재는 내용을 볼 필요가 없잖아. 진행중으로 바꾸면 그때 상세내용보이고, 그전에는 목록과 상태버튼만 카드 맨밑에」) · 두 카드가 같은 부품(PausedBooks) · 상태 세그는 한 벌(useStop · 교재 카드와 같은 것) · 오늘 학습은 보류 교재의 블록을 아예 안 세운다",
   /function PausedBooks\(/.test(row) && /function useStop\(/.test(row) && (row.match(/<PausedBooks /g) ?? []).length === 2
   && /const \[stop, stopSeg\] = useStop\(b, sheet, date, closed, fail, start\)/.test(row)

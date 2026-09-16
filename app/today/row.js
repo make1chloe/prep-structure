@@ -131,7 +131,7 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
       <ItemTree rows={parts.live} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
       {sheet.check.length === 0 && <div className="lf" data-g="check-none"><span className="ln">📭</span>
         <div><b>오늘 검사할 숙제 없음</b><small>{(student.books ?? []).length ? "지난 시간에 낸 숙제가 없어서 검사할 줄이 없음" : "배정한 교재 없음"}</small></div>
-        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("home")}>+ 숙제 배정</button>}
+        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("check")}>+ 숙제 배정</button>}
         {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
       {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
       {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
@@ -726,6 +726,7 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const books = pool?.books ?? [], allUnits = pool?.units ?? [], lines = pool?.lines?.[slot] ?? [];
   const chapters = [...new Set(allUnits.map((u) => u.chapter).filter(Boolean))];
   const here = allUnits.filter((u) => !chapter || u.chapter === chapter);
+  const ordUnits = [...here].sort((a, bb) => Number(Boolean(a.left ? 0 : 1)) - Number(Boolean(bb.left ? 0 : 1)));   // (어59) 안 한 단원이 먼저 · 이미 끝낸 단원은 「다 함」으로 흐리게(원장님 9/16 「이미 완료된 부분이 표시안되는점」)
   const flip = (arr, set, id) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
   const n = units.length * items.length;
   const save = () => start(async () => {
@@ -737,17 +738,19 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   return (
     <div className="mdlov" role="dialog" aria-modal="true" aria-label="숙제 배정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="mdl" style={{ width: "min(620px,100%)" }} data-g="give-modal">
-        <div className="mdlh"><b>숙제 배정</b>
-          <div className="seg sm" data-g="give-slot">{[["home", "집"], ["class", "학원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => pickSlot(k)}>{name}</button>)}</div>
+        <div className="mdlh"><b>{at === "check" ? "검사할 숙제 배정" : "숙제 배정"}</b>
+          <div className="seg sm" data-g="give-slot">{(at === "check" ? [["check", "지난 숙제"]] : [["home", "집"], ["class", "학원"]]).map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => pickSlot(k)}>{name}</button>)}</div>
           <span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">{errNode}
           {!books.length && !busy && <div className="lf over" data-g="no-book"><span className="ln">!</span><div><b>배정된 교재 없음</b><small>교재를 먼저 배정</small></div></div>}
           {books.length > 0 && <div className="wv" data-g="give-pick">
-            <select value={bookId} onChange={(e) => loadBook(e.target.value)} aria-label="교재" data-g="give-book" style={{ width: "auto" }}>{books.map((b) => <option key={b.book_id} value={b.book_id}>{b.name}{b.area ? ` · ${b.area}` : ""}</option>)}</select>
+            <select value={bookId} onChange={(e) => loadBook(e.target.value)} aria-label="교재" data-g="give-book" style={{ width: "auto" }}>{books.map((b) => <option key={b.book_id} value={b.book_id}>{b.name}{b.area ? ` · ${b.area}` : ""}{b.stopName ? ` · ${b.stopName}` : ""}</option>)}</select>
             {chapters.length > 1 && <select value={chapter} onChange={(e) => setChapter(e.target.value)} aria-label="대단원" data-g="give-chapter" style={{ width: "auto" }}>{chapters.map((c) => <option key={c} value={c}>{c}</option>)}</select>}
             <span className="spacer" /><span className="tag" data-g="give-count">{n}줄</span></div>}
-          {here.length > 0 && <div className="left" style={{ marginTop: 8 }} data-g="give-units">{here.map((u) => <label key={u.id} className="ckl" data-g="give-unit" data-unit={u.id}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null, u.left ? null : "✓"].filter(Boolean).join(" · ")}</small></label>)}</div>}
-          {lines.length > 0 && <div className="left" style={{ marginTop: 8 }} data-g="give-items">{lines.map((l) => <label key={l.item_id} className="ckl" data-g="give-item" data-item={l.item_id}><input type="checkbox" className="ck" checked={items.includes(l.item_id)} onChange={() => flip(items, setItems, l.item_id)} /> <b>{l.name}</b> {l.required && <small>필수</small>}</label>)}</div>}
+          {here.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-units-h">📕 단원<span className="cnt">{units.length}/{here.length}</span></div>
+            <div className="left" data-g="give-units">{ordUnits.map((u) => <label key={u.id} className="ckl" data-g="give-unit" data-unit={u.id} data-done={u.left ? "0" : "1"} style={u.left ? undefined : { color: "var(--mute)" }}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null].filter(Boolean).join(" · ")}</small>{!u.left && <span className="tag" data-g="unit-done">다 함</span>}</label>)}</div></>}
+          {lines.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-items-h">✓ 활동<span className="cnt">{items.length}/{lines.length}</span></div>
+            <div className="left" data-g="give-items" style={{ marginLeft: 14 }}>{lines.map((l) => <label key={l.item_id} className="ckl" data-g="give-item" data-item={l.item_id}><input type="checkbox" className="ck" checked={items.includes(l.item_id)} onChange={() => flip(items, setItems, l.item_id)} /> <b>{l.name}</b> {l.required && <small>필수</small>}</label>)}</div></>}
           {bookId && !lines.length && !busy && <p className="note" data-g="no-line" style={{ margin: "8px 0 0" }}>집·학원 루틴 줄 없음 · 루틴 11</p>}
           <div className="wv" style={{ marginTop: 8 }} data-g="give-free"><span className="fl" style={{ margin: 0 }}>글로 한 줄</span>
             <input value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 워크북 p.10 1-18" aria-label="글로 한 줄" style={{ flex: "1 1 200px" }} /></div>
