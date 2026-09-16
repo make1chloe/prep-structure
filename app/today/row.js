@@ -118,11 +118,12 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   const cc = student.cc ?? [], units = student.unitTests ?? [], quizzes = student.quizzes?.today ?? [];
   const has = checkIcons(student);   // 제목 줄이 오늘 볼 것을 말한다 — 업무 목록 꼬리표와 같은 글(day-plan · 원칙-1)
   // (어51) 원장님 9/16 「검사완료된걸 클릭하니까 위에 새로운 내용으로 다시 생기는거 구조가 비논리적이야 · 순서도 뒤엉켜잇어」 → 검사해도 줄은 **제자리**에서 접힌다(CheckItem) · 차례를 바꾸는 것은 교재 보류 하나뿐이고 그것만 맨 밑(day-plan splitChecks · 순수 · (어47) 「교재보류는 접힌채로 아예 검사에서 맨밑으로」)
-  const [showStopped, setShowStopped] = useState(false);
   const [giveHere, setGiveHere] = useState(null);   // (어51) 검사할 숙제가 없을 때 그 자리에서 숙제 주기(원장님 9/16 「검사'할' 숙제가 없는게 제일큰 문제야」)
   const [assignHere, setAssignHere] = useState(false);
-  const stopped = new Set((student.books ?? []).filter((b) => stopOn(b, date) === "book_off").map((b) => b.book_id));
+  const paused = (student.books ?? []).filter((b) => stopOn(b, date) !== "running");   // (어57) 보류된 교재는 속을 안 그린다 — 검사에서는 **숙제 보류도** 접는다(원장님 9/16 「숙제보류는 숙제검사에서 접고, 오늘학습에는 떠야지」 · 오늘 학습은 교재 보류만 접는다)
+  const stopped = new Set(paused.map((b) => b.book_id));
   const parts = splitChecks(sheet.check, { stopped });
+  const stopCount = new Map(paused.map((b) => [b.book_id, parts.stopped.filter((r) => r.units?.book_id === b.book_id).length]));
   const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />;
   return (
     <div className="card" data-card="check">
@@ -134,8 +135,7 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
         {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
       {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
       {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
-      {parts.stopped.length > 0 && <div className="chkstop" data-g="check-stopped"><button type="button" className="btn sm gho" data-act="stopped-open" aria-pressed={showStopped} onClick={() => setShowStopped((v) => !v)}>{showStopped ? "▾" : "▸"} 교재 보류 · 검사 {parts.stopped.length}</button>
-        {showStopped && <ItemTree rows={parts.stopped} all={sheet.check} row={row} fold={false} dense />}</div>}
+      <PausedBooks books={paused} sheet={sheet} date={date} closed={closed} fail={fail} start={start} counts={stopCount} />{/* (어57) 카드 맨 밑 · 「진행중」을 누르면 그 교재 줄이 위 나무에 선다 */}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
       {quizzes.length > 0 && <QuizPart sheet={sheet} quizzes={quizzes} closed={closed} fail={fail} start={start} />}
@@ -189,7 +189,9 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const ordered = bookOrder(books, [...sheet.class, ...sheet.home]);   // (어35) 교재 카드 차례 = 오늘 학습 줄의 차례(sort · 검사 먼저 끝난 교재부터 → 루틴 차례 → 시작한 줄 앞 · 07 과 같은 차례) · 줄 없는 교재는 뒤
-  const nOrder = ordered.filter((b) => [...sheet.class, ...sheet.home].some((it) => it.units?.book_id === b.book_id)).length;   // 줄 있는 교재 수 · ▲▼ 는 그 안에서만
+  const pausedBooks = ordered.filter((b) => stopOn(b, date) === "book_off");   // (어57) 보류된 교재는 속을 안 그린다 — 이름과 상태 단추만 카드 맨 밑에(원장님 9/16 「진행중으로 바꾸면 그때 상세내용보이고」) · 「숙제 보류」는 수업에서 쓰는 교재라 그대로 둔다
+  const runBooks = ordered.filter((b) => stopOn(b, date) !== "book_off");
+  const nOrder = runBooks.filter((b) => [...sheet.class, ...sheet.home].some((it) => it.units?.book_id === b.book_id)).length;   // 줄 있는 교재 수 · ▲▼ 는 그 안에서만
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
   const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
@@ -217,7 +219,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       {giveSlot && <GiveModal sheet={sheet} slot={giveSlot} fail={fail} start={start} onClose={() => setGiveSlot(null)} />}
       {books.length === 0 && <div className="lf" data-g="no-book"><span className="ln">📕</span><div><b>배정한 교재 없음</b></div>{!closed && <button type="button" className="btn sm pri" data-act="assign-book" onClick={() => setAssign(true)}>+ 교재 배정</button>}</div>}
       {assign && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssign(false)} />}
-      {ordered.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} pos={i} nOrder={nOrder} />)}
+      {runBooks.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} pos={i} nOrder={nOrder} />)}
       <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">📝</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>고치기</button></div>
       {quizEdit && nextQuiz}
       <div className="folds wv" style={{ margin: "10px 0 0" }} data-g="folds">
@@ -249,20 +251,43 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         {!closed && sheet.next.map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="next-back" data-id={it.id} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>되돌리기</button>)}</div>}
       {showLate && lateNode}
       {showMemo && memoNode}
+      <PausedBooks books={pausedBooks} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} />{/* (어57) 카드 맨 밑 · 속은 안 그린다 · 「진행중」을 누르면 제자리에 선다 */}
     </div>
   );
 }
 /** 교재 하나 · 머리(이름 · N회독 · 대단원 · 진행중/숙제 보류/교재 보류) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
-function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, pos = 0, nOrder = 0 }) {
-  const router = useRouter();
+/** 교재 상태 세그 한 벌((어49) 낙관적 · (어57)) — 교재 카드와 보류 목록이 **같은 것**을 쓴다(원칙-1). 누르면 화면이 먼저 바뀌고 실패면 되돌린다(속도-5) */
+function useStop(b, sheet, date, closed, fail, start) {
   const [stop, setStopLocal] = useState(stopOn(b, date));
   useEffect(() => { setStopLocal(stopOn(b, date)); }, [b.stop_mode, b.stop_until, b.stop_exam_id, date]);
+  const pickStop = (m) => { if (closed) return; const prev = stop; setStopLocal(m); start(async () => { if (!fail(await setStop(sheet.id, b.id, m))) setStopLocal(prev); }); };   // (어49) 누르면 먼저 바뀐다 · 실패면 되돌린다(원장님 9/16 「교재 진행중/ 숙제보류/ 교재보류도 버튼작동이 상당히 느림」)
+  const seg = <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>;
+  return [stop, seg];
+}
+/** (어57) 보류된 교재 목록 — 원장님 2026-09-16 「숙제검사와 오늘학습에서 보류된 교재는 내용을 볼 필요가 없잖아. 진행중으로 바꾸면 그때 상세내용보이고, 그전에는 목록과 상태버튼만 카드 맨밑에. 나열해.」
+ *  속(단원·활동·검사 줄)은 아예 안 그린다 · 이름 · 회독 · 상태 세그뿐 · 「진행중」을 누르는 순간 이 목록에서 빠지고 제자리에 속이 선다. 검사 카드와 오늘 학습 카드가 같은 부품을 쓴다 */
+function PausedBooks({ books, sheet, date, closed, fail, start, counts = null, onPrep = null }) {
+  if (!books.length) return null;
+  return <div className="chkstop" data-g="paused-books">
+    <div className="hh">⏸ 보류 {books.length}권</div>
+    {books.map((b) => <PausedBook key={b.book_id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} n={counts?.get(b.book_id) ?? 0} onPrep={onPrep} />)}
+  </div>;
+}
+function PausedBook({ b, sheet, date, closed, fail, start, n = 0, onPrep = null }) {
+  const [, stopSeg] = useStop(b, sheet, date, closed, fail, start);
+  return <div className="lf" data-g="paused-book" data-book={b.book_id}><span className="ln">📕</span>
+    <div><b>{b.books?.name ?? "?"}</b><small>{[`${b.round ?? 1}회독`, n ? `검사 ${n}` : null, b.stop_until ? `${b.stop_until} 풀림` : null].filter(Boolean).join(" · ")}</small></div>
+    {stopSeg}
+    {onPrep && <button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep()}>📄 내신 자료</button>}</div>;
+}
+function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, pos = 0, nOrder = 0 }) {
+  const router = useRouter();
+  const [stop, stopSeg] = useStop(b, sheet, date, closed, fail, start);   /* (어57) 세그는 보류 목록과 한 벌 */
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
   const [prog, setProg] = useState(false);
   const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && bookLine(it));   // 루틴이 깐 줄 + 지난 시간에서 넘어온 줄(fromLast) · 검사 나머지 조각(carry_of)은 「그 밖에」
   const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
-  const pickStop = (m) => { if (closed) return; const prev = stop; setStopLocal(m); start(async () => { if (!fail(await setStop(sheet.id, b.id, m))) setStopLocal(prev); }); };   // (어49) 누르면 먼저 바뀐다 · 실패면 되돌린다(원장님 9/16 「교재 진행중/ 숙제보류/ 교재보류도 버튼작동이 상당히 느림」)
   return (
     <div className={"bk" + (stop === "book_off" ? " stopped" : "")} data-book={b.book_id} data-area={b.books?.area ?? ""}>
       <div className="bkh">
@@ -270,7 +295,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
         <span className="tag type">{b.round}회독</span>
         {chapter && <span className="tag">{chapter}</span>}
         <span className="spacer" />
-        <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
+        {stopSeg}
         <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절</button>
         <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크</button>
         {!closed && pos < nOrder && <span className="wv" data-g="book-order" style={{ margin: 0, gap: 2 }}>{/* (어35) 교재 차례 ▲▼ · 선생님이 고친다(원장님 9/15 「배정 선생님이 고칠 수 있음」) · 줄 있는 교재끼리만 · 시작한 줄은 그대로 앞 */}

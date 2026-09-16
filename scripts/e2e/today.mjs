@@ -268,6 +268,7 @@ await p.waitForTimeout(900);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await pick(row, "more");
 ok("숙제 반쪽 muted · 숙제 없음", (await bk.locator(".half.muted .stopnote", { hasText: "숙제 없음" }).count()) === 1 && (await row.locator(".load .ldn").nth(1).locator("> b").textContent()) === "2");
+ok("(어57) 숙제 보류 교재는 **숙제 검사에서는 접히고**(맨 밑 보류 목록) **오늘 학습에는 그대로 뜬다**(원장님 9/16 「숙제보류는 숙제검사에서 접고, 오늘학습에는 떠야지」)", (await row.locator("[data-card=check] [data-g=paused-book]").count()) >= 1 && (await row.locator("[data-card=check] [data-g=paused-book] [data-g=stop] button[aria-pressed=true]").first().textContent()) === "숙제 보류" && (await row.locator("[data-card=work] [data-g=paused-book]").count()) === 0 && (await bk.locator(".half").count()) === 2, `검사 보류 ${await row.locator("[data-card=check] [data-g=paused-book]").count()} · 학습 보류 ${await row.locator("[data-card=work] [data-g=paused-book]").count()} · 반쪽 ${await bk.locator(".half").count()}`);
 await bk.locator(".stopseg button", { hasText: "진행중" }).click(); await p.waitForTimeout(1000);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("진행중 → 숙제 줄 둘이 되살아난다(단원마다)", (await bk.locator(".half").nth(1).locator("[data-g=tree-unit]").first().locator(".li").count()) === 2);
@@ -992,7 +993,7 @@ ok("지금 보류 → 「지금 멈췄습니다. 교재 2권」(문법책 · 독
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 const srow = p.locator(`.row[data-student='${S1_ROW}']`);
 if (!(await srow.locator(".panel").count())) await srow.locator("button.open").click(); await 펴기(srow); await pick(srow, "work");
-ok("오늘 수업의 그 아이 문법책 머리에 「교재 보류 … 저절로 풀립니다」(stopOn 한 곳 · 오늘부터)", (await srow.locator(".stopnote", { hasText: "교재 보류" }).count()) >= 1 && (await srow.locator(".stopnote", { hasText: "교재 보류" }).first().textContent()).includes("저절로 풀립니다"), (await srow.locator(".panel").textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("(어57) 보류된 교재는 **속을 안 그린다** · 오늘 학습 카드 맨 밑 목록에 이름·회독·풀리는 날과 상태 세그만(원장님 9/16 「보류된 교재는 내용을 볼 필요가 없잖아 … 목록과 상태버튼만 카드 맨밑에」) · 교재 블록은 사라졌다", (await srow.locator("[data-g=paused-books] [data-g=paused-book]").count()) >= 1 && (await srow.locator("[data-g=paused-book]").first().textContent()).includes("풀림") && (await srow.locator("[data-g=paused-book] [data-g=stop] button[aria-pressed=true]").first().textContent()) === "교재 보류" && (await srow.locator(".bk[data-book] .stopnote", { hasText: "교재 보류" }).count()) === 0, (await srow.locator("[data-g=paused-books]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 await ecard().locator("button[data-act=release]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("풀기 → 「풀었습니다. 교재 2권」 · 멈춘 교재 0", (await ex.locator("[data-g=msg]").textContent()).includes("풀었습니다. 교재 2권") && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 0", await ex.locator("[data-g=msg]").textContent());
@@ -1002,7 +1003,7 @@ ok("풀기를 한 번 더 → 「푼 교재가 없습니다. 이 시험에 묶�
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 const srow2 = p.locator(`.row[data-student='${S1_ROW}']`);
 if (!(await srow2.locator(".panel").count())) await srow2.locator("button.open").click(); await 펴기(srow2);
-ok("오늘 수업에서 교재 보류 표시가 사라진다", (await srow2.locator(".stopnote", { hasText: "교재 보류" }).count()) === 0);
+ok("풀면 보류 목록에서 빠지고 교재 블록이 제자리에 선다((어57) 「진행중으로 바꾸면 그때 상세내용보이고」)", (await srow2.locator("[data-g=paused-book]").count()) === 0 && (await srow2.locator(".bk[data-book]").count()) >= 1, String(await srow2.locator("[data-g=paused-book]").count()));
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 ok("교재 보류 · 언제부터: 중학교 4주 · 고등학교 6주가 눌려 있다(0122 규칙 줄)", (await ex.locator("[data-g=weeks-middle] button[aria-pressed=true]").textContent()) === "4주" && (await ex.locator("[data-g=weeks-high] button[aria-pressed=true]").textContent()) === "6주");
 await ex.locator("[data-g=weeks-middle] button", { hasText: "6주" }).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
@@ -1235,8 +1236,8 @@ await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() =
   const g = await r1.locator(".panel").evaluate((el) => ({ disp: getComputedStyle(el).display, cols: getComputedStyle(el).gridTemplateColumns.split(" ").length, tasks: el.querySelectorAll("[data-g=task]").length, shown: [...el.querySelectorAll(".tbody")].filter((b) => getComputedStyle(b).display !== "none").length, sel: el.querySelector("[data-g=task][aria-pressed=true]")?.dataset.task, ids: [...el.querySelectorAll("[data-g=task]")].map((t) => t.dataset.task).join(">"), badge: el.querySelector("[data-g=task][data-task=prep] [data-g=task-badge]")?.textContent }));
   ok("PC 1280 · 판이 두 열(업무 · 내용) · 업무 넷(📄 내신 자료 · 문법책이 멈춰 있다 · 🗺·🌙 는 오늘 학습 안 접이) · 보이는 몸은 하나 · 처음 고른 업무는 흐름에서 처음 안 끝난 것(검사 또는 오늘 학습)", g.disp === "grid" && g.cols === 2 && g.tasks === 4 && g.shown === 1 && g.ids === "check>work>prep>comment" && ["check", "work"].includes(g.sel) && /^자료 \d+/.test(g.badge ?? ""), JSON.stringify(g));
   await pick(r1, "work");
-  ok("오늘 학습의 멈춘 교재 머리 「교재 보류 … 📄 내신 자료」 단추 → 내신 자료 업무가 열린다(이동 아님 · 창 아님)", (await r1.locator(".stopnote button[data-act=to-prep]").count()) >= 1);
-  await r1.locator(".stopnote button[data-act=to-prep]").first().click(); await p.waitForTimeout(200);
+  ok("(어57) 보류 목록 줄의 「📄 내신 자료」 단추 → 내신 자료 업무가 열린다(이동 아님 · 창 아님)", (await r1.locator("[data-g=paused-book] button[data-act=to-prep]").count()) >= 1);
+  await r1.locator("[data-g=paused-book] button[data-act=to-prep]").first().click(); await p.waitForTimeout(200);
   const pc = r1.locator("[data-card=prep]");
   const scopeText = await pc.locator("[data-g=prep-scope] b").first().textContent();
   ok("📄 내신 자료 몸 · 시험 머리(🏫 · 영어 M/D · D-N) · 멈춘 교재 꼬리표 · 학교 시험 범위 N줄(04·06b 가 넣은 것) · 04 전체 ↗ 는 그 시험으로(?e=)", (await r1.locator("[data-g=task][data-task=prep]").getAttribute("aria-pressed")) === "true" && (await pc.locator("[data-g=prep-exam]").count()) >= 1 && (await pc.locator("[data-g=prep-stopped]").first().textContent()).includes("보류") && /범위 · \d+줄/.test(scopeText) && /\/schedule\/exams\/prep\?e=/.test(await pc.locator("[data-g=to-prep]").getAttribute("href")), scopeText);
@@ -1976,7 +1977,7 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
   await off1.check(); await p.waitForTimeout(150);
   await gm.locator("input[aria-label='글로 한 줄']").fill("학교 프린트 2장");   // 루틴에 없는 것도 그 자리에서(「필요시 추가도 가능하게」)
   await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1800);
-  ok(`배정하면 루틴 줄은 **교재 카드 밑**에 서고(item_id·unit_id 가 붙어 day-plan bookLine 이 잡는다) 글 한 줄만 「그 밖에 · 집」에 · 머리 알약 「학원 0 · 숙제 ${nLine + 1}」`, (await rg.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 1 && (await rg.locator(".pill.hw").textContent()) === `학원 0 · 숙제 ${nLine + 1}` && (await rg.locator(".bk").count()) >= 1, (await rg.locator(".pill.hw").textContent()) + " | 교재 카드 " + (await rg.locator(".bk").count()));
+  ok(`배정하면 루틴 줄은 **교재 줄**로 서고(item_id·unit_id 가 붙어 day-plan bookLine 이 잡는다 · 그 교재가 보류면 (어57) 목록으로 내려간다) 글 한 줄만 「그 밖에 · 집」에 · 머리 알약 「학원 0 · 숙제 ${nLine + 1}」`, (await rg.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 1 && (await rg.locator(".pill.hw").textContent()) === `학원 0 · 숙제 ${nLine + 1}`, (await rg.locator(".pill.hw").textContent()) + " | 교재 카드 " + (await rg.locator(".bk").count()) + " · 보류 " + (await rg.locator("[data-g=paused-book]").count()));
   await rg.locator("button[data-act=give]").click(); await p.waitForSelector("[data-g=give-modal]", { timeout: 15000 });
   await gm.locator("[data-g=give-item]").first().waitFor({ timeout: 30000 }).catch(() => {});
   ok("다시 열면 **오늘 나간 그대로** 체크되어 열린다(잘못 나간 숙제를 고치는 자리 · 원장님 「숙제가 잘못나갔거나 고쳐야할수 있어서」)", Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) === nLine, await gm.locator("button[data-act=give-save]").textContent());

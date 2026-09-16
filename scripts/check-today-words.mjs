@@ -47,6 +47,12 @@ ok("(어26) 항목은 더하고 고치고 빼는 것이 기본(대전제-19 · �
 ok("(어24) 업무는 끝나면 ✓(data-done · taskDone 한 곳) · 검사 「다 ○」(check-all) · 오늘 학습 접이(fold-more · fold-late · fold-memo · quiz-edit) · 글 「고치기」(comment-edit) · 「저장하고 마감 → 다음 아이」(onNext · useOpen nextOf)", /data-done=\{h\.done/.test(row) && /taskDone\(c\.id/.test(row) && /data-act="check-all"/.test(row) && ["fold-more", "fold-late", "fold-memo", "quiz-edit", "comment-edit"].every((a) => row.includes(`data-act="${a}"`)) && /onNext\?\.\(\)/.test(row) && /저장하고 마감 → 다음 아이/.test(row));
 ok("목업에서 갈라낸 3단 규칙 · ≥1100px 판은 grid 두 열(업무 250 · 내용) · 안 고른 몸은 display:none · 폰은 업무 목록·다음 → 이 안 보인다", /\.split \.row>\.panel\{[^}]*grid-template-columns:250px/.test(css) && /\.split \.tbody:not\(\[data-sel="1"\]\)\{[^}]*display:none/.test(css) && /\.tasks\{display:none\}/.test(css) && /\.tnext\{display:none\}/.test(css));
 ok("(어21) 📄 내신 자료는 업무 하나 · 교재가 멈춘 아이만(prepOf · stopOn 한 벌) · 판단·부품·손이 한 벌(PrepCard → todo-plan prepOf · _shell/scopeform · 04·06b 의 손)", /id: "prep", name: "내신 자료"/.test(row) && /filter\(\(c\) => c\.id !== "prep" \|\| prepList\.length > 0\)/.test(row) && /prepOf\(prep, date, stopOn\)/.test(row));
+ok("(어57) 보류된 교재는 **속을 안 그린다**(원장님 9/16 「숙제검사와 오늘학습에서 보류된 교재는 내용을 볼 필요가 없잖아. 진행중으로 바꾸면 그때 상세내용보이고, 그전에는 목록과 상태버튼만 카드 맨밑에」) · 두 카드가 같은 부품(PausedBooks) · 상태 세그는 한 벌(useStop · 교재 카드와 같은 것) · 오늘 학습은 보류 교재의 블록을 아예 안 세운다",
+  /function PausedBooks\(/.test(row) && /function useStop\(/.test(row) && (row.match(/<PausedBooks /g) ?? []).length === 2
+  && /const \[stop, stopSeg\] = useStop\(b, sheet, date, closed, fail, start\)/.test(row)
+  && /const runBooks = ordered\.filter\(\(b\) => stopOn\(b, date\) !== "book_off"\)/.test(row) && /\{runBooks\.map\(/.test(row) && !/\{ordered\.map\(/.test(row)
+  && !/data-act="stopped-open"/.test(row) && (row.match(/data-g="stop"/g) ?? []).length === 1,
+  `PausedBooks ${(row.match(/<PausedBooks /g) ?? []).length}곳 · data-g="stop" ${(row.match(/data-g="stop"/g) ?? []).length}벌`);
 ok("(어56) 숙제 배정은 글이 아니라 교재 › 단원 × 루틴 활동(원장님 9/16 「숙제주기를 텍스트로 주면 루틴이 안 먹잖아. 밑에 숙제배정과 같은 방식으로 배정하도록 모달을 띄우게해」) · 단추는 숙제가 있어도 보인다(잘못 나간 것을 고치는 자리) · 손은 lib/routine applyGive 하나 · 글 한 줄 길은 남는다(「a인데 필요시 추가도 가능하게」)",
   /data-act="give"/.test(row) && /data-g="give-modal"/.test(row) && !/sheet\.home\.length === 0 &&/.test(row)
   && ["give-book", "give-unit", "give-item", "give-free"].every((g) => new RegExp(`data-g="${g}"`).test(row))
