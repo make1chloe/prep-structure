@@ -8,6 +8,8 @@ Supabase → **SQL Editor** → **New query** → 파일을 통째로 붙여넣�
 
 ## 지금 하실 것
 
+- `0173.sql` · **비밀번호를 바꿔도 다음 화면으로 못 가던 것**((어71) · 원장님 9/17 「여기서 화면이 안넘어감」) · 표시를 내리는 함수 `password_changed` · 실행 권한 · 최소 글자 수 규칙 줄을 다시 못 박는다 · 표 모양은 안 바꾼다 · 다시 돌려도 같다
+  https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0173.sql
 - `0168.sql` · **학생 아이디 겹치면 다섯째 숫자**((어46) · profiles_login_id_shape · 원장님 9/16 「같은 아이디 이미있으면 5번째에 2붙여서」)
   https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0168.sql
 - `0169.sql` · **출결 곁에 하원 · 도착·하원 시각을 누가 찍었나**((어48) · v2.arrival.stamped_by · 원장님 9/16 「출석, 지각, 하원은 시간이 기록되게해」)

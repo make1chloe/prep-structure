@@ -1,9 +1,12 @@
+import { redirect } from "next/navigation";
 import { guard } from "@/lib/session";
+import { homeFor } from "@/lib/menu";
 import { changePassword } from "./actions.js";
 import { FIRST_PW } from "@/lib/student-plan";   // 첫 비밀번호는 한 곳((어65))
 export const dynamic = "force-dynamic";
 export default async function Password({ searchParams }) {
-  await guard({ allowMustChange: true });
+  const { me } = await guard({ allowMustChange: true });
+  if (me && !me.must_change_pw) redirect(homeFor(me.role));   // (어71) 표시가 이미 내려갔는데 여기 서 있으면 갇힌다 — 제 화면으로 보낸다(이 화면은 문지기만 열어 준다 · 링크가 없다)
   const sp = await searchParams; const err = sp?.e ? String(sp.e) : "";
   return (
     <main className="frame" style={{ maxWidth: 420, margin: "0 auto", padding: "24px 16px" }}>

@@ -192,8 +192,11 @@ await Promise.all([p.waitForURL(/\/password\?e=/, { timeout: 15000 }).catch(() =
 { const n = await p.locator("main [role=alert]:visible").count(); ok("(어65) 첫 비밀번호 그대로는 거절한다(같은 숫자만)", n === 1, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 120)); }
 await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1");
 await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/password"), { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
+ok("(어71) 바꾸면 **정말 넘어간다** · 표시가 내려간 것을 다시 읽고 간다(원장님 2026-09-17 「여기서 화면이 안넘어감」)", !new URL(p.url()).pathname.startsWith("/password"), p.url());
 { const t = await p.locator("header.appbar nav.tabs a").allTextContents();
   ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.map(tabName).join(",") === "대시보드", t.join(",")); }
+await p.goto(APP + "/password"); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(어71) 바꾼 뒤 비밀번호 화면으로 되돌아가도 갇히지 않는다 — 제 화면으로 보낸다", new URL(p.url()).pathname === "/", p.url());
 await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("선생님은 직원 계정 화면을 못 연다(원장만)", !(await p.locator("main [data-card=staff]").count()), (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 80));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);

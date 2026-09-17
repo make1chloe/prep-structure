@@ -6,7 +6,10 @@ export async function POST(req) {
   try {
     const { r, opened } = await req.json();
     const id = Number(r);
-    if (Number.isInteger(id) && id > 0) await db(serviceClient()).rpc("mark_notify_seen", { p_id: id, p_opened: Boolean(opened) });
+    if (Number.isInteger(id) && id > 0) {
+      const { error } = await db(serviceClient()).rpc("mark_notify_seen", { p_id: id, p_opened: Boolean(opened) });
+      if (error) console.error("[알림 읽음] 못 셈:", error.message);   // (어71) 폰에는 조용히 · **서버 로그에는 남긴다**. 결과를 아예 안 보면 안 세는 줄도 모른다
+    }
   } catch { /* 조용히 */ }
   return new Response(null, { status: 204 });
 }
