@@ -45,18 +45,19 @@ export function SaidButton({ item, state = "now" }) {   // 마감 뒤에도 누�
 
 /** (어35) 학원 줄의 타이머(원장님 9/15 「학생페이지 타이머 짓는다」) · 차례대로(지금 할 것만) · 「▶ 시작」 → 「▶ m:ss · ■ 끝」 → 「⏱ N분 · 했어요 ✓ · 취소」 · 끝 = 다 했어요(said_done_at) · 취소하면 다시 하는 중(타이머는 이어진다) · 시각은 DB 문지기가 서버 시계로(0167) · 마감 뒤에도 누른다.
  *  처음 그릴 땐 시작 시각으로 세고(서버·브라우저가 같은 글) 붙은 뒤에 1초마다 다시 센다 · 글은 lib/arrival-plan timerText 한 벌(01 도 같은 글) */
-export function TimerButton({ item, state = "now" }) {
+export function TimerButton({ item, state = "now", said: withSaid = true }) {   // (어75) withSaid=false 면 ▶/■ 만 — 「다 했어요」는 곁에 따로 선다(타이머는 도움이지 문이 아니다)
   const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [now, setNow] = useState(null);
   const done = Boolean(item.said_done_at), running = Boolean(item.started_at) && !done;
   useEffect(() => { if (!running) return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [running]);
   const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r.ok) setErr(r.msg); });
-  if (state === "locked") return <span className="tag" data-g="locked">앞엣것부터</span>;
+  if (state === "locked") return withSaid ? <span className="tag" data-g="locked">앞엣것부터</span> : null;   // (어75) 곁에 「다 했어요」가 서는 자리에서는 잠금 표시를 그쪽 하나만 낸다(둘이 겹치면 같은 말이 두 번)
   const base = item.started_at ? new Date(item.started_at).getTime() : 0;
   return (<>
     {item.started_at && <span className={"tag" + (done ? " on" : " act")} data-g="timer">{timerText(item, now ?? base)}</span>}
-    {done ? <button type="button" className="btn sm" data-act="said" aria-pressed={true} disabled={pending} onClick={() => run(() => said(item.id, false))}>했어요 ✓ · 취소</button>
+    {done && withSaid ? <button type="button" className="btn sm" data-act="said" aria-pressed={true} disabled={pending} onClick={() => run(() => said(item.id, false))}>했어요 ✓ · 취소</button>
       : running ? <button type="button" className="btn sm pri" data-act="end" disabled={pending} onClick={() => run(() => endItem(item.id))}>■ 끝</button>
-      : <button type="button" className="btn sm pri" data-act="start" disabled={pending} onClick={() => run(() => startItem(item.id))}>▶ 시작</button>}
+      : done ? null
+      : <button type="button" className={"btn sm" + (withSaid ? " pri" : "")} data-act="start" disabled={pending} onClick={() => run(() => startItem(item.id))}>▶ 시작</button>}
     {err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}
   </>);
 }
@@ -117,13 +118,13 @@ export function AttachLines({ links = [] }) {
     {err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}
   </>);
 }
-/** 📎 자료 — 사진 보내기(학교 종이를 찍어 원장님께 · 원장님만 본다) · 지난 것 보기(1달 안에 처리한 붙임) · 1달 지난 것은 개수만 */
+/** 📎 자료 — 사진 보내기(학교 종이를 찍어 원장님께) · 지난 것 보기(1달 안에 처리한 붙임) · 1달 지난 것은 개수만 */
 export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [], fold = null, folded = false }) {
   const router = useRouter(); const mine = myUploads(sent);
   return (
     <div className="task" data-card="files" data-folded={folded ? "1" : "0"}>
       <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span>{fold}</div>
-      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="원장님만 봐요" compact onDone={() => router.refresh()} />
+      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="" compact onDone={() => router.refresh()} />
       {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"} style={{ marginTop: 4 }}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
         <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}

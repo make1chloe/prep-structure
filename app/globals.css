@@ -487,8 +487,13 @@ td.sch{font-weight:700;white-space:nowrap}
    제목·알약(개수)은 그대로 보이고 속만 감춘다. 감추는 것이라 **다시 조회하지 않는다**(속도-1). */
 [data-card][data-folded="1"]>*:not(.h):not(.ctitle){display:none}
 [data-card][data-folded="1"]{padding-bottom:6px}
-button.fold{padding:2px 7px;min-width:0;line-height:1.1;color:var(--faint)}
-button.fold[aria-pressed="true"]{color:var(--navy)}
+/* (어75) 접기 화살표 — 원장님 2026-09-18 「접힐때 화살표 이모티콘이 좀 너무 작아서 잘안보여 크게해」.
+   작고 흐렸다(--faint) → 글자를 키우고 색을 진하게. 누르는 자리도 폰 손가락만큼(44px 언저리) 넓힌다 */
+/* (어75) 원장님 2026-09-17 「접힐때 화살표 이모티콘이 좀 너무 작아서 잘안보여 크게해」 — **글자만** 키운다.
+   높이는 .btn.sm 그대로 28 로 둔다(check-sizes 「작은 단추 높이는 하나」). 선택자에 button 을 붙이는 것은
+   뒤에 오는 .btn.sm{font-size:var(--fs-2)} 보다 세야 글자가 실제로 커지기 때문이다(9/17 걷기가 12px 로 잡았다) */
+button.btn.fold{padding:2px 10px;min-width:40px;line-height:1;font-size:var(--fs-7);color:var(--ink)}
+button.btn.fold[aria-pressed="true"]{color:var(--navy)}
 .donehead{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:8px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--sunk);font-size:var(--fs-2);color:var(--mid);flex-wrap:wrap}
 .donehead b{color:var(--ink)}
 .donehead .ar{transition:transform .15s;color:var(--faint)}
