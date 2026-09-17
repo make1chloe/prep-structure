@@ -85,16 +85,17 @@ ok("(어57) 보류된 교재는 **속을 안 그린다**(원장님 9/16 「숙�
   && !/data-act="stopped-open"/.test(row) && (row.match(/data-g="stop"/g) ?? []).length === 1,
   `PausedBooks ${(row.match(/<PausedBooks /g) ?? []).length}곳 · data-g="stop" ${(row.match(/data-g="stop"/g) ?? []).length}벌`);
 ok("(어56) 숙제 배정은 글이 아니라 교재 › 단원 × 루틴 활동(원장님 9/16 「숙제주기를 텍스트로 주면 루틴이 안 먹잖아. 밑에 숙제배정과 같은 방식으로 배정하도록 모달을 띄우게해」) · 단추는 숙제가 있어도 보인다(잘못 나간 것을 고치는 자리) · 손은 lib/routine applyGive 하나 · 글 한 줄 길은 남는다(「a인데 필요시 추가도 가능하게」)",
-  /data-act="give"/.test(row) && /data-g="give-modal"/.test(row) && !/sheet\.home\.length === 0 &&/.test(row)
+  /data-act="give"/.test(row) && /data-g="give-modal"/.test(row) && !/sheet\.home\.length === 0 &&/.test(row) && !/sheet\.check\.length === 0 &&[\s\S]{0,160}give-here/.test(row) && /data-g="check-add"/.test(row)
   && ["give-book", "give-unit", "give-item", "give-free"].every((g) => new RegExp(`data-g="${g}"`).test(row))
   && /giveApply\(sheet\.id, bookId, slot, \{ unitIds: units, itemIds: items \}\)/.test(row) && /await give\(sheet\.id, slot, text\)/.test(row)
-  && /export async function applyGive/.test(strip(readFileSync("lib/routine.js", "utf8"))) && /export async function givePool/.test(strip(readFileSync("lib/routine.js", "utf8"))),
+  && /export async function applyGive/.test(strip(readFileSync("lib/routine.js", "utf8"))) && /export async function givePool/.test(strip(readFileSync("lib/routine.js", "utf8")))
+  && !/have: \(have\.data \?\? \[\]\)\.filter\(\(r\) => isAuto\(r\)\)/.test(readFileSync("lib/routine.js", "utf8")) && /carry: Boolean\(r\.carry_of\), auto: isAuto\(r\)/.test(readFileSync("lib/routine.js", "utf8")),
   String((row.match(/data-g="give-[a-z]+"/g) ?? []).join(",")));
 ok("(어56) 배정한 줄은 루틴이 깐 줄과 **같은 모양**(item_id · unit_id · sort · required · gate_prev)이라 검사 카드의 교재별 묶기·루틴 차례가 그대로 먹는다(day-plan bookLine) · 안 고른 줄은 지우지 않고 내린다(off · 대전제-6) · 넘어온 줄(carry_of)·글 줄은 안 건드린다",
   (() => { const r = strip(readFileSync("lib/routine.js", "utf8")); const i2 = r.indexOf("export async function applyGive"); const body = r.slice(i2, r.indexOf("/** 조절 적용", i2));
     return /assertOpen\(sb, sheetId\)/.test(body) && /item_id: l\.item_id, unit_id: u/.test(body) && /required: Boolean\(l\.required\), gate_prev: Boolean\(l\.gate_prev\)/.test(body) && /update\(\{ off: true \}/.test(body) && /update\(\{ off: false \}/.test(body) && /filter\(\(r\) => isAuto\(r\)\)/.test(body) && !/\.delete\(/.test(body); })());
 ok("(어56) 배정 모달은 그 자리(집·학원)의 루틴 활동을 **전부 체크된 채**로 연다(원장님 답 ⓐ) · 오늘 이미 깔린 줄이 있으면 그것을 그대로 보여 고치게 한다",
-  /const seed = \(p, sl\) =>/.test(row) && /mine\.length \? \[\.\.\.new Set\(mine\.map\(\(h\) => h\.item_id\)\)\] : \(p\.lines\?\.\[sl\] \?\? \[\]\)\.map\(\(l\) => l\.item_id\)/.test(row) && /\(p\.have \?\? \[\]\)\.filter\(\(h\) => h\.slot === sl && !h\.off\)/.test(row));{ const routine = readFileSync("lib/routine.js", "utf8"), plan = readFileSync("lib/routine-plan.js", "utf8"), day = readFileSync("lib/day.js", "utf8");   // (어33) 원장님 9/15 「오늘 화면에 회차라는 단어 사용하지마」 · 「네 언어말고, 일반적인 학원선생님이 좀 알아들을 수 있는 말로」
+  /const seed = \(p, sl\) =>/.test(row) && /mine\.length \? \[\.\.\.new Set\(mine\.map\(\(h\) => h\.item_id\)\)\] : \(p\.lines\?\.\[sl\] \?\? \[\]\)\.map\(\(l\) => l\.item_id\)/.test(row) && /\(p\.have \?\? \[\]\)\.filter\(\(h\) => h\.slot === sl && !h\.off && h\.item_id && h\.unit_id\)/.test(row));{ const routine = readFileSync("lib/routine.js", "utf8"), plan = readFileSync("lib/routine-plan.js", "utf8"), day = readFileSync("lib/day.js", "utf8");   // (어33) 원장님 9/15 「오늘 화면에 회차라는 단어 사용하지마」 · 「네 언어말고, 일반적인 학원선생님이 좀 알아들을 수 있는 말로」
   ok("(어33) 오늘 01 에 「회차」 0(단원 고르기는 「오늘 단원」 · 조절 알약은 「루틴 11 에서 고치기」) · 01 이 부르는 손의 오류 글에도 0(routine pickWave · day examsSoon)", !/회차/.test(row + page + board) && !/회차를 못 바꿈|회차 줄을 못 세움/.test(routine) && !/곧 있는 회차를 못 읽음/.test(day));
   ok("(어33) 조절 02 는 쉬운 말 · 「○○ 에서 아직 안 나간 소단원 N개 · 다음 대단원 ○○ 도 고를 수 있음」 · 「고른 소단원 N개 = 오늘 N문항 · N쪽」(둘 다 0이면 「문항·쪽 수가 교재에 없음」) · 「나가는 차례 · 대단원마다/소단원마다」 · 「1개면 N문항」 알약 0 · 칩 목록에 대단원 머리", /아직 안 나간 소단원/.test(row) && /도 고를 수 있음/.test(row) && /고른 소단원 \{selected\.length\}개 = 오늘/.test(row) && /문항·쪽 수가 교재에 없음/.test(row) && /나가는 차례/.test(row) && !/1개면/.test(row) && /data-g="tune-chapter"/.test(row));
   ok("(어33) 조절 판은 이 대단원 + 다음 대단원(tunePool chapters 둘 · inChapter) · 칩이 곧 고른 것(tuneStep · tuneCount · tuneSorted · 갯수·뺀 것 두 상태 없음 · tuneUnits 0)", /\)\]\.slice\(0, 2\)/.test(routine) && /inChapter:/.test(routine) && /export function tuneStep/.test(plan) && !/tuneUnits/.test(plan + row + routine) && !/excluded/.test(row)); }
@@ -108,5 +109,18 @@ ok("(어56) 배정 모달은 그 자리(집·학원)의 루틴 활동을 **전�
 { const rp = readFileSync("lib/routine-plan.js", "utf8"), rt = readFileSync("lib/routine.js", "utf8");   // (어38) 원장님 9/15 「이거 버튼 안 먹힘 · s2 s다시 이게 대체 무슨 말이야」
   ok("(어38) 오늘 단원 세그의 말은 뜻으로(waveLabel · 지난 단원 다시 · 이번 단원 · 하나 더 · 이번 단원 복습 · 다음 단원만) · 저장된 옛 이름(부호)은 안 쓴다 · 실패 글이 뜨면 그리로 굴린다(errRef)", /data-g=\{\x60wave-\$\{slot\}\x60\}[\s\S]{0,500}\{waveLabel\(o\)\}/.test(row) && /again: "지난 단원 다시", redo: "✕ 받은 단원 다시", now: "이번 단원", more: "하나 더", review: "이번 단원 복습", next: "다음 단원만"/.test(rp) && /ref=\{errRef\}/.test(row) && /scrollIntoView/.test(row));
   ok("(어38) 오늘 단원 바꾸기의 줄 배치는 wavePlan(순수) 한 벌 · 자리(rows\[k\])로 앉히지 않는다 · 차례(sort)도 판단이 준 대로 넘긴다((어38c))", /export function wavePlan/.test(rp) && /const plan = wavePlan\(rows, ids\)/.test(rt) && !/const r = rows\[k\]/.test(rt) && /unit_id: u\.unit_id, range_note: null, said_done_at: null/.test(rt) && /sort: u\.sort/.test(rt) && /const pool = rows\.map\(\(r\) => r\.sort\)/.test(rp)); }
+{ const hw = readFileSync("lib/homework.js", "utf8"), ip = readFileSync("lib/item-plan.js", "utf8"), dp = readFileSync("lib/day-plan.js", "utf8"), rt = readFileSync("lib/routine.js", "utf8");   // (어68) 원장님 2026-09-17 「지금은 버튼을 눌러도 뭐가 변동이 없는 거 같애」
+  ok("(어68) 검사 줄의 손 넷 · 눌림은 **서버가 준 판**에서 읽는다(lib/item-plan movedTo 한 벌 · 화면이 제 기억으로 그리면 새로고침에 사라지는 장식이 된다) · 누르는 즉시 바뀌고(낙관적 · 속도-3) · 같은 손을 다시 누르면 취소(restUndo → carryUndo)",
+    /export function movedTo\(it, sheet\)/.test(ip) && /export const movedLine/.test(ip) && /movedTo\(it, sheet\)/.test(row) && /const moved = opt \?\? server/.test(row)
+    && /data-g="check-moved"/.test(row) && /"aria-pressed": moved\[w\] === "own"/.test(row) && /restUndo\(it\.id, w\)/.test(row) && /export async function carryUndo/.test(hw)
+    && !/setRestTo/.test(row) && /export const restUndo/.test(readFileSync("app/today/actions.js", "utf8")));
+  ok("(어68) 오늘 나간 줄의 셈은 lib/day-plan countText 한 벌(학생 줄 알약과 업무 꼬리표가 같은 글) · **「수업후」(stay)도 센다** — 그것만 어느 셈에도 안 잡혀 눌러도 숫자가 안 움직였다 · 0이면 안 적는다(대전제-21)",
+    /export function countText\(sheet\)/.test(dp) && /수업후 \$\{stay\}/.test(dp) && /countText\(sheet\)/.test(row) && /countText\(sheet\)/.test(dp.slice(dp.indexOf("export function workText"))) === false ? /workText[\s\S]{0,200}countText\(sheet\)/.test(dp) && /export function countText/.test(dp) && /countText\(sheet\)/.test(row) : true);
+  ok("(어68) 하원 지연 카드는 folds.late 를 **따라간다**(초깃값으로만 읽으면, 판을 열어 둔 채 「수업후」를 눌러도 「남」 줄이 그려지지 않는다)",
+    /useEffect\(\(\) => \{ if \(folds\.late\) setShowLate\(true\); \}, \[folds\.late\]\)/.test(row) && /useEffect\(\(\) => \{ if \(folds\.memo\) setShowMemo\(true\); \}, \[folds\.memo\]\)/.test(row));
+  ok("(어68) 「그 자리에 같은 줄이 있나」는 lib/homework sameLine **한 벌**(0102 유일 색인과 같은 열쇠) · 줄 옮기기(disposeItem)와 나머지 넘기기(carryRest)가 같이 쓴다 — 안 보고 넣어 23505 로 터지던 자리(원칙-1)",
+    (hw.match(/await sameLine\(sb, \{/g) ?? []).length === 2 && /async function sameLine\(sb, \{ sheetId, slot, itemId = null, unitId = null, note = null \}, exceptId = null\)/.test(hw) && !/export async function sameLine/.test(hw) && /merged: true/.test(hw));
+  ok("(어68) 배정 창이 「아직 안 나감」이라 거짓말하지 않는다 — givePool 의 have 가 지난 숙제에서 끌어온 줄(carry)을 안 거른다(대전제-0)",
+    !/have: \(have\.data \?\? \[\]\)\.filter\(\(r\) => isAuto\(r\)\)/.test(rt) && /carry: Boolean\(r\.carry_of\), auto: isAuto\(r\)/.test(rt)); }
 console.log(`\n■ 오늘 01 말·차례·PC 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

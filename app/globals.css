@@ -206,6 +206,11 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .hwname small{display:block;color:var(--faint);font-size:var(--fs-2);font-family:var(--sans);margin-top:1px;white-space:normal;word-break:keep-all}
 .chk{display:flex;gap:4px;flex-shrink:0}
 .chk button{width:29px;height:29px;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--faint);font-size:var(--fs-3);font-weight:700;display:grid;place-items:center;padding:0}
+/* (어68) 원장님 2026-09-17 「완료 미흡은 각각 색깔 바꿔줘」 — 셋이 **누르기 전에도** 제 색을 갖는다(고를 때 눈이 먼저 찾는다). 누르면 그 색으로 채워진다(아래 규칙이 이긴다).
+   미흡은 --weak(노랑)을 흰 바탕에 글자색으로 쓰면 안 읽혀서 --amber 를 쓴다 — 채움색은 그대로 --weak */
+.chk button[data-v="o"]{color:var(--ok);border-color:var(--ok);background:var(--ok-wash)}
+.chk button[data-v="w"]{color:var(--on-weak);border-color:var(--amber);background:var(--weak-wash)}
+.chk button[data-v="x"]{color:var(--miss);border-color:var(--miss);background:var(--miss-wash)}
 .chk button[aria-pressed="true"][data-v="o"]{background:var(--ok);border-color:transparent;color:var(--surface)}
 .chk button[aria-pressed="true"][data-v="w"]{background:var(--weak);border-color:transparent;color:#111827}
 .chk button[aria-pressed="true"][data-v="x"]{background:var(--miss);border-color:transparent;color:var(--surface)}

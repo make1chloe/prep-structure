@@ -10,7 +10,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
 import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } from "@/lib/attend";
-import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
+import { checkItem, carryRest, carryUndo, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { staffStamp, clearStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, givePool as givePoolOf, applyGive, moveBook, nextRound, relayBook } from "@/lib/routine";
@@ -30,7 +30,8 @@ export const attendMany = done(async (list, date, value) => { const { sb } = awa
 export const closeMany = done(async (sheetIds) => { const { sb, user } = await staff(); return closeManySheets(sb, sheetIds, user.id); });   // (어28)-② 고른 판 마감 한 번에(저장된 글 그대로)
 export const checkAll = done(async (sheetId) => { const { sb } = await staff(); return checkAllItems(sb, String(sheetId)); });   // (어24) 「다 ○」
 export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
-export const rest = done(async (itemId, where) => { const { sb } = await staff(); await carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다)
+export const rest = done(async (itemId, where) => { const { sb } = await staff(); return carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다) · 합쳐졌으면 merged 를 돌려준다((어68))
+export const restUndo = done(async (itemId, where) => { const { sb } = await staff(); return carryUndo(sb, itemId, where); });   // (어68) 같은 손을 다시 누르면 취소 — 내가 세운 조각만 내린다
 export const stayDoneAct = done(async (itemId) => { const { sb } = await staff(); await stayDone(sb, itemId); });
 export const stayAllDoneAct = done(async (sheetId) => { const { sb } = await staff(); return stayAllDone(sb, sheetId); });
 export const stayCarryAct = done(async (sheetId) => { const { sb } = await staff(); return stayCarry(sb, sheetId); });

@@ -5,9 +5,9 @@ import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, clearStampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, restUndo, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, clearStampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, countText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import ProgressModal from "../_shell/progressmodal.js";   // (어41) 진도 체크 모달 한 벌(대시보드와 같은 부품) · 손은 수업 일지 기준
@@ -24,7 +24,7 @@ import { markText } from "@/lib/mark";
 import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { itemTitle, itemSub, pagesText, CHECK_MOVE, UPTO } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」) · (어67) 검사 줄의 손 넷·「어디까지」도 거기 한 벌
+import { itemTitle, itemSub, pagesText, CHECK_MOVE, UPTO, movedTo, movedLine } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」) · (어67) 검사 줄의 손 넷·「어디까지」도 거기 한 벌
 import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
 import { useOpen, usePickCtx } from "./board.js";
 import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
@@ -88,7 +88,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
         {REASON_ON.includes(attend) && sheet?.id && <div className="seg sm" data-g="att-reason" aria-label={`${student.name} 까닭`}>{ATTEND_REASON.map(([k, name]) => <button key={k} type="button" aria-pressed={reason === k} disabled={closed} onClick={() => pickReason(k)}>{name}</button>)}</div>}{/* (어44) 지각·결석 까닭 넷 · 원장님 9/15 · 진료·학교 일정은 경고에 안 센다(규칙 warn.excused) */}
         {sheet?.id && <AttTimes student={student} date={date} closed={closed} fail={fail} start={start} />}{/* (어48) 도착 · 하원 시각 · 원장님 9/16 */}
         <span className="pills" data-g="row-pills">{/* (어55) 2회독·경고가 붙어도 줄이 안 바뀌게 — 알약은 한 덩어리로 오른쪽 끝에(원장님 2026-09-16) */}
-          {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
+          {sheet && <span className="pill hw" data-g="row-count">{countText(sheet)}</span>}{/* (어68) 업무 꼬리표와 같은 글(lib/day-plan countText 한 벌) — 「수업후」도 여기서 센다 */}
           {roundPill(student.books) && <span className="pill">{roundPill(student.books)}</span>}
           {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1" data-why={student.warn.today_why ?? ""}>경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
           {status && <span className={"pill" + (closed ? "" : attend === "absent" ? " bad" : " warn")}>{status}</span>}
@@ -125,16 +125,17 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   const stopped = new Set(paused.map((b) => b.book_id));
   const parts = splitChecks(sheet.check, { stopped });
   const stopCount = new Map(paused.map((b) => [b.book_id, parts.stopped.filter((r) => r.units?.book_id === b.book_id).length]));
-  const row = (it, i, g) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />;
+  const row = (it, i, g) => <CheckItem key={it.id} it={it} sheet={sheet} closed={closed} fail={fail} start={start} grouped={Boolean(g.unit)} />;
   const off = (sheet.off ?? []).filter((it) => it.slot === "check");   // (어67) 「삭제」한 검사 줄 · 지운 것이 아니라 내린 것이라 되돌릴 길이 있어야 한다(대전제-6·19)
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
       <ItemTree rows={parts.live} all={sheet.check} row={row} fold={false} dense />{/* (어42) 영역 › 📕 교재 › 단원 › 활동 · 나무 한 벌(app/_shell/tree.js · 01 학습·숙제 · 07 · 09 도 같은 것) · (어47) 단원 머리는 안 접힌다 · 촘촘히 */}
       {sheet.check.length === 0 && <div className="lf" data-g="check-none"><span className="ln">📭</span>
-        <div><b>오늘 검사할 숙제 없음</b><small>{(student.books ?? []).length ? "지난 시간에 낸 숙제가 없어서 검사할 줄이 없음" : "배정한 교재 없음"}</small></div>
-        {!closed && <button type="button" className="btn sm pri" data-act="give-here" onClick={() => setGiveHere("check")}>+ 숙제 배정</button>}
-        {!closed && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
+        <div><b>오늘 검사할 숙제 없음</b><small>{(student.books ?? []).length ? "지난 시간에 낸 숙제가 없어서 검사할 줄이 없음" : "배정한 교재 없음"}</small></div></div>}
+      {!closed && <div className="wv acts" data-g="check-add">{/* (어68) 원장님 2026-09-17 「기존 숙제가 있어도 추가 할 수 있게 … 하나 추가하고 나면 배정버튼 자체가 사라져서 할 수가 없어」 — 단추는 **늘** 선다(검사할 줄이 있든 없든 · 교재가 여럿이라 여러 번 누른다). 「+ 교재 배정」은 오늘 학습 카드와 같은 결(교재 0일 때) */}
+        <button type="button" className={"btn sm" + (sheet.check.length === 0 ? " pri" : "")} data-act="give-here" onClick={() => setGiveHere("check")}>+ 숙제 배정</button>
+        {(student.books ?? []).length === 0 && <button type="button" className="btn sm" data-act="assign-here" onClick={() => setAssignHere(true)}>+ 교재 배정</button>}</div>}
       {giveHere && <GiveModal sheet={sheet} slot={giveHere} fail={fail} start={start} onClose={() => setGiveHere(null)} />}
       {assignHere && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssignHere(false)} />}
       {off.length > 0 && <div className="lf" data-g="check-off"><div><b>삭제한 줄 {off.length}</b><small>{off.map(itemTitle).join(" · ")}</small></div>
@@ -146,11 +147,14 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
     </div>
   );
 }
-function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32))
+function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32))
   const [st, setSt] = useState(isUnchecked(it) ? null : it.status);
   const [open, setOpen] = useState(isUnchecked(it));   // (어51) 검사가 끝난 줄은 **그 자리에서** 한 줄로 접힌다(자리를 안 옮긴다 · 원장님 9/16 「구조가 시각적으로도 비선형인데 순서도 뒤엉켜잇어」) · 이름을 누르면 편다
   const [upto, setUpto] = useState(it.done_note ?? "");
-  const [restTo, setRestTo] = useState(null);
+  const server = movedTo(it, sheet);   // (어68) 눌림은 **서버가 준 판**에서 읽는다 — 새로고침해도 남는다(lib/item-plan movedTo 한 벌)
+  const [opt, setOpt] = useState(null);   // 누르는 즉시 덮어쓰는 것(속도-3) · 서버가 되그리면 지운다
+  const [gone, setGone] = useState(false);   // 「삭제」도 낙관적 — 그 자리에서 사라지고 카드 밑 「삭제한 줄」로 간다
+  const moved = opt ?? server;
   const sub = itemSub(it, { unit: !grouped });   // 교재 · 단원 · 쪽 · 문항(단원 머리가 있으면 뺀다) · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
   const folded = Boolean(st) && !open;
   const pick = (v) => { if (closed) return; const prev = st, next = st === v ? "none" : v;   // (어51) 한 번 더 누르면 아예 체크 안 된 상태로(원장님 9/16)
@@ -158,15 +162,20 @@ function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped:
     start(async () => { const r = await check(it.id, next, next === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
   const pickMove = (w) => { if (closed) return;   // (어67) 손 넷 · 글은 lib/item-plan CHECK_MOVE 한 벌. 삭제는 그 줄을 내리고(off · 카드 밑 「복구」), 나머지 셋은 나머지를 그 구분으로 넘긴다
-    if (w === "off") { start(async () => { fail(await itemRemove(it.id)); }); return; }
-    setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
+    if (w === "off") { setGone(true); start(async () => { if (!fail(await itemRemove(it.id))) setGone(false); }); return; }
+    const own = moved[w] === "own";   // (어68) 내가 세운 조각이면 **다시 눌러 취소**(○△✕ 와 같은 결) · 「이미 있음」은 내가 세운 것이 아니라 못 되돌린다
+    const next = { ...moved }; if (own) delete next[w]; else next[w] = "own";
+    setOpt(next);
+    start(async () => { const r = own ? await restUndo(it.id, w) : await rest(it.id, w); fail(r); setOpt(null); }); };   // 성공이든 실패든 서버가 준 판으로 돌아간다(거짓말 안 함 · 대전제-0)
+  if (gone) return null;   // (어68) 「삭제」는 그 자리에서 사라진다 — 카드 밑 「삭제한 줄 N · 복구」로 되돌린다(대전제-6)
   return (
     <div className="hw" data-g="check-line" data-folded={folded ? "1" : "0"}>{/* (어51) 줄 하나를 「그 자리에서」 접고 편다 · 이름을 -row 로 안 짓는다: 고르기(PickBox)를 붙일 목록이 아니라 한 줄짜리 검사 손이고, 일괄은 카드 머리의 「다 ○」 하나다((어28) 대전제-20 · check-pick 의 -row 규칙 밖 · gap-book · call-book 과 같은 뜻) */}
       <div className="hwname"><button type="button" className="nmb" data-act="unfold" data-id={it.id} aria-expanded={!folded} onClick={() => setOpen(!open)}><b>{itemTitle(it)}</b></button>
         {folded ? (it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
         {st === "weak" && !closed && <div className="partial"><div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>어디까지</span><div className="seg sm" data-g="upto">{UPTO.map((u) => <button key={u} type="button" aria-pressed={upto === u} onClick={() => pickUpto(u)}>{u}</button>)}</div></div></div>}
         {!closed && <div className="wv acts" data-g="check-move">{/* (어67) 원장님 9/16 「숙제검사는 그냥 이모지쓰지말자 · 삭제. 오늘. 남아서. 숙제.」 — 검사 카드의 손은 글자다 */}
-          {CHECK_MOVE.map(([w, name]) => <button key={w} type="button" className="btn sm gho" data-act={`check-${w}`} {...(w === "off" ? {} : { "aria-pressed": restTo === w })} onClick={() => pickMove(w)}>{name}</button>)}</div>}</>}
+          {CHECK_MOVE.map(([w, name]) => <button key={w} type="button" className="btn sm gho" data-act={`check-${w}`} {...(w === "off" ? {} : { "aria-pressed": moved[w] === "own" })} onClick={() => pickMove(w)}>{name}</button>)}</div>}
+        {movedLine(moved) && <small data-g="check-moved">{movedLine(moved)}</small>}{/* (어68) 어디로 갔는지 그 자리에서 · 새로고침해도 남는다(원장님 2026-09-17 「눌러도 뭐가 변동이 없는 거 같애」) */}</>}
       </div>
       <div className="chk" aria-label="검사">
         {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} {...icon(CHECK_NAME[v], CHECK_TIP[v])} onClick={() => pick(v)}>{g}</button>)}
@@ -210,6 +219,8 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const [quizEdit, setQuizEdit] = useState(false);
   const [showLate, setShowLate] = useState(Boolean(folds.late));
   const [showMemo, setShowMemo] = useState(Boolean(folds.memo));
+  useEffect(() => { if (folds.late) setShowLate(true); }, [folds.late]);   // (어68) 검사 줄을 「수업후」로 옮기면 「남」 줄이 생긴다 — 판을 이미 열어 둔 채였으면 하원 지연 카드가 **안 그려져서** 아무 일도 안 일어난 것처럼 보였다(shutCards 가 이미 late 를 켜 주는데 초깃값으로만 읽고 있었다). 한 번 펴진 뒤 접는 것은 원장님 손이 이긴다
+  useEffect(() => { if (folds.memo) setShowMemo(true); }, [folds.memo]);
   const quizLine = next.length ? next.map((q) => `${kindOf(q.kind)[1]} · ${scopeText(q)}${q.cut_pct != null ? ` · 통과 ${q.cut_pct}` : ""}`).join(" | ") : "없음";
   return (
     <div className="card" data-card="work">
@@ -720,7 +731,7 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const seed = (p, sl) => {   // 이미 깔린 줄이 있으면 그것을 그대로 보여 고치게 하고, 없으면 진도 다음 단원 + 그 자리 루틴 활동 전부(답 ⓐ)
-    const mine = (p.have ?? []).filter((h) => h.slot === sl && !h.off);
+    const mine = (p.have ?? []).filter((h) => h.slot === sl && !h.off && h.item_id && h.unit_id);   // (어68) 지난 숙제에서 끌어온 줄(carry)도 「이미 서 있는 줄」이다 — 그것을 빼고 세는 바람에 검사 자리 배정이 거짓말했다
     const us = mine.length ? [...new Set(mine.map((h) => h.unit_id))] : p.next ? [p.next] : [];
     const its = mine.length ? [...new Set(mine.map((h) => h.item_id))] : (p.lines?.[sl] ?? []).map((l) => l.item_id);
     return { us, its };

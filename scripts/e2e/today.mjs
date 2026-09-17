@@ -156,7 +156,11 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   const before = await row.locator(".panel [data-card=check] [data-g=check-line]").evaluateAll((els) => els.map((e) => e.querySelector("b")?.textContent ?? ""));
   await wb.locator("button[data-act=unfold]").click(); await p.waitForTimeout(200);
   const after = await row.locator(".panel [data-card=check] [data-g=check-line]").evaluateAll((els) => els.map((e) => e.querySelector("b")?.textContent ?? ""));
-  ok("(어51) 이름을 누르면 그 자리에서 펴진다 · 줄 차례는 그대로(뒤엉키지 않는다)", (await wb.getAttribute("data-folded")) === "0" && before.join("|") === after.join("|"), `${before.join("|")}\n${after.join("|")}`); }
+  ok("(어51) 이름을 누르면 그 자리에서 펴진다 · 줄 차례는 그대로(뒤엉키지 않는다)", (await wb.getAttribute("data-folded")) === "0" && before.join("|") === after.join("|"), `${before.join("|")}\n${after.join("|")}`);
+  const moved = await wb.locator("[data-g=check-moved]").textContent().catch(() => "");
+  ok("(어68) 「숙제」 로 넘긴 것이 **새로고침해도 남는다** · 눌린 채 · 줄 밑에 「숙제로 옮김」(원장님 2026-09-17 「지금은 버튼을 눌러도 뭐가 변동이 없는 거 같애」 — 눌림을 화면 기억이 아니라 서버가 준 판에서 읽는다 · lib/item-plan movedTo)",
+    (await wb.locator("[data-g=check-move] button", { hasText: /^숙제$/ }).getAttribute("aria-pressed")) === "true" && String(moved).includes("숙제로 옮김"),
+    `aria-pressed ${await wb.locator("[data-g=check-move] button", { hasText: /^숙제$/ }).getAttribute("aria-pressed")} · 꼬리 「${moved}」`); }
 ok("△·절반이 남아 있다", (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".chk button[data-v=w]").getAttribute("aria-pressed")) === "true" && (await row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).locator(".seg[data-g=upto] button", { hasText: "절반" }).getAttribute("aria-pressed")) === "true");
 ok("△ 를 주면 머리의 진도 점도 △", (await row.locator(".marks .dot").allTextContents()).includes("△"), (await row.locator(".marks .dot").allTextContents()).join(""));
 ok("나머지가 오늘 숙제 줄로 섰다(원본을 가리킨다)", (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li", { hasText: "지난 숙제의 나머지" }).count()) === 1);
