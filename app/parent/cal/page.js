@@ -29,6 +29,6 @@ export default async function ParentCal({ searchParams }) {
     d = await calendar(sb, kid, ym, date, tday, ROLES.PARENT);
   } catch (e) { { console.error("[화면] 달력 못 엶:", e); return frame(<Oops what="달력" e={e} kind="task" />); } }
   if (decide(ROLES.PARENT, d.access, PARENT.recent) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div></div>);
-  const cal = <CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} kids={kids} backHref={`/parent?s=${kid.id}`} backLabel="학부모 👉" />;
+  const cal = <CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} kids={kids} backHref={`/parent?s=${kid.id}`} backLabel="부모님 👉" />;
   return frame(seeing ? <><AsBand name={kid.name} kind="parent" />{cal}</> : cal);   // 👁 띠는 09 와 같은 부품(asband.js)
 }

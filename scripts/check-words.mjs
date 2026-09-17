@@ -20,4 +20,9 @@ const total = [...count.values()].reduce((a, b) => a + b, 0);
 const line = [...count].sort((a, b) => b[1] - a[1]).map(([w, c]) => `${w}=${c}`).join(" · ");
 console.log(`   실측 ${total} · ${line}`);
 ok(`화면 글에 남은 사전 말 ≤ ${MAX}(지금 ${total} · 내려만 간다 · (어40) 뒤 0)`, total <= MAX, line);
+/* (어72b) 아이·학부모 화면에서는 「학부모」를 안 쓴다 — 원장님 2026-09-17 「학생과 학부모화면에서 학부모라는 단어는 쓰지마 부모님이라고 해」.
+   원장 화면(학생 14 · 공지 · 성적 공개 · 발송)에는 「학부모」가 맞는 말이라 전역 0 을 못 건다 — 그래서 자리로 가른다. */
+const KID = files.filter((f) => /^(app\/me\/|app\/parent\/)/.test(f) || f === "app/_shell/asband.js" || f === "lib/mine-plan.js");
+const kidBad = KID.filter((f) => toks(f).some((t) => /학부모/.test(t)));
+ok(`아이·학부모 화면 ${KID.length}파일의 글에 「학부모」 0 · 「부모님」으로 쓴다(원장 화면은 그대로)`, kidBad.length === 0, kidBad.join(", "));
 console.log(`\n■ 말 사전 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

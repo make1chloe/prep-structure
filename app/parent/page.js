@@ -39,7 +39,7 @@ export default async function Parent({ searchParams }) {
     [date, kids] = await Promise.all([today(sb), seeing ? screenStudent(sb, me, user, q).then((x) => [x]) : myChildren(sb)]);
     const pick = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
     d = pick ? await parentDay(sb, user, pick, date, seeing) : null;
-  } catch (e) { { console.error("[화면] 화면 못 엶:", e); return frame(<Oops what={seeing ? "그 집 학부모 화면" : "화면"} e={e} kind="task" />); } }
+  } catch (e) { { console.error("[화면] 화면 못 엶:", e); return frame(<Oops what={seeing ? "그 집 부모님 화면" : "화면"} e={e} kind="task" />); } }
   if (!d) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아이와 이어 주면 보여요</p></div>);
   const can = (k) => decide(ROLES.PARENT, d.access, k) === true;
   const sendFor = ask.bind(null, d.student.id);
@@ -100,7 +100,7 @@ export default async function Parent({ searchParams }) {
       {d.notices.map((s) => <div className="li" key={s.id} data-g="notice-line"><div><b>{s.text}</b><small>{s.small}</small></div><Link prefetch={false} className="btn sm" href={s.url}>보기</Link></div>)}</Card> },
   ].filter((c) => c.node), d.prefs?.parent);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref parent · 4단계-6)
   const body = (<>
-    <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>학부모</b>
+    <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>부모님</b>
       {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <Link prefetch={false} key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</Link>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
       <span className="spacer" /><span className="pill">{md(date)}</span></div>
     {!anyCard && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아직 안 열었어요</p></div>}

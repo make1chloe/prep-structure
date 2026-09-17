@@ -6,7 +6,7 @@ export default function AsBand({ name, kind = "me" }) {
     <div className="lf warn" data-g="as-view" style={{ marginBottom: 10 }}>
       <span className="ln">👁</span>
       <div>
-        <b>{name} {kind === "parent" ? "학부모님" : "아이"}가 보는 화면입니다</b>
+        <b>{name} {kind === "parent" ? "부모님이" : "아이가"} 보는 화면입니다</b>
         <small>읽기만 됩니다</small>
       </div>
       <span className="spacer" />

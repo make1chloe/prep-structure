@@ -31,7 +31,7 @@ export default function Mine({ fields = [], filled = [], progress = "follow" }) 
           placeholder={HINT[f.kind] ?? ""} autoComplete="off" value={v[f.key] ?? ""} onChange={(e) => setV((o) => ({ ...o, [f.key]: e.target.value }))}
           style={{ flex: "1 1 140px" }} />
         <button className="btn sm pri" type="button" data-act="mine-save" data-k={f.key}
-          disabled={pending || !String(v[f.key] ?? "").trim()} onClick={() => save(f)}>넣기</button>
+          disabled={pending || !String(v[f.key] ?? "").trim()} onClick={() => save(f)}>입력</button>
       </div>))}
     {filled.length > 0 && <div className="left" data-g="mine-filled" style={{ marginTop: 8 }}>
       {filled.map((f) => <div className="lf" key={f.key}><span className="ln">✓</span><div><b>{f.name}</b><small>{f.text}</small></div></div>)}

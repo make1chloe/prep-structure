@@ -10,7 +10,7 @@ const thr = (fn) => { try { fn(); return false; } catch { return true; } };
 const T = (p) => readFileSync(p, "utf8");
 
 console.log("■ 채울 칸 — 한 곳 · 원장님이 빼신 것은 없다");
-ok("칸은 다섯(학부모 폰 · 학생 폰 · 학년 · 생년월일 · 클래스카드) · 규칙 열쇠는 me.fill.*",
+ok("칸은 다섯(부모님 폰 · 학생 폰 · 학년 · 생일 · 클래스카드) · 규칙 열쇠는 me.fill.*",
   FILL_KEYS.join() === "parent_phone,phone,grade,birth,cc" && RULE_KEYS.every((k) => k.startsWith("me.fill.")), FILL_KEYS.join());
 ok("**학교 · 반 · 수납은 없다**(원장님 「아 그럼 반은 빼」 · 「알겠어 그러면학교도 빼」)",
   !FILL_KEYS.some((k) => ["school_id", "school", "class", "class_id", "fee"].includes(k)) && !RULE_KEYS.some((k) => /school|class|fee/.test(k)));
@@ -25,7 +25,7 @@ console.log("■ 켠 것 **그리고** 빈 것만");
   ok("클래스카드는 **줄 자체가 없는 것**이 빈 것이다(줄이 있으면 안 뜬다)",
     isEmpty(st, null, "cc") === true && isEmpty(st, { cc_user_idx: "min_kim" }, "cc") === false);
   ok("규칙 값은 「on」 하나만 켜짐(빈 값·모르는 값은 꺼짐)", isOn({ k: "on" }, "k") && !isOn({ k: "off" }, "k") && !isOn({}, "k") && !isOn({ k: "true" }, "k"));
-  ok("값 읽기 — 전화 숫자 10~11 · 학년 1~6 · 생년월일 꼴·앞날·옛날은 막는다",
+  ok("값 읽기 — 전화 숫자 10~11 · 학년 1~6 · 생일 꼴·앞날·옛날은 막는다",
     parseFill("phone", "010-1234-5678") === "01012345678" && parseFill("grade", " 3 ") === 3 && parseFill("birth", "2015-03-21", "2026-09-17") === "2015-03-21"
     && thr(() => parseFill("phone", "0101")) && thr(() => parseFill("grade", "7")) && thr(() => parseFill("birth", "2015.03")) && thr(() => parseFill("birth", "2027-01-01", "2026-09-17")) && thr(() => parseFill("nope", "x"))); }
 
@@ -48,7 +48,7 @@ console.log("■ 규칙 쓰기는 lib/rule.js 한 곳(원칙 4-3 — 세 번째�
 
 console.log("■ 표 0175 — 네 칸만 · 비었을 때만 · 제 줄만");
 { const sql = T("supabase/migrations/0175_mine_fill.sql");
-  ok("생년월일 칸을 파고 · 파기 목록에도 넣는다(개인정보)", /add column if not exists birth date/.test(sql) && /purge_map[\s\S]{0,120}'birth'/.test(sql));
+  ok("생일 칸을 파고 · 파기 목록에도 넣는다(개인정보)", /add column if not exists birth date/.test(sql) && /purge_map[\s\S]{0,120}'birth'/.test(sql));
   ok("스위치 다섯을 **꺼진 채로** 심는다(안 켜면 아무 일도 안 난다)",
     RULE_KEYS.every((k) => new RegExp(`'${k.replace(/\./g, "\\.")}',\\s*'off'`).test(sql)));
   ok("문지기 — 네 칸 말고 하나라도 달라지면 거절 · 이미 적힌 칸은 못 바꾼다 · 제 줄만 · 학원 사람과 서버 자신은 그대로(0082 와 같은 꼴 · 거절은 우리 말 + 42501)",

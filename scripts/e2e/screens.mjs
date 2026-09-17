@@ -155,7 +155,7 @@ ok("(어72) 칸 다섯이 뜨고 · **처음엔 하나도 안 켜져 있다**(�
 await act(p.locator("[data-g=fill-chips] button[data-k=birth]"));
 await act(p.locator("[data-g=fill-chips] button[data-k=phone]"));
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
-ok("(어72) 생년월일 · 내 전화번호 둘을 켜면 **새로고침해도 켜진 채**(규칙 줄에 적힌다)",
+ok("(어72) 생일 · 내 전화번호 둘을 켜면 **새로고침해도 켜진 채**(규칙 줄에 적힌다)",
   (await p.locator("[data-g=fill-chips] button[data-k=birth]").getAttribute("aria-pressed")) === "true"
   && (await p.locator("[data-g=fill-chips] button[data-k=phone]").getAttribute("aria-pressed")) === "true"
   && (await p.locator("[data-g=fill-chips] button[aria-pressed=true]").count()) === 2);
@@ -243,7 +243,7 @@ ok("바꾸면 「나」 화면(/me · 아이는 제 화면 하나)", new URL(p.u
 console.log("■ (어72) 아이 07 · 🧑 내 정보 — 원장님이 켠 칸 · 빈 칸만");
 { const mine = p.locator("main [data-card=mine]");
   const saw = async (n = 200) => String(await mine.textContent({ timeout: 3000 }).catch(() => "(카드가 아예 없다)")).replace(/\s+/g, " ").slice(0, n);   // 카드가 없을 때 **까닭을 말하고** 실패한다 — 없는 카드의 글을 기다리다 걷기가 통째로 죽지 않게
-  ok("(어72) 켠 둘만 뜬다(생년월일 · 내 전화번호) · 안 켠 셋은 안 뜬다",
+  ok("(어72) 켠 둘만 뜬다(생일 · 내 전화번호) · 안 켠 셋은 안 뜬다",
     (await mine.count()) === 1 && (await mine.locator("[data-g=mine-field]").count()) === 2
     && (await mine.locator("[data-g=mine-field][data-k=birth]").count()) === 1 && (await mine.locator("[data-g=mine-field][data-k=grade]").count()) === 0,
     await saw(200));
@@ -254,7 +254,7 @@ console.log("■ (어72) 아이 07 · 🧑 내 정보 — 원장님이 켠 칸 �
   await mine.locator("#mine-phone").fill("010-2222-3333");
   await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 15000 }).catch(() => {}), mine.locator("[data-act=mine-save][data-k=phone]").click()]);
   await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
-  ok("(어72) 넣으면 **그 칸이 사라지고**(이제 안 비었다) 아래 「이미 찬 것」으로 내려간다 · 생년월일 칸만 남는다",
+  ok("(어72) 넣으면 **그 칸이 사라지고**(이제 안 비었다) 아래 「이미 찬 것」으로 내려간다 · 생일 칸만 남는다",
     (await mine.locator("[data-g=mine-field]").count()) === 1 && (await mine.locator("[data-g=mine-field][data-k=birth]").count()) === 1
     && String(await mine.locator("[data-g=mine-filled]").textContent({ timeout: 3000 }).catch(() => "")).includes("01022223333"),
     await saw(220)); }
@@ -307,9 +307,9 @@ ok("원장님이 /me?as= 로 아이 화면을 연다. 👁 띠에 아이 이름 
 ok("아이 화면 속이 그대로 그려진다(카드가 있다) · 「없는 화면」이 아니었다", (await asMe.locator("[data-card]").count()) >= 1, `카드 ${await asMe.locator("[data-card]").count()}`);
 ok("보는 중에는 안의 단추·칸이 통째로 잠긴다(fieldset disabled) · 눌러도 저장되지 않는다", (await p.locator("fieldset[data-g=as-locked]").count()) === 1 && (await asMe.locator("button:enabled").count()) === 0, `살아 있는 단추 ${await asMe.locator("button:enabled").count()} (「[disabled] 속성」이 아니라 :enabled 로 본다. fieldset 은 속성을 안 붙이고 상태로 잠근다)`);
 await p.goto(APP + `/parent?as=${KID}`);
-ok("원장님이 /parent?as= 로 그 집 화면을 연다. 띠 「학부모님이 보는 화면」 · 통째 잠김", (await p.locator("[data-g=as-view]").textContent()).includes("학부모님") && (await p.locator("fieldset[data-g=as-locked]").count()) === 1, (await p.locator("[data-g=as-view]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
+ok("원장님이 /parent?as= 로 그 집 화면을 연다. 띠 「부모님이 보는 화면」 · 통째 잠김", (await p.locator("[data-g=as-view]").textContent()).includes("부모님이 보는 화면") && (await p.locator("fieldset[data-g=as-locked]").count()) === 1, (await p.locator("[data-g=as-view]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
 await p.goto(APP + `/parent/cal?as=${KID}`);
-ok("원장님이 /parent/cal?as= 로 그 집 달력을 연다. 띠 · 달력이 그려진다((어21) check-undef 가 잡은 것: user 를 안 받아 ReferenceError 로 죽던 화면)", (await p.locator("[data-g=as-view]").textContent().catch(() => "")).includes("학부모님") && (await p.locator("main .calpage").count()) === 1, (await p.locator("main").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 120));
+ok("원장님이 /parent/cal?as= 로 그 집 달력을 연다. 띠 · 달력이 그려진다((어21) check-undef 가 잡은 것: user 를 안 받아 ReferenceError 로 죽던 화면)", (await p.locator("[data-g=as-view]").textContent().catch(() => "")).includes("부모님이 보는 화면") && (await p.locator("main .calpage").count()) === 1, (await p.locator("main").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 120));
 await p.goto(APP + `/parent?as=${KID}`);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-asview-parent-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
