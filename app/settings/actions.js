@@ -1,4 +1,5 @@
 "use server";
+import { setFillRule } from "@/lib/mine";   // (어72) 「아이가 채울 칸」 켜고 끄기 — 규칙 쓰기는 lib/rule.js 한 곳
 /** 설정의 손 — 학원 회선 주소 더하기(원장만). 그 자리의 주소를 읽어 v2.integration arrival 에 적는다(답 ⑨). 판단은 lib/arrival.js */
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -24,3 +25,14 @@ export async function allowThisIp() {
 async function principal() { const w = await guard(); if (w.me?.role !== ROLES.PRINCIPAL) throw new Error("원장님만 쓰는 자리입니다"); return w; }
 export async function saveKeysAct(id, form) { return wrap(async () => { await principal(); return { ...(await saveKeys(id, form ?? {})) }; }); }
 export async function testSmsAct(to) { return wrap(async () => { await principal(); return { ...(await testSms(to)) }; }); }
+
+/** (어72) 아이가 채울 칸을 켜고 끈다 — 원장만. 열쇠는 FILL 표 안의 것만(lib/mine 이 막는다) */
+export async function fillRuleAct(ruleKey, on) {
+  return wrap(async () => {
+    const { sb, me } = await guard();
+    if (me?.role !== ROLES.PRINCIPAL) throw new Error("원장님만 하시는 일");
+    const r = await setFillRule(sb, String(ruleKey), Boolean(on));
+    revalidatePath("/settings");
+    return r;
+  });
+}

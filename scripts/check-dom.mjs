@@ -29,4 +29,24 @@ const css = readFileSync("app/globals.css", "utf8");
 const ALLOW = [".sortrow .sel"];   /* 목업이 정한 자손 규칙 — 그 안에 같은 이름의 다른 부품이 안 들어간다 */
 const desc = [...css.matchAll(/([^,{}\n]*?) \.(open|on|act|sel|hi|closed|done)\b[^{,]*\{/g)].map((m) => m[0].replace(/\{$/, "").trim()).filter((s) => !ALLOW.includes(s));
 ok("폰-9 클래스 이름 겹침 · 자손 선택자 끝이 맨 상태 이름(.open .on .act .sel .hi .closed .done)인 규칙 0(상태 이름은 요소에 붙인다: button.open · .acc.open · 9/8 원장님 폰이 잡음: 02b 펼친 대단원이 줄의 펴기 단추 규칙에 물려 파랗게 칠해졌다)", desc.length === 0, desc.join(" | "));
+/* (어72) 서버 화면이 **눌리는 조각**(「use client」)에 함수를 건네면 그 화면이 통째로 안 열린다 —
+   Next 가 「Functions cannot be passed directly to Client Components」로 막고, 07 이 <Oops> 만 그렸다(2026-09-17 게이트가 잡음).
+   카드 틀(Card)처럼 부품을 넘기고 싶으면 서버 쪽에서 틀을 씌우고 조각은 속만 그린다. */
+const RAW = new Map([...files("app"), ...files("lib")].map((p) => [p.replace(/\\/g, "/"), readFileSync(p, "utf8")]));
+const isClient = (p) => /^\s*(?:\/\*[\s\S]*?\*\/\s*)?["']use client["']/.test(RAW.get(p) ?? "");
+const resolve = (from, rel) => { const a = from.split("/").slice(0, -1); for (const seg of rel.split("/")) { if (seg === ".") continue; if (seg === "..") a.pop(); else a.push(seg); } return a.join("/"); };
+const handed = [];
+for (const [p, body] of RAW) {
+  if (isClient(p) || !p.startsWith("app/")) continue;
+  const code = strip(body);
+  for (const m of code.matchAll(/import\s+([\s\S]*?)\s+from\s+["'](\.[^"']+)["']/g)) {
+    const target = resolve(p, m[2]); if (!isClient(target)) continue;
+    const names = [...m[1].matchAll(/([A-Z][A-Za-z0-9_]*)(?:\s+as\s+([A-Z][A-Za-z0-9_]*))?/g)].map((x) => x[2] ?? x[1]);
+    for (const name of new Set(names)) for (const tag of code.matchAll(new RegExp(`<${name}\\b([^>]*)`, "g"))) {
+      for (const at of tag[1].matchAll(/([A-Za-z][A-Za-z0-9_]*)=\{\s*(?:async\b|function\b|\([^)]*\)\s*=>|[A-Za-z_$][A-Za-z0-9_$]*\s*=>|([A-Z][a-z][A-Za-z0-9_]*)\s*\})/g))
+        handed.push(`${p} <${name} ${at[1]}=`);
+    }
+  }
+}
+ok("서버 화면이 눌리는 조각(use client)에 함수를 안 건넨다(건네면 그 화면이 통째로 안 열린다 · 틀은 서버 쪽에서 씌운다)", handed.length === 0, [...new Set(handed)].join(", "));
 console.log(`\n■ 화면 DOM 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

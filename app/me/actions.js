@@ -17,6 +17,7 @@ import { studentSubmit } from "@/lib/score";
 import { studentMark, studentMarkMany, raiseFlag } from "@/lib/road";
 import { markSeen } from "@/lib/files";
 import { markSpan, fillDuration, openVideo } from "@/lib/video";
+import { fillMine } from "@/lib/mine";   // (어72) 내 빈 칸 채우기 — 켠 칸 · 빈 칸 · 제 줄인지는 그 안에서 다시 잰다
 const done = doneAt("/me", "아이 화면 07");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
@@ -61,3 +62,10 @@ export async function span(videoId, from, to, pos) { return act(async () => { co
 export async function duration(videoId, seconds) { return act(async () => { const { sb } = await child(); return { set: await fillDuration(sb, String(videoId), Number(seconds)) }; }, "아이 화면 07 영상"); }
 /** 🎬 재생기를 열었다 — 연 횟수 +1(④ 「N번 열어봄」). 다시 그리지 않는다 */
 export async function opened(videoId) { return act(async () => { const { sb } = await child(); return { n: await openVideo(sb, String(videoId)) }; }, "아이 화면 07 영상"); }
+
+/** (어72) 내 정보의 **빈 칸** 하나를 채운다 — 원장님이 켠 칸만 · 비었을 때만(lib/mine 이 서버에서 다시 잰다) */
+export const fillAct = done(async (key, raw) => {
+  const { sb, user } = await child();
+  const [date, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
+  return fillMine(sb, st.id, String(key), raw, date);
+});

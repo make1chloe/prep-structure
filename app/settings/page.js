@@ -7,13 +7,16 @@ import Skins from "../_shell/skins.js";
 import IpCard from "./ipcard.js";
 import Keys from "./keys.js";   // 🔌 연동 설정((터))
 import { keyBoard } from "@/lib/integration";
+import { ruleMap } from "@/lib/rule";
+import Fill from "./fill.js";   // (어72) 아이가 채울 칸
 export const dynamic = "force-dynamic";
 export default async function Settings() {
   const { sb, me } = await guard();
   const principal = me?.role === ROLES.PRINCIPAL;
-  const [cfg, keys] = await Promise.all([   // 한 파도(속도-1) — 원장이 아니면 둘 다 안 읽는다
+  const [cfg, keys, fillRules] = await Promise.all([   // 한 파도(속도-1) — 원장이 아니면 둘 다 안 읽는다
     principal ? arrivalCfg(sb).catch((e) => ({ error: String(e?.message ?? e) })) : Promise.resolve(null),
     principal ? keyBoard().catch((e) => ({ error: String(e?.message ?? e) })) : Promise.resolve(null),   // (터) 🔌 연동 설정 · 가린 것만 온다
+    principal ? ruleMap(sb, ["me.fill."]) : Promise.resolve(null),   // (어72) 아이가 채울 칸 — 같은 파도에(속도-1)
   ]);
   return <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🎨</span>배색</div><Skins /></div><div className="card"><div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div><Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link></div>
     {principal && <Link prefetch={false} className="card" href="/settings/staff" data-card="staff" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">👤</span>직원 계정</div></Link>}
@@ -24,6 +27,7 @@ export default async function Settings() {
         <IpCard /></>}
     </div>}
     {keys?.error ? <div className="card warn"><div className="ctitle"><span className="cemo">🔌</span>연동 설정을 못 읽었습니다</div><p className="note">{keys.error}</p></div> : keys ? <Keys rows={keys} /> : null}
+    {fillRules && <Fill rules={fillRules} />}
     <Link prefetch={false} className="card" href="/settings/progress" data-card="progress" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">✎</span>진도 체크</div></Link>
     <Link prefetch={false} className="card" href="/settings/routine" data-card="routine" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🔁</span>루틴</div></Link>
   </main>;

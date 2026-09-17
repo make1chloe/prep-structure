@@ -8,6 +8,7 @@ import { itemTitle, itemSub } from "@/lib/item-plan";
 import { decide, ME } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { meDay } from "@/lib/me";
+import { FACE } from "@/lib/emoji";   // (어67)-② 카드 얼굴은 그림 표 한 곳에서 온다(대전제-25)
 import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText, quizTag } from "@/lib/quiz-plan";
@@ -22,6 +23,7 @@ import { Fragment } from "react";
 import { orderCards, foldedOf } from "@/lib/pref-plan";
 import { asView, asId, keepAs } from "@/lib/asview";
 import AsBand from "../_shell/asband.js";
+import Mine from "./mine.js";   // (어72) 🧑 내 정보 — 빈 칸 채우기
 import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
@@ -52,6 +54,7 @@ export default async function Me({ searchParams }) {
   const fdd = foldedOf(d.prefs?.me);   // 접은 카드 — 사람마다(확정-⑮ · (어2))
   const fold = (id) => ({ fold: <Fold screen="me" id={id} folded={fdd.has(id)} />, folded: fdd.has(id) });   // 카드마다 ▾ 와 지금 접혀 있나 — 한 번에
   const cards = orderCards([
+    { id: 'mine', name: '내 정보', node: d.fill.length > 0 && <Card emo={FACE.mine} title="내 정보" id="mine" {...fold("mine")} pill={`채울 칸 ${d.fill.length}`}><Mine fields={d.fill} filled={d.filled} progress={d.progressEdit} /></Card> },   // (어72) 원장님이 켠 칸 · 빈 칸일 때만 · 틀은 여기가 씌운다(눌리는 조각에는 함수를 못 건넨다)
     { id: 'notice', name: '공지', node: can(ME.today) && d.notices.length > 0 && <NoticeCard Card={Card} {...fold("notice")} lines={d.notices} unread={d.unread} /> },
     { id: 'todo', name: '오늘 할 것', node: can(ME.today) && (<Card emo="📋" title="오늘 할 것" id="todo" {...fold("todo")} pill={d.sheet ? `학원 ${d.classSteps.length} · 숙제 ${d.sheet.home.length}` : null}>
         {!d.sheet && <p className="note" style={{ margin: "8px 0 0" }}>아직 안 열렸어요</p>}

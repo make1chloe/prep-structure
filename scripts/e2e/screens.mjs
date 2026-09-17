@@ -148,6 +148,17 @@ const nw = () => p.locator('[data-g=staff-row]:has-text("zz_새선생")');
 const act = async (loc) => { await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 15000 }).catch(() => {}), loc.click()]); await p.waitForLoadState("networkidle").catch(() => {}); };
 await p.goto(APP + "/settings");
 ok("설정에 👤 직원 계정 카드가 있다", (await p.locator("main [data-card=staff]").count()) === 1);
+console.log("■ (어72) 설정 · 🧑‍🎓 아이가 채울 칸 — 원장님이 켜야 아이 화면에 뜬다(원장님 2026-09-17 「모두 내가 설정페이지에서 켰을때 그리고 칸이 비어있을때만」)");
+ok("(어72) 칸 다섯이 뜨고 · **처음엔 하나도 안 켜져 있다**(기본 꺼짐)",
+  (await p.locator("[data-g=fill-chips] button").count()) === 5 && (await p.locator("[data-g=fill-chips] button[aria-pressed=true]").count()) === 0,
+  String(await p.locator("[data-g=fill-chips]").textContent()).replace(/\s+/g, " "));
+await act(p.locator("[data-g=fill-chips] button[data-k=birth]"));
+await act(p.locator("[data-g=fill-chips] button[data-k=phone]"));
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(어72) 생년월일 · 내 전화번호 둘을 켜면 **새로고침해도 켜진 채**(규칙 줄에 적힌다)",
+  (await p.locator("[data-g=fill-chips] button[data-k=birth]").getAttribute("aria-pressed")) === "true"
+  && (await p.locator("[data-g=fill-chips] button[data-k=phone]").getAttribute("aria-pressed")) === "true"
+  && (await p.locator("[data-g=fill-chips] button[aria-pressed=true]").count()) === 2);
 await p.goto(APP + "/settings/staff");
 ok("직원 목록이 뜬다(원장·선생님·조교)", (await p.locator("[data-g=staff-row]").count()) >= 1);
 ok("원장 줄에는 닫는 단추가 없다(스스로를 잠그면 아무도 못 연다)", (await p.locator('[data-g=staff-row][data-role=principal] [data-act=staff-open]').count()) === 0);
@@ -229,6 +240,24 @@ await Promise.all([p.waitForURL(/\/password\?e=/, { timeout: 15000 }).catch(() =
 { const n = await p.locator("main [role=alert]:visible").count(); ok("(어65) 짧은 비밀번호는 거절한다(규칙 password.min_len · 인증도 여섯 자 미만은 안 받는다)", n === 1, `url=${p.url()} alert ${n} · ${(await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 160)}`); }
 await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await Promise.all([p.waitForURL((u) => u.pathname === "/me"), p.click("form.card button[type=submit]")]);   // 아이는 바꾸자마자 제 화면(/me)
 ok("바꾸면 「나」 화면(/me · 아이는 제 화면 하나)", new URL(p.url()).pathname === "/me", p.url());
+console.log("■ (어72) 아이 07 · 🧑 내 정보 — 원장님이 켠 칸 · 빈 칸만");
+{ const mine = p.locator("main [data-card=mine]");
+  const saw = async (n = 200) => String(await mine.textContent({ timeout: 3000 }).catch(() => "(카드가 아예 없다)")).replace(/\s+/g, " ").slice(0, n);   // 카드가 없을 때 **까닭을 말하고** 실패한다 — 없는 카드의 글을 기다리다 걷기가 통째로 죽지 않게
+  ok("(어72) 켠 둘만 뜬다(생년월일 · 내 전화번호) · 안 켠 셋은 안 뜬다",
+    (await mine.count()) === 1 && (await mine.locator("[data-g=mine-field]").count()) === 2
+    && (await mine.locator("[data-g=mine-field][data-k=birth]").count()) === 1 && (await mine.locator("[data-g=mine-field][data-k=grade]").count()) === 0,
+    await saw(200));
+  await mine.locator("#mine-phone").fill("010");
+  await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 15000 }).catch(() => {}), mine.locator("[data-act=mine-save][data-k=phone]").click()]);
+  ok("(어72) 꼴이 틀리면 그 자리에서 막는다(조용히 안 저장한다)", String(await mine.locator("[data-g=mine-err]").textContent().catch(() => "")).includes("10~11"),
+    await saw(160));
+  await mine.locator("#mine-phone").fill("010-2222-3333");
+  await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 15000 }).catch(() => {}), mine.locator("[data-act=mine-save][data-k=phone]").click()]);
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어72) 넣으면 **그 칸이 사라지고**(이제 안 비었다) 아래 「이미 찬 것」으로 내려간다 · 생년월일 칸만 남는다",
+    (await mine.locator("[data-g=mine-field]").count()) === 1 && (await mine.locator("[data-g=mine-field][data-k=birth]").count()) === 1
+    && String(await mine.locator("[data-g=mine-filled]").textContent({ timeout: 3000 }).catch(() => "")).includes("01022223333"),
+    await saw(220)); }
 console.log("■ 아이 화면 07 · 아침: 등원 전에도 「오늘 낼 숙제」가 보인다 → 출석을 찍으면 판이 선다(원장 손과 같은 길)");
 const meMain = p.locator("main");
 ok("메뉴 없음(아이는 제 화면 하나) · 등원·하원 카드", (await p.locator("header.appbar nav.tabs a").count()) === 0 && (await meMain.locator("[data-card=arrival]").count()) === 1, `tabs ${await p.locator("header.appbar nav.tabs a").count()} · arrival ${await meMain.locator("[data-card=arrival]").count()}`);

@@ -35,7 +35,7 @@ export default function Board({ d }) {
   const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, st = b.student ?? null;
   const [q, setQ] = useState(""); const [show, setShow] = useState("active"); const [edit, setEdit] = useState(false); const [addOpen, setAddOpen] = useState(false); const [consultOpen, setConsultOpen] = useState(false);
-  const [f, setF] = useState(null); const [nf, setNf] = useState({ name: "", grade: "", schoolId: "", phone: "", parentPhone: "", joinedOn: today, memo: "" }); const [cf, setCf] = useState({ way: "전화", at: "", body: "" });
+  const [f, setF] = useState(null); const [nf, setNf] = useState({ name: "", grade: "", schoolId: "", phone: "", parentPhone: "", joinedOn: today, birth: "", memo: "" }); const [cf, setCf] = useState({ way: "전화", at: "", body: "" });
   const [cf2, setCf2] = useState({ idx: "", login: "" });
   const [assign, setAssign] = useState(null);   // (어41) 「교재 배정」 모달 · 14 에서 그 자리에서(루틴 11 로 안 보낸다)   /* (녀) 🃏 클래스카드 아이디 연결 칸 */
   const [acc, setAcc] = useState({ loginId: "", parentPhone: "" }); const [pn, setPn] = useState({}); /* pn: 학부모 계정 이름 칸(profile_id → 글 · (가)-⑩) */ const [cls, setCls] = useState({ classId: "", from: today }); const [fee, setFee] = useState({ amount: "", from: today }); const [sib, setSib] = useState(""); const [leave, setLeave] = useState(today);
@@ -47,7 +47,7 @@ export default function Board({ d }) {
   const attSum = attendSummary(st ? (b.attend ?? []) : []);   /* (뎌) 그 달 요약 — 목록 줄과 같은 한 벌 */
   const pe = b.progress_edit ?? {}, pend = st ? (b.progress_pending ?? []) : [], peFlags = st ? (b.progress_flags ?? []).map((x) => staffFlagLine({ ...x, student: st.name })) : [];   /* (허) 진도 체크 — 판단은 road-plan 한 벌 */
   const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
-  const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
+  const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", birth: st.birth ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
   return <><div className="stsplit"><div className="stlist">
     <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""}</b></div>
@@ -94,6 +94,7 @@ export default function Board({ d }) {
           <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><SchoolAdd onAdded={(id) => setForm("schoolId", id)} />
           <input type="text" inputMode="numeric" value={form.phone} placeholder="아이 전화" aria-label="아이 전화" onChange={(x) => setForm("phone", x.target.value)} style={{ maxWidth: 150 }} /><input type="text" inputMode="numeric" value={form.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setForm("parentPhone", x.target.value)} style={{ maxWidth: 150 }} />
           <input type="date" className="dt" value={form.joinedOn} aria-label="들어온 날" onChange={(x) => setForm("joinedOn", x.target.value)} style={{ width: "auto" }} />
+          <input type="date" className="dt" value={form.birth} aria-label="생년월일" data-g="birth" onChange={(x) => setForm("birth", x.target.value)} style={{ width: "auto" }} />
           <button className="btn pri sm" type="button" disabled={pending || !f} data-act="edit-save" onClick={() => run(() => setAct(st.id, form, st.updated_at ?? null), "고쳤습니다", () => setF(null))}>저장</button></div>
         <div className="wv" style={{ marginTop: 6 }}><textarea value={form.memo} placeholder="메모(등원 때 레벨 · 특이사항)" aria-label="메모" onChange={(x) => setForm("memo", x.target.value)} style={{ flex: "1 1 300px", minHeight: 48 }} /></div>
         <div className="left" style={{ marginTop: 8 }}>

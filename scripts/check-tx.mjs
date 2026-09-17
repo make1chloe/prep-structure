@@ -18,6 +18,7 @@ const KNOWN = {
   "lib/grid.js:addGrid": "표 + 본의 칸들 · 칸이 안 서면 빈 표로 보이고 + 칸으로 잇는다",
   "lib/notify.js:notify": "알림 발송 이력(받는 사람마다 한 줄)가 먼저 · 끈 기기 표시는 다음 발송이 다시 본다(끈 기기는 지우지 않는다)",
   "lib/plan.js:planSave": "결석 예정(makeup) 또는 지각 예정(late_plan) · 유형에 따라 한 표만 쓴다(둘 다 쓰는 길은 없다)",
+  "lib/mine.js:fillMine": "(어72) 아이가 제 빈 칸 **하나**를 채운다 — 클래스카드면 cc_student 에 넣기(insert), 그 밖이면 students 한 칸 고치기 · 한 번에 한 표만 쓴다(둘 다 쓰는 길은 없다 · planSave 와 같은 결)",
   "lib/routine.js:layRoutine": "판 항목 + 수업 일지×교재 줄 · 깔기는 멱등(laid_at · 다시 열면 이어 깔린다)",
   "lib/routine.js:applyTune": "조절 = 판 항목 + 수업 일지×교재 tuned_at · 같은 결(다시 눌러도 같다)",
   "lib/routine.js:addItem": "학습 항목 + 영역 루틴 줄 · 줄이 안 서면 루틴 11 에 항목만 보여 다시 잇는다",
