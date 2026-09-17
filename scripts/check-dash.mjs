@@ -45,6 +45,6 @@ ok("메모로만 부르기 · 3회 연속이면 부른다(글 「3회 연속 메
 // (어41) 대시보드 화면 · 이름(개수) 칩 → 모달 · 저장해도 그 자리(원장님 9/15 「학생이름 (진도체크필요한 갯수) 만 쫙 나열하면 … 누르면 팝업이든모달이든뜨고 저장 하면 페이지도 안 벗어나고」)
 { const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1"); const dg = strip(readFileSync("app/dashgaps.js", "utf8")), pg = strip(readFileSync("app/page.js", "utf8"));   // 폰-5 주석은 먼저 지운다
   ok("(어41) 빈 배정 · 메모로만 · 진도 체크 띠는 app/dashgaps.js 한 조각 · 이름(개수) 칩(gap-chip · call-chip) · 아이 모달(gap-modal) · 진도 체크는 _shell 모달(아이·오늘 손) · 교재 배정 모달", /data-g=\{g\}/.test(dg) && /"gap-chip"/.test(dg) && /"call-chip"/.test(dg) && /data-g="gap-modal"/.test(dg) && /from "\.\/_shell\/progressmodal\.js"/.test(dg) && /progress-actions\.js/.test(dg) && /from "\.\/_shell\/assignmodal\.js"/.test(dg) && /<DashGaps /.test(pg));
-  ok("(어41) 대시보드에 일하러 보내는 「진도 체크 ↗」 0 · 보강일은 그 자리(ClassMakeup) · 줄마다 문장 대신 태그", !/진도 체크 ↗/.test(pg) && !/진도 체크 ↗/.test(dg) && /<ClassMakeup /.test(pg) && !/\.gapr/.test(pg)); }
+  ok("(어41) 대시보드에 일하러 보내는 「진도 체크 👉」 0 · 보강일은 그 자리(ClassMakeup) · 줄마다 문장 대신 태그", !/진도 체크 👉/.test(pg) && !/진도 체크 👉/.test(dg) && /<ClassMakeup /.test(pg) && !/\.gapr/.test(pg)); }
 console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

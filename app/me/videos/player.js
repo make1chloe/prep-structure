@@ -28,7 +28,7 @@ export default function Player({ row, next = null }) {
       <div className="h"><b>{row.video?.title}</b><span className="spacer" /><span className={"pill" + (pct != null && pct >= 95 ? " hw" : " warn")} data-g="pct">{pct != null ? `${pct}% 봄` : secs ? `${mmss(secs)} 봄` : "아직"}</span></div>
       <div data-g="player" data-state={fail ? "fail" : ready ? "ready" : "loading"} style={{ marginTop: 8, aspectRatio: "16 / 9", background: "var(--sunk)", borderRadius: "var(--r-2, 8px)", overflow: "hidden", position: "relative" }}>
         {!fail && <div ref={el} style={{ width: "100%", height: "100%" }} />}
-        {fail && <div className="lf warn" data-g="player-fail" style={{ margin: 8 }}><span className="ln">!</span><div><b>앱 안에서 못 틀어요</b><small>유튜브에서 봐야 해요</small></div><a className="btn sm pri" href={row.video?.url} target="_blank" rel="noreferrer">유튜브 ↗</a></div>}
+        {fail && <div className="lf warn" data-g="player-fail" style={{ margin: 8 }}><span className="ln">!</span><div><b>앱 안에서 못 틀어요</b><small>유튜브에서 봐야 해요</small></div><a className="btn sm pri" href={row.video?.url} target="_blank" rel="noreferrer">유튜브 👉</a></div>}
       </div>
       <div className="vbar" data-g="vbar" style={{ marginTop: 10 }}>{bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{bar.head != null && <div className="vhead" style={{ left: `${bar.head}%` }} />}</div>
       <div className="vinfo" style={{ marginTop: 6 }}><span data-g="pstate">{fail ? "밖에서 봐요" : ready ? "▶︎ 재생 준비" : "불러오는 중…"}</span><span className="spacer" /><span className="mono" data-g="clock">{mmss(pos)} / {dur ? mmss(dur) : "?:??"}</span></div>

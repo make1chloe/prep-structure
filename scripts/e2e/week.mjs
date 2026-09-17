@@ -94,7 +94,7 @@ await 카드.locator(`input[aria-label='${아이} 제안']`).fill("zz_리허설 
 await 누름(p, 카드.locator("[data-act=suggest-save]"), "18", "제안");
 await 찍기(p, "상담-레벨까지");
 // ── 등록 전환 — 일곱
-await 누름(p, 카드.locator("[data-act=convert-open]"), "18", "등록 전환 ↗");
+await 누름(p, 카드.locator("[data-act=convert-open]"), "18", "등록 전환 👉");
 const 모달 = p.locator("[data-g=convert]");
 { const opts = await 모달.locator("[data-g=conv-class] option").allTextContents();
   const 반 = opts.find((o) => o.includes("매일")) ?? opts[1];
@@ -238,9 +238,9 @@ for (let i = 0; i < 7; i++) {
   } else 적기("빈화면", `01 ${i + 1}일째`, "📝 다음 시간 시험 카드가 없습니다");
   // 진도 체크 한 번 (셋째 날)
   if (i === 2) { const pg = row.locator("[data-act=progress]");
-    if (await pg.count()) { await 누름(p, pg, `01 ${i + 1}일째`, "진도 체크 ↗"); await p.waitForTimeout(500); await 찍기(p, `${i + 1}일-진도체크`);
+    if (await pg.count()) { await 누름(p, pg, `01 ${i + 1}일째`, "진도 체크 👉"); await p.waitForTimeout(500); await 찍기(p, `${i + 1}일-진도체크`);
       const 닫 = p.locator(".mdl button", { hasText: "닫기" }).first(); if (await 닫.count()) await 닫.click().catch(() => {}); }
-    else 적기("막힘", `01 ${i + 1}일째`, "「진도 체크 ↗」 단추가 없습니다"); }
+    else 적기("막힘", `01 ${i + 1}일째`, "「진도 체크 👉」 단추가 없습니다"); }
   // 부모님께 글
   const ta = row.locator("textarea[name=comment]");
   if (await ta.count()) await ta.fill(`${유형} ${i + 1}일째 · 오늘 한 것과 다음 시간에 할 것을 적었습니다.`);

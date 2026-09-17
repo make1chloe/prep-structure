@@ -17,7 +17,7 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「누�
   const b = d.board, today = d.date, round = b.sb?.round ?? 1;
   const [open, setOpen] = useState({}); const [flag, setFlag] = useState(null); const [ff, setFf] = useState({ unitId: "", kind: "not_done", said: "" });
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  if (!b.book) return <div className="task" data-card="road"><div className="h"><b><span className="cemo">🛤️</span>내 교재 로드맵</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p><Link prefetch={false} className="btn sm" href="/me">나 ↗</Link></div>;
+  if (!b.book) return <div className="task" data-card="road"><div className="h"><b><span className="cemo">🛤️</span>내 교재 로드맵</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p><Link prefetch={false} className="btn sm" href="/me">나 👉</Link></div>;
   const road = roadOf(b), head = headTags(b, road), books = bookTags(b.books ?? [], today), flags = flagLines(b.flags ?? []), band = editBand(b.edit, b.student);
   const Sub = ({ s }) => <label className={"rsub" + (s.own ? " own" : "")} data-g="sub" data-unit={s.id} data-status={s.status} data-pending={s.pending ? "1" : "0"}>
     <input type="checkbox" className="bigck" data-g="big-ck" checked={s.status === "done"} disabled={pending || !s.can} aria-label={s.short} onChange={(e) => { const on = e.target.checked; run(() => markUnit(s.id, round, on ? "done" : "none"), on ? `${MARK.done.kid} ✓ · 쌤이 확인하면 돼요` : "아직으로 되돌렸어요"); }} />

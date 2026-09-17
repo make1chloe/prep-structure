@@ -29,7 +29,7 @@ export default function Fee({ d }) {
       <Link prefetch={false} className="btn sm" href={`/ops/students?v=fee&m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</Link><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><Link prefetch={false} className="btn sm" href={`/ops/students?v=fee&m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</Link>
       <span className={"pill" + (t.unpaidCount ? " warn" : "")} data-g="unpaid-count">안 받음 {t.unpaidCount}</span>
       {t.noneCount > 0 && <span className="pill" data-g="none-count">금액 없음 {t.noneCount}</span>}
-      {prevUnpaidText(d.prev_unpaid) && <Link prefetch={false} className="pill warn" data-g="prev-unpaid" href={`/ops/students?v=fee&m=${nextYm(d.ym, -1)}`} title={(d.prev_unpaid?.names ?? []).join(", ")}>{prevUnpaidText(d.prev_unpaid)} ↗</Link>}
+      {prevUnpaidText(d.prev_unpaid) && <Link prefetch={false} className="pill warn" data-g="prev-unpaid" href={`/ops/students?v=fee&m=${nextYm(d.ym, -1)}`} title={(d.prev_unpaid?.names ?? []).join(", ")}>{prevUnpaidText(d.prev_unpaid)} 👉</Link>}
       <button type="button" className="btn sm" data-act="grade-open" aria-pressed={gradeOpen} onClick={() => setGradeOpen(!gradeOpen)}>학년별 기준</button>
       <span className="spacer" />
       <form action={(fd) => run(() => importAct(d.ym, fd), (r) => `올렸습니다. ${r.put}줄${r.skipped ? ` · 건너뜀 ${r.skipped}` : ""}${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">

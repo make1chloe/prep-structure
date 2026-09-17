@@ -186,7 +186,7 @@ export function laidText(sheet, laid) {
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
 function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [], no = 2, onPrep, lateNode = null, memoNode = null, folds = {} }) {
   const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
-  const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
+  const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 👉」 — 02 조절 모달을 그 자리에서
   const [giveSlot, setGiveSlot] = useState(null);
   const [assign, setAssign] = useState(false);   // (어41) 배정한 교재가 없으면 「+ 교재 배정」 → 모달 · 배정하면 오늘 수업 일지에 바로 깔린다(원장님 9/15 「배정이 없으면 … 뭘 설정하라고 하든가」)   // (어13) 숙제 0 이면 「+ 숙제 주기」 → 모달(페이지는 안 늘어난다)
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
@@ -533,7 +533,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
   useEffect(() => { setReason(l?.reason ?? ""); }, [l?.reason]);   // 처분·재시험이 사유를 적으면(SQL) 화면이 따라온다
   const chips = reasonChips({ checks: sheet.check, warn, reason });
   const [left, setLeft] = useState(stay?.left_at ? hhmm(stay.left_at) : "");
-  const [tuneBook, setTuneBook] = useState(null);   // 반복 띠의 「조절 ↗」 · 02 조절 모달을 그 자리에서
+  const [tuneBook, setTuneBook] = useState(null);   // 반복 띠의 「조절 👉」 · 02 조절 모달을 그 자리에서
   const [disp, setDisp] = useState(warn?.today_disposal ?? null);   // (어49) 처분 세그 · 누르면 먼저 눌린다
   useEffect(() => { setDisp(warn?.today_disposal ?? null); }, [warn?.today_disposal]);
   const pickDisp = (k) => { if (closed) return; const prev = disp; setDisp(k); start(async () => { if (!fail(await reflectAs(sheet.id, k))) setDisp(prev); }); };
@@ -827,7 +827,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={closed || !selected.length} onClick={apply}>적용</button><button type="button" className="btn gho" onClick={onClose}>닫기</button>
-          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 · 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">루틴 11 ↗</Link></span>}</div>
+          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 · 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">루틴 11 👉</Link></span>}</div>
       </div>
     </div>
   );

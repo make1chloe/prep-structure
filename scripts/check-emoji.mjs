@@ -73,12 +73,16 @@ console.log("■ (어67)-② 얼굴 · 탭마다 하나 · 한 그림이 한 뜻
   const ban2 = outside("📝", ["app/page.js", "app/schedule/panel.js", "app/today/row.js", "lib/cal-plan.js", "lib/schedule-plan.js"]);
   ok("📝 은 시험 기간 하나만 맡는다 · 영어 시험일 🅰️ · 단원평가 ✍️ · 다음 시간 시험 🔤 · 직접 출제 🖊️", ban2.length === 0, ban2.join(" · ")); }
 
+{ const OLD = String.fromCodePoint(0x2197);   // 옛 우상향 화살표 — 이 파일이 그 글자를 품으면 제가 저를 잡으므로 코드포인트로 적는다
+  const stray = [...files("app"), ...files("lib"), ...files("scripts")].filter((p) => readFileSync(p, "utf8").includes(OLD));
+  ok(`(어67)-③ 「다른 화면으로」는 ACT.goto 👉 하나 · 옛 우상향 화살표(${OLD}) 0(원장님 2026-09-16 「우상향 화살표 그거좀 아이콘 자체를 바꿔 개못생김」 → 9/17 「다른이모지!!!!」)`, ACT.goto === "👉" && stray.length === 0, stray.join(" · ")); }
+
 console.log("■ 래칫 · 손의 그림은 ACT 표에서 온다(늘면 실패 · 줄이는 것이 답)");
 { const act = new Set(Object.values(ACT).map((e) => e.replace(/️/g, "")));
   const out = [];
   for (const p of files("app")) for (const b of buttons(readFileSync(p, "utf8"))) for (const c of pics(b)) if (!act.has(c)) out.push([p, c]);
   const kinds = [...new Set(out.map(([, c]) => c))];
-  const MAX = 60;   // (어67) 처음 잰 값 60자리(26종). ACT 로 옮길 때마다 이 숫자를 내린다 · 올리지 않는다
+  const MAX = 59;   // (어67) 처음 60자리(26종) → (어67)-③ 「다른 화면으로」를 ACT.goto 👉 로 옮겨 59. ACT 로 옮길 때마다 이 숫자를 내린다 · 올리지 않는다
   ok(`ACT 밖 단추 그림 ${out.length}자리 · ${kinds.length}종 ≤ ${MAX}`, out.length <= MAX, `${kinds.join(" ")} · 늘었으면 lib/emoji.js ACT 에 넣고 그 이름을 쓴다`); }
 { const noC = (x) => x.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " ")).replace(/(^|[^:\\])\/\/.*$/gm, (m, p1) => p1 + m.slice(p1.length).replace(/./g, " "));
   let face = 0;

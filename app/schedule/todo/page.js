@@ -12,7 +12,7 @@ export default async function Todo({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🗂️</span>업무는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);
   let d;
-  try { const [sp, date] = await Promise.all([searchParams, today(sb)]); d = { date, only: String(sp?.m ?? "").split(",").map((x) => x.trim()).filter(Boolean), board: await todoBoard(sb, date) }; }   // 04 「단계 ↗」가 넘긴 자료 id(?m=) — 그 자료만 걸러 연다((가)-④) · 주소 인자는 오늘과 같은 파도(층을 안 늘린다 — check-fast 3단)
+  try { const [sp, date] = await Promise.all([searchParams, today(sb)]); d = { date, only: String(sp?.m ?? "").split(",").map((x) => x.trim()).filter(Boolean), board: await todoBoard(sb, date) }; }   // 04 「단계 👉」가 넘긴 자료 id(?m=) — 그 자료만 걸러 연다((가)-④) · 주소 인자는 오늘과 같은 파도(층을 안 늘린다 — check-fast 3단)
   catch (e) { { console.error("[화면] 업무 못 엶:", e); return frame(<Oops what="업무" e={e} />); } }
   return frame(<Board d={d} />);
 }

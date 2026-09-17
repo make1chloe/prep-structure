@@ -32,7 +32,7 @@ export default function Board({ d }) {
       {c.hidden > 0 && <button className="btn sm" type="button" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>🙈 숨긴 시험 {c.hidden}</button>}
       <span className="spacer" />
       <button className="btn sm pri" type="button" data-act="exam-add" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 시험</button>
-      <Sibs here="/schedule/exams" /><Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 ↗</Link>
+      <Sibs here="/schedule/exams" /><Link prefetch={false} className="btn sm" href="/schedule">📅 일정 👉</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 👉</Link>
     </div>
     {adding && <ExamForm schools={b.schools ?? []} date={today} pending={pending} run={run} onDone={() => setAdding(false)} />}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
@@ -70,7 +70,7 @@ function ExamCard({ e, b, today, pending, run, stName, pk }) {
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
     <div className="exh"><PickBox pick={pk} id={e.id} label={`${examHead(e)} 고르기`} /><span className="ai">🗓️</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어 시험일 없음</span>}<ChangedTag e={e} pending={pending} run={run} />
-      <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</Link>
+      <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 👉</Link>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
       <span className="spacer" /><span className="pill">{SOURCE_TEXT[e.source] ?? "손으로 넣음"}</span>
       <Link prefetch={false} className="btn sm" href={`/scores?e=${e.id}`} data-act="scores">📈 성적</Link>

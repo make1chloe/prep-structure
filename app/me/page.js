@@ -75,14 +75,14 @@ export default async function Me({ searchParams }) {
     { id: 'material', name: '받을 교재·학습지', node: can(ME.books) && <MaterialCard gives={d.gives} today={date} {...fold("material")} /> },
     { id: 'videos', name: '영상', node: can(ME.books) && d.videos.length > 0 && <div className="task" data-card="videos" data-folded={fdd.has("videos") ? "1" : "0"} style={{ borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span>{fold("videos").fold}</div>
       {d.videos.slice(0, 3).map((v) => <Link prefetch={false} className="li" key={v.id} href={K(`/me/videos?v=${v.video_id}`)} data-g="video-line" style={{ textDecoration: "none", color: "inherit" }}><div><b>{v.video?.title}</b><small>{[v.due || null, v.status.key === "part" ? `이어 보기 ▶` : v.status.key === "done" ? "다시 보기 ▶" : "보기 ▶"].filter(Boolean).join(" · ")}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></Link>)}
-      <Link prefetch={false} className="btn sm" href={K("/me/videos")} data-g="videos-all" style={{ marginTop: 6 }}>모두 {d.videos.length}개 ↗</Link></div> },
+      <Link prefetch={false} className="btn sm" href={K("/me/videos")} data-g="videos-all" style={{ marginTop: 6 }}>모두 {d.videos.length}개 👉</Link></div> },
     { id: 'books', name: '내 교재', node: can(ME.books) && <Card emo="🗺" title="내 교재" id="books" {...fold("books")} pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
-      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "보류"}</span>}</Link>)}
+      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 👉</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "보류"}</span>}</Link>)}
     </Card> },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },
-    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">달력 ↗</span></div></Link>) },
+    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">달력 👉</span></div></Link>) },
     { id: 'scores', name: '성적', node: <ScoreCard scores={d.scores} entry={d.entry} {...fold("scores")} /> },
     { id: 'files', name: '자료', node: can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} {...fold("files")} /> },
     { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏛️" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
@@ -101,7 +101,7 @@ export default async function Me({ searchParams }) {
     {can(ME.today) && <AskCard asks={d.asks} send={ask} />}
   </>);
   // 👁 보는 중에는 **아무것도 눌리지 않는다** — fieldset disabled 가 안의 단추·칸을 통째로 잠근다(브라우저가 한다 · 손도 역할을 봐서 한 번 더 막는다).
-  //    링크는 안 잠긴다 — 「내 교재 ↗」처럼 그 아이의 다음 화면으로 계속 갈 수 있어야 한다(주소의 as= 는 keepAs 가 잇는다).
+  //    링크는 안 잠긴다 — 「내 교재 👉」처럼 그 아이의 다음 화면으로 계속 갈 수 있어야 한다(주소의 as= 는 keepAs 가 잇는다).
   return frame(seeing
     ? <><AsBand name={d.student.name} kind="me" /><fieldset disabled style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-g="as-locked">{body}</fieldset></>
     : body);

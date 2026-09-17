@@ -1,6 +1,6 @@
 "use client";
 /** 📄 내신 자료 — 01 의 업무 하나((어21) · 원장님 9/14 「수업 중 01 을 안 떠납니다 — 이게 내가 원하는거야」). 교재가 멈춘 아이만 선다 — 멈췄나는 routine-plan stopOn(교재 머리와 같은 판단).
- *  보는 것은 자리에(시험 머리 · 학교 시험 범위 · 이 아이 자료 줄 · 안 준 자료) · 손질(범위 고르기)만 펼친다. 손은 04·06b 와 같은 것(handAct · scoredAct · giveAct · scopeAct) — 새 손 0 · 새 자료 만들기는 04 로(「04 전체 ↗」) */
+ *  보는 것은 자리에(시험 머리 · 학교 시험 범위 · 이 아이 자료 줄 · 안 준 자료) · 손질(범위 고르기)만 펼친다. 손은 04·06b 와 같은 것(handAct · scoredAct · giveAct · scopeAct) — 새 손 0 · 새 자료 만들기는 04 로(「04 전체 👉」) */
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ export default function PrepCard({ student, prep = [], date, closed = false }) {
   const books = (student.books ?? []).map((b) => ({ id: b.book_id, name: b.books?.name ?? b.name, area: b.books?.area ?? b.area }));
   return (<div className="card" data-card="prep">
     <div className="ctitle"><span className="cemo">📄</span>내신 자료<span className="auto">{list.length ? `시험 ${list.length}` : "멈춘 교재 없음"}</span><span className="spacer" />
-      <Link prefetch={false} className="btn sm" href={list.length ? `/schedule/exams/prep?e=${list[0].exam.id}` : "/schedule/exams/prep"} data-g="to-prep">📄 04 전체 ↗</Link></div>
+      <Link prefetch={false} className="btn sm" href={list.length ? `/schedule/exams/prep?e=${list[0].exam.id}` : "/schedule/exams/prep"} data-g="to-prep">📄 04 전체 👉</Link></div>
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="prep-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}
     {list.map(({ exam: e, stopped, rows, notGiven, scopes, dday }) => <div key={e.id} data-g="prep-exam" data-exam={e.id} style={{ marginBottom: 8 }}>

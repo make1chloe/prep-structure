@@ -37,7 +37,7 @@ export default function Board({ d }) {
       {e && <form action={(fd) => run(() => importAct(e.id, fd), (r) => `올렸습니다. ${r.put}줄(바로 확인됨)${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
         <FilePick name="file" accept=".xlsx,.xls,.csv" ariaLabel="성적 엑셀" label="📄 엑셀 고르기" /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 한꺼번에 올리기</button></form>}
       {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export">⬇ 성적 양식</a>}
-      <Link prefetch={false} className="btn sm" href="/schedule/exams">🗓️ 학교 시험 ↗</Link>
+      <Link prefetch={false} className="btn sm" href="/schedule/exams">🗓️ 학교 시험 👉</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
