@@ -34,7 +34,7 @@ console.log("■ 아이 07 · 저절로 접기 · 숙제 타이머 · 이름");
   ok("등원을 찍으면 「숙제」가 · 하원을 찍으면 「등원학습」이 접힌다", /d\.arrival\?\.left \? \["todo"\]/.test(me) && /d\.arrival\?\.arrived \? \["due"\]/.test(me));
   ok("사람마다 접어 둔 것에 **얹기만** 한다(덮지 않는다 · 누르면 그 자리에서 펴진다)", /fdd\.has\(id\) \|\| auto\.has\(id\)/.test(me));
   ok("카드 이름 — 등원학습 · 숙제(옛 이름 0)", /title="등원학습"/.test(me) && /title="숙제"/.test(me) && !/오늘 할 것|오늘 낼 숙제/.test(me));
-  ok("숙제에도 타이머 — 집에서 줄과 숙제 카드의 아직인 줄(검사 끝난 줄은 결과만)", (me.match(/<TimerButton/g) ?? []).length === 3 && /it\.status !== "none" \? <span/.test(me)); }
+  ok("숙제에도 타이머 — 한 줄이 내는 손은 DoRow 한 벌(학원·집에서·낼 숙제 세 자리 · (어77)) · 학원 줄은 「■ 끝」이 곧 완료 · 검사 끝난 줄은 결과만", (me.match(/<DoRow/g) ?? []).length === 3 && /hands="timer"/.test(me) && /it\.status !== "none" \? <span/.test(me)); }
 console.log("■ 아이 08 · 교재 제목 밑은 회독수와 다른 교재만 · 여기까지 · 골라서 한 번에");
 { const bd = T("app/me/book/board.js");
   ok("머리 알약은 회독 하나뿐(진행 방식·다 한 단원·예상 끝날 날 0)", /data-g="head-tags"><span className="tag type">\{head\.round\}<\/span><\/div>/.test(bd) && !/head\.basis|head\.finished|head\.end/.test(bd));

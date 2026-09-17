@@ -1,15 +1,16 @@
 "use client";
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { arrive, said, startItem, endItem, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct, drop as dropAct } from "./actions.js";
 import Upload from "../_shell/upload.js";
 import Rec from "../_shell/rec.js";          // (어76) 🎙 음성으로 내기
 import Play from "../_shell/play.js";        // (어76) 🎧 낸 음성을 듣는다(막대를 끈다)
 import { icon } from "../_shell/icon.js";
-import { ACT } from "@/lib/emoji";
+import { ACT, FACE } from "@/lib/emoji";
 import { isAudio } from "@/lib/files-plan";
-import { srcId, submitted, rejectOf, rejectText } from "@/lib/item-plan";
+import { srcId, submitted, rejectOf, rejectText, nextStep } from "@/lib/item-plan";
+import { CC_URL } from "@/lib/cc-plan";   // (어77) 🃏 클래스카드가 사는 곳 — 확장과 같은 곳(check-cc 가 견준다)
 import Photo from "../_shell/photo.js";
 import { myUploads } from "@/lib/files-plan";
 import { md } from "@/lib/dash-plan";
@@ -37,30 +38,52 @@ export function ArrivalCard({ arrival, choice, off }) {
     </div>
   );
 }
-/** 「다 했어요」 — 학원 줄은 차례대로(지금 할 것만 누른다), 숙제 줄은 아무 때나. 무를 수 있다 */
-export function SaidButton({ item, state = "now" }) {   // 마감 뒤에도 누른다 — 숙제는 마감 뒤 저녁에 한다(DB 문은 내 판이면 열려 있다)
+/** 「완료」 — 학원 줄은 차례대로(지금 할 것만 누른다), 숙제 줄은 아무 때나. 무를 수 있다.
+ *  (어77) 원장님 2026-09-17 「다했어요를 완료로 수정」 — 원장 검사의 「완료」와 같은 말이다(한 가지를 두 이름으로 부르지 않는다) */
+function SaidButton({ item }) {   // 마감 뒤에도 누른다 — 숙제는 마감 뒤 저녁에 한다(DB 문은 내 판이면 열려 있다)
   const [err, setErr] = useState(""); const [pending, start] = useTransition();
   const on = Boolean(item.said_done_at);
   const flip = () => start(async () => { setErr(""); const r = await said(item.id, !on); if (!r.ok) setErr(r.msg); });
-  if (state === "locked") return <span className="tag" data-g="locked">앞엣것부터</span>;
   return (<>
-    <button type="button" className={"btn sm" + (on ? "" : " pri")} data-act="said" aria-pressed={on} disabled={pending} onClick={flip}>{on ? "했어요 ✓ · 취소" : "다 했어요"}</button>
+    <button type="button" className={"btn sm" + (on ? "" : " pri")} data-act="said" aria-pressed={on} disabled={pending} onClick={flip}>{on ? "완료 ✓ · 취소" : "완료"}</button>
     {err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}
   </>);
+}
+/** (어77) 🔒 앞엣것부터 — 원장님 2026-09-17 「오늘학습 앞엣것부터를 자물쇠 이모지로 바꿔주고 3초누르면 자물쇠여도 시작가능하게 해줘」.
+ *  잠금은 **화면의 안내**다(서버는 원래 안 막는다 · lib/arrival-plan 이 셈만 한다) — 그러니 아이가 3초 길게 누르면 열어 준다.
+ *  3초를 누르는 동안 밑줄이 차오른다(무엇이 일어나는지 보이게 · 대전제-0) · 손을 떼면 처음으로 돌아간다 */
+function LockHold({ ms = 3000, onFree = null }) {
+  const [held, setHeld] = useState(0); const tick = useRef(null), from = useRef(0);
+  const stop = () => { if (tick.current) { clearInterval(tick.current); tick.current = null; } setHeld(0); };
+  useEffect(() => () => { if (tick.current) clearInterval(tick.current); }, []);
+  const down = () => { if (tick.current || !onFree) return; from.current = Date.now();
+    tick.current = setInterval(() => { const p = Math.min(1, (Date.now() - from.current) / ms); setHeld(p); if (p >= 1) { stop(); onFree(); } }, 50); };
+  return <button type="button" className="btn sm gho lockb" data-g="locked" data-act="lock-hold" aria-pressed={held > 0}
+    onPointerDown={down} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
+    onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") down(); }} onKeyUp={stop} onBlur={stop}
+    {...icon("앞엣것부터", "앞엣것부터 · 3초 길게 누르면 열려요")} style={{ "--hold": `${Math.round(held * 100)}%` }}>{ACT.lock}</button>;
+}
+/** (어77) 한 줄이 내는 손 한 벌 — 잠금·타이머·완료를 **한 곳**에서 낸다.
+ *  전에는 SaidButton 과 TimerButton 이 저마다 잠금을 그려 같은 말이 두 번 나거나, 하나만 열려 어긋났다(원칙-1).
+ *  hands: "timer" 학원 줄(끝이 곧 완료) · "both" 숙제 줄(타이머 + 완료) · "said" 완료만 */
+export function DoRow({ item, state = "now", hands = "both" }) {
+  const [freed, setFreed] = useState(false);
+  if (state === "locked" && !freed) return <LockHold onFree={() => setFreed(true)} />;
+  if (hands === "timer") return <TimerButton item={item} />;   // 학원 줄 — 「■ 끝」이 곧 완료다(단추를 둘로 안 나눈다)
+  return (<>{hands === "both" && <TimerButton item={item} said={false} />}<SaidButton item={item} /></>);
 }
 
 /** (어35) 학원 줄의 타이머(원장님 9/15 「학생페이지 타이머 짓는다」) · 차례대로(지금 할 것만) · 「▶ 시작」 → 「▶ m:ss · ■ 끝」 → 「⏱ N분 · 했어요 ✓ · 취소」 · 끝 = 다 했어요(said_done_at) · 취소하면 다시 하는 중(타이머는 이어진다) · 시각은 DB 문지기가 서버 시계로(0167) · 마감 뒤에도 누른다.
  *  처음 그릴 땐 시작 시각으로 세고(서버·브라우저가 같은 글) 붙은 뒤에 1초마다 다시 센다 · 글은 lib/arrival-plan timerText 한 벌(01 도 같은 글) */
-export function TimerButton({ item, state = "now", said: withSaid = true }) {   // (어75) withSaid=false 면 ▶/■ 만 — 「다 했어요」는 곁에 따로 선다(타이머는 도움이지 문이 아니다)
+function TimerButton({ item, said: withSaid = true }) {   // (어75) withSaid=false 면 ▶/■ 만 — 「다 했어요」는 곁에 따로 선다(타이머는 도움이지 문이 아니다)
   const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [now, setNow] = useState(null);
   const done = Boolean(item.said_done_at), running = Boolean(item.started_at) && !done;
   useEffect(() => { if (!running) return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [running]);
   const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r.ok) setErr(r.msg); });
-  if (state === "locked") return withSaid ? <span className="tag" data-g="locked">앞엣것부터</span> : null;   // (어75) 곁에 「다 했어요」가 서는 자리에서는 잠금 표시를 그쪽 하나만 낸다(둘이 겹치면 같은 말이 두 번)
   const base = item.started_at ? new Date(item.started_at).getTime() : 0;
   return (<>
     {item.started_at && <span className={"tag" + (done ? " on" : " act")} data-g="timer">{timerText(item, now ?? base)}</span>}
-    {done && withSaid ? <button type="button" className="btn sm" data-act="said" aria-pressed={true} disabled={pending} onClick={() => run(() => said(item.id, false))}>했어요 ✓ · 취소</button>
+    {done && withSaid ? <button type="button" className="btn sm" data-act="said" aria-pressed={true} disabled={pending} onClick={() => run(() => said(item.id, false))}>완료 ✓ · 취소</button>
       : running ? <button type="button" className="btn sm pri" data-act="end" disabled={pending} onClick={() => run(() => endItem(item.id))}>■ 끝</button>
       : done ? null
       : <button type="button" className={"btn sm" + (withSaid ? " pri" : "")} data-act="start" disabled={pending} onClick={() => run(() => startItem(item.id))}>▶ 시작</button>}
@@ -140,15 +163,20 @@ export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [], fold =
     </div>
   );
 }
-/** (어76) 내가 낸 것 — 원장님 2026-09-17 「알림이 떠야해. 그다음 기존사진 확인가능하게 해서 본인이 보고 그다음 삭제&다시 제출하게」.
+/** (어76)(어77) 완료 뒤 다음 걸음 · 내가 낸 것 — 원장님 2026-09-17 「알림이 떠야해. 그다음 기존사진 확인가능하게 해서 본인이 보고 그다음 삭제&다시 제출하게」.
  *  세 걸음을 한 줄에 둔다: **반려 글** → **내가 낸 것**(누르면 크게 · 음성은 막대를 끈다) → **지우기 · 다시 내기**.
- *  올리는 길은 원장·학부모와 같은 한 곳(Upload) · 녹음만 제 부품(Rec). 낸 것은 원래 숙제 줄에 붙는다(lib/item-plan srcId) */
+ *  올리는 길은 원장·학부모와 같은 한 곳(Upload) · 녹음만 제 부품(Rec). 낸 것은 원래 숙제 줄에 붙는다(lib/item-plan srcId).
+ *  (어77) 원장님 2026-09-17 「다했어요 누르면 클래스카드 숙제는 클래스카드 라고 버튼 누르고 넘어가규 교재숙제는 사진으로 제출」 —
+ *  **완료를 누르기 전에는 이 줄이 통째로 안 뜬다**(대전제-15 · 할 일이 안 끝났는데 낼 것부터 묻지 않는다).
+ *  다만 **반려받았거나 이미 낸 것이 있으면** 완료와 상관없이 뜬다 — 그것이 「지우고 다시 내는」 길이라서다((어76) 세 걸음). */
 export function SubmitLine({ item, rules = {} }) {
   const router = useRouter(); const [err, setErr] = useState(""); const [pending, start] = useTransition();
   const [gone, setGone] = useState([]);
   const id = srcId(item), rj = rejectOf(item), mine = submitted(item).filter((f) => !gone.includes(f.id));
   const kill = (fid) => start(async () => { setErr(""); setGone((g) => [...g, fid]); const r = await dropAct(fid); if (!r.ok) { setErr(r.msg); setGone((g) => g.filter((x) => x !== fid)); return; } router.refresh(); });
-  if (!id) return null;
+  const step = nextStep(item);                                   // (어77) 완료를 눌러야 다음 걸음이 뜬다 · 클래스카드 숙제인가 교재 숙제인가는 lib/item-plan 한 곳
+  const send = step === "photo" || Boolean(rj) || mine.length > 0;   // 반려받았거나 이미 낸 것이 있으면 완료 전에도 낼 수 있다(다시 내는 길)
+  if (!id || (!send && step !== "cc")) return null;
   return (
     <div data-g="submit" data-item={id} style={{ marginTop: 4 }}>
       {rj && <p className="note" data-g="rejected" style={{ margin: "0 0 4px", color: "var(--miss)" }}>{ACT.reject} {rejectText(rj)} · 지우고 다시 내 줘요</p>}
@@ -157,8 +185,9 @@ export function SubmitLine({ item, rules = {} }) {
           {isAudio(f.mime) ? <Play id={f.id} name={f.orig_name} size={180} /> : <Photo id={f.id} name={f.orig_name} size={44} />}
           <button type="button" className="btn sm gho" data-act="drop" disabled={pending} {...icon(`${f.orig_name} 지우기`)} onClick={() => kill(f.id)}>✕</button></span>)}
       </div>}
-      <Upload rules={rules} itemId={id} label="사진으로 내기" hint="" compact onDone={() => router.refresh()} />
-      <Rec rules={rules} itemId={id} onDone={() => router.refresh()} />
+      {step === "cc" && <a className="btn sm pri" data-g="go-cc" href={CC_URL} target="_blank" rel="noreferrer">{FACE.cc} 클래스카드</a>}
+      {send && <><Upload rules={rules} itemId={id} label="사진으로 내기" hint="" compact onDone={() => router.refresh()} />
+      <Rec rules={rules} itemId={id} onDone={() => router.refresh()} /></>}
       {err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}
     </div>
   );

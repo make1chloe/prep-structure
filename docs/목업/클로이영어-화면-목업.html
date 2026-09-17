@@ -504,6 +504,16 @@ td.sch{font-weight:700;white-space:nowrap}
    뒤에 오는 .btn.sm{font-size:var(--fs-2)} 보다 세야 글자가 실제로 커지기 때문이다(9/17 걷기가 12px 로 잡았다) */
 button.btn.fold{padding:2px 10px;min-width:40px;line-height:1;font-size:var(--fs-7);color:var(--ink)}
 button.btn.fold[aria-pressed="true"]{color:var(--navy)}
+/* (어77) 🔒 앞엣것부터 — 원장님 2026-09-17 「3초누르면 자물쇠여도 시작가능하게」. 누르는 동안 **밑에서 차오르는 띠**로
+   얼마나 눌렀는지 보인다(대전제-0 — 아무 표시 없이 3초를 기다리게 두면 고장으로 읽힌다). --hold 는 조각이 0~100% 로 준다.
+   높이는 .btn.sm 그대로 28(check-sizes 「작은 단추 높이는 하나」) */
+button.btn.lockb{position:relative;overflow:hidden;min-width:40px;font-size:var(--fs-5);line-height:1}
+button.btn.lockb::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:var(--hold,0%);background:var(--navy)}
+/* (어77) 아이·학부모 상단 단추 셋(🔄 새로고침 · 🔔 알림 설정 · ❓ 사용 가이드) — 원장님 「최대한 스크롤늘리지 않는 방향으로」.
+   아이·학부모에겐 탭이 없어 이 자리가 비어 있다 · 좁게 세워 폰에서도 **첫 줄 안**에 들어간다(줄이 안 는다) */
+.appbar .mebar{display:flex;align-items:center;gap:4px}
+.appbar .mebar .btn{min-width:32px;padding:2px 6px;font-size:var(--fs-5);line-height:1}
+@media(max-width:760px){.appbar .mebar{gap:2px}.appbar .mebar .btn{min-width:26px;padding:2px 3px}.appbar:has(.mebar){column-gap:8px}.appbar:has(.mebar) .pill{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .donehead{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:8px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--sunk);font-size:var(--fs-2);color:var(--mid);flex-wrap:wrap}
 .donehead b{color:var(--ink)}
 .donehead .ar{transition:transform .15s;color:var(--faint)}

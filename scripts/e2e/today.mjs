@@ -700,6 +700,49 @@ console.log("■ 아이 화면 07 · 마감 뒤: 「다 했어요」(학원 줄�
   hr = await homeRows();
   ok("하나라도 무르면 다시 잠긴다(앞 항목 전부가 끝나야)", wb(hr).every((r) => r.locked === 1 && r.said === 0), JSON.stringify(hr.map((r) => [r.text.replace(/\s+/g, " ").slice(0, 24), r.said, r.locked, r.pressed])));
   while (await pressHome((r) => r.pressed === 1)) { /* 나머지도 무른다 — 뒤 걷기는 「다 했어요」 없는 상태를 본다 */ }
+  // ── (어77) 묶음 C — 🔒 3초 · 「완료」 · 완료 뒤 다음 걸음 · 상단 단추 셋 ─────────────────────
+  {
+    const li = (k) => mm.locator("[data-card=todo] .li").nth(k);
+    const subs = () => mm.locator("[data-card=todo] [data-g=submit]").count();
+    let r0 = (await homeRows()).find((r) => r.text.includes("zz_워크북 복습") && r.locked === 1);
+    const lb = r0 ? li(r0.k).locator("button[data-act=lock-hold]") : null;
+    ok("(어77) 잠긴 줄은 🔒 한 개 — 「앞엣것부터」는 글이 아니라 그림이다(원장님 9/17 「자물쇠 이모지로 바꿔주고」)",
+      Boolean(r0) && (await lb.textContent()).trim() === "🔒" && (await lb.getAttribute("aria-label")) === "앞엣것부터" && (await subs()) === 0,
+      JSON.stringify((await homeRows()).map((r) => [r.text.replace(/\s+/g, " ").slice(0, 20), r.locked])));
+    await lb.hover(); await cp.mouse.down(); await cp.waitForTimeout(700);
+    const half = await lb.getAttribute("style");                       // 누르는 동안 밑줄이 차오른다(대전제-0)
+    await cp.waitForTimeout(2800); await cp.mouse.up(); await cp.waitForTimeout(200);
+    ok("(어77) 3초 길게 누르면 자물쇠여도 열린다(원장님 「3초누르면 자물쇠여도 시작가능하게」) · 누르는 동안 밑줄이 차오른다",
+      /--hold: *[1-9]/.test(half ?? "") && (await li(r0.k).locator("button[data-act=said]").count()) === 1 && (await li(r0.k).locator("[data-g=locked]").count()) === 0,
+      `style=${half} · ${(await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 200)}`);
+    ok("(어77) 단추 이름은 「완료」(원장님 「다했어요를 완료로 수정」) · 완료 전에는 낼 자리가 없다",
+      (await li(r0.k).locator("button[data-act=said]").textContent()).trim() === "완료" && (await subs()) === 0);
+    await li(r0.k).locator("button[data-act=said]").click(); await cp.waitForTimeout(1500);
+    ok("(어77) 교재 숙제는 완료를 누르면 **사진·음성으로 내는 자리**가 뜬다(🃏 단추는 없다)",
+      (await subs()) === 1 && (await mm.locator("[data-card=todo] [data-g=submit] input[type=file]").count()) >= 1 && (await mm.locator("[data-card=todo] [data-g=go-cc]").count()) === 0,
+      (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+    const c0 = (await homeRows()).find((r) => r.text.includes("zz_클카 문장훈련") && r.pressed === 0);
+    await li(c0.k).locator("button[data-act=said]").click(); await cp.waitForTimeout(1500);
+    const cc = mm.locator("[data-card=todo] [data-g=go-cc]");
+    ok("(어77) 클래스카드 숙제(learn_items.by_app = cc)는 완료를 누르면 **🃏 클래스카드 단추**가 뜬다(0177 · 확장과 같은 곳)",
+      (await cc.count()) === 1 && (await cc.getAttribute("href")) === "https://www.classcard.net" && (await cc.getAttribute("target")) === "_blank",
+      (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+    while (await pressHome((r) => r.pressed === 1)) { /* 다시 다 무른다 — 뒤 걷기는 완료가 없는 상태를 본다 */ }
+  }
+  // (어77) 상단 단추 셋 — 아이·학부모에게만 · 탭이 없는 자리에 선다 · 폰(390)에서도 상단 띠가 한 줄
+  {
+    const bar = cp.locator("[data-g=mebar]");
+    const barH = await cp.locator("header.appbar").evaluate((e) => e.getBoundingClientRect().height);
+    ok("(어77) 아이 상단에 🔄 새로고침 · 🔔 알림 설정 · ❓ 사용 가이드(원장님 「최대한 스크롤늘리지 않는 방향으로」 · 폰 상단 띠 ≤ 64)",
+      (await bar.locator("[data-act=reload]").count()) === 1 && (await bar.locator("[data-act=bell]").getAttribute("href")) === "/me#bell" && (await bar.locator("[data-act=guide]").getAttribute("href")) === "/guide" && barH <= 64,
+      `띠 높이 ${Math.round(barH)} · ${(await bar.textContent()).replace(/\s+/g, " ")}`);
+    const gp = await cp.context().newPage(); await gp.goto(APP + "/guide"); await gp.waitForLoadState("networkidle").catch(() => {});
+    const gt = (await gp.locator("[data-card=guide]").textContent()).replace(/\s+/g, " ");
+    ok("(어77) ❓ 사용 가이드 한 화면 — 아이 줄 여덟 이상 · 🔒 3초 · 클래스카드 · 반려가 적혀 있다 · 설명 말투가 아니다",
+      (await gp.locator("[data-card=guide] [data-g=guide-row]").count()) >= 8 && gt.includes("3초") && gt.includes("클래스카드") && gt.includes("반려") && !/(습니다|입니다|세요|십시오)/.test(gt),
+      gt.slice(0, 300));
+    await gp.close();
+  }
   ok("시험 줄 꼬리표((가)-⑨) · 오늘 건너뛴 재시험에 「오늘 건너뜀」", (await mm.locator("[data-card=quiz] [data-g=quiz-tag]", { hasText: "오늘 건너뜀" }).count()) === 1, (await mm.locator("[data-card=quiz]").textContent()).replace(/\s+/g, " ").slice(0, 300));
   ok("선생님 한 마디 · 단어 「Day 38-40 통과. 스크램블 6200점」(마감해야 보인다) · 시험 결과 85% · 「집에 감」 그대로", (await mm.locator("[data-card=memo]").textContent()).includes("스크램블 6200점") && (await mm.locator("[data-card=quiz]").textContent()).includes("85%") && /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()), (await mm.textContent()).replace(/\s+/g, " ").slice(0, 400));
   for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-me-${v.viewport.width}.png`, fullPage: true }); }

@@ -13,7 +13,7 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText, quizTag } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton, TimerButton, MaterialCard, ScoreCard, AttachLines, FilesCard, SubmitLine } from "./cards.js";
+import { ArrivalCard, DoRow, MaterialCard, ScoreCard, AttachLines, FilesCard, SubmitLine } from "./cards.js";
 import { CHECK } from "@/lib/status";   // (어76) 검사 부호는 한 벌에서 온다(아이 화면이 ○△✕ 를 제 손으로 안 적는다 · 원칙-1)
 const MARK = Object.fromEntries(CHECK);
 import { childLinks } from "@/lib/files-plan";
@@ -62,14 +62,14 @@ export default async function Me({ searchParams }) {
     { id: 'todo', name: '등원학습', node: can(ME.today) && (<Card emo="📋" title="등원학습" id="todo" {...fold("todo")} pill={d.sheet ? `학원 ${d.classSteps.length} · 숙제 ${d.sheet.home.length}` : null}>
         {!d.sheet && <p className="note" style={{ margin: "8px 0 0" }}>아직 안 열렸어요</p>}
         {d.sheet && !d.classSteps.length && !d.sheet.home.length && <p className="note" style={{ margin: "8px 0 0" }}>검사 뒤에 떠요</p>}
-        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div><ItemTree rows={d.classSteps} bySort row={(it) => <Line key={it.id} it={it} right={<TimerButton item={it} state={it.state} />} />} />{/* (어35) 학원 줄은 타이머(▶ 시작 · ■ 끝) · 차례는 sort */}
+        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div><ItemTree rows={d.classSteps} bySort row={(it) => <Line key={it.id} it={it} right={<DoRow item={it} state={it.state} hands="timer" />} />} />{/* (어35) 학원 줄은 타이머(▶ 시작 · ■ 끝) · 차례는 sort · (어77) 손은 DoRow 한 곳에서 낸다(🔒 3초 포함) */}
           {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.class_memo}</p>)}</>}
-        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div><ItemTree rows={d.homeSteps} bySort row={(it) => <Line key={it.id} it={it} right={<><TimerButton item={it} state={it.state} said={false} /><SaidButton item={it} state={it.state} /></>} attach={att(it)} />} />{/* (어75) 숙제에도 타이머(▶ 시작 · ■ 끝 · 했어요 ✓) — 원장님 9/18 「숙제에는 타이머가없어 추가해」 */}
+        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div><ItemTree rows={d.homeSteps} bySort row={(it) => <Line key={it.id} it={it} right={<DoRow item={it} state={it.state} />} attach={<>{att(it)}<SubmitLine item={it} rules={d.rules} /></>} />} />{/* (어75) 숙제에도 타이머(▶ 시작 · ■ 끝 · 했어요 ✓) — 원장님 9/18 「숙제에는 타이머가없어 추가해」 · (어77) 완료 뒤 다음 걸음(🃏 클래스카드 또는 사진·음성) */}
           {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.home_memo}</p>)}</>}
       </Card>) },
     { id: 'due', name: '숙제', node: can(ME.today) && (<Card emo="📘" title="숙제" id="due" {...fold("due")} pill={String(d.due.length)}>
         {!d.due.length && <p className="note" style={{ margin: "8px 0 0" }}>낼 숙제가 없어요</p>}
-        <ItemTree rows={d.due} row={(it) => <Line key={it.id} it={it} attach={<>{att(it)}<SubmitLine item={it} rules={d.rules} /></>} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {MARK[it.status] ?? it.status}</span> : <><TimerButton item={it} state="now" said={false} /><SaidButton item={it} state="now" /></>} />} />{/* (어75) 검사 끝난 줄은 그 결과만 · 아직인 줄은 타이머 · (어76) 줄마다 「내가 낸 것」(반려 글 · 사진·음성 · 지우고 다시 내기) */}
+        <ItemTree rows={d.due} row={(it) => <Line key={it.id} it={it} attach={<>{att(it)}<SubmitLine item={it} rules={d.rules} /></>} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {MARK[it.status] ?? it.status}</span> : <DoRow item={it} />} />} />{/* (어75) 검사 끝난 줄은 그 결과만 · 아직인 줄은 타이머 · (어76) 줄마다 「내가 낸 것」(반려 글 · 사진·음성 · 지우고 다시 내기) */}
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" {...fold("quiz")} pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
         {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 · {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}

@@ -11,7 +11,9 @@ const 화면들 = [];
 (function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name);
   if (f.isDirectory()) { if (!["api", "_shell", "login", "logout", "password", "push"].includes(f.name)) walk(p); }
   else if (f.name === "page.js") 화면들.push("/" + path.relative("app", d).replace(/\\/g, "/")); } })("app");
-const 원장쪽 = 화면들.map((x) => (x === "/." ? "/" : x)).filter((x) => !x.startsWith("/me") && !x.startsWith("/parent")).sort();
+const 원장쪽 = 화면들.map((x) => (x === "/." ? "/" : x)).filter((x) => !x.startsWith("/me") && !x.startsWith("/parent") && x !== "/guide").sort();
+// (어77) /guide(❓ 사용 가이드)는 원장 탭에 없다 — 문은 아이·학부모 상단 띠의 ❓ 하나다. 빼기만 하면 「문 없는 화면」이 생기므로 그 문을 여기서 확인한다
+const mebar = strip(fs.readFileSync("app/_shell/mebar.js", "utf8"));
 
 // 탭 = 한 걸음
 const menu = strip(fs.readFileSync("lib/menu.js", "utf8"));
@@ -35,6 +37,7 @@ const 걸음 = (to) => { if (한걸음.has(to)) return 1;
   return 0; };
 
 console.log("■ 원장 쪽 화면마다 들어갈 길(탭 1걸음 · 화면 링크 2걸음)");
+ok("(어77) ❓ 사용 가이드(/guide)는 아이·학부모 상단 띠에서 **한 걸음**", /href="\/guide"/.test(mebar) && /data-act="guide"/.test(mebar), mebar.slice(0, 0));
 const 멀다 = [];
 for (const s of 원장쪽) { const g = 걸음(s); if (g === 0 || g > 2) 멀다.push([s, g]); }
 ok(`화면 ${원장쪽.length}개가 모두 **두 걸음 안**에 있다`, !멀다.length, 멀다.map(([s, g]) => `${s}(${g || "못 닿음"})`).join(" · "));

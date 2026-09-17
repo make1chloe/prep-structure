@@ -8,9 +8,11 @@ import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 
 import { addItemAct, editItemAct, retireItemAct, setLineAct, setLineManyAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, nextRoundAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 import { icon } from "../../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
+import { APP_CC } from "@/lib/item-plan";   // (어77) 이 항목을 하는 앱 한 곳
+import { FACE } from "@/lib/emoji";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
-  const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required) });
+  const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required), byApp: init.byApp ?? null });
   const up = (k) => (e) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   const sure = useSure();
   return (
@@ -21,6 +23,7 @@ function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPi
         <input value={f.method} onChange={up("method")} placeholder="하는 법 (예: 주요개념 요약하여 문제 만들기)" aria-label="하는 법" name="method" style={{ flex: "2 1 220px" }} />
         <input value={f.checks} onChange={up("checks")} placeholder="체크리스트 · 쉼표로 (예: 입해석, 낭독, 녹음)" aria-label="체크리스트" name="checks" style={{ flex: "1 1 200px" }} />
         {areaPick && <><Seg value={f.place} onPick={(k) => setF({ ...f, place: k })} g="form-place" /><label className="ckl"><input type="checkbox" className="ck" checked={f.required} onChange={up("required")} />필수</label></>}
+        <button type="button" className={"tag" + (f.byApp === APP_CC ? " on" : "")} data-act="item-cc" aria-pressed={f.byApp === APP_CC} onClick={() => setF({ ...f, byApp: f.byApp === APP_CC ? null : APP_CC })}>{FACE.cc} 클래스카드</button>{/* (어77) 이 항목을 하는 앱 — 켜면 아이가 완료를 누른 뒤 「클래스카드」 단추가 뜬다(0177 learn_items.by_app) */}
         <button className="btn pri sm" type="button" disabled={pending} data-act="item-save" onClick={() => onSave(f)}>{init.id ? "저장" : "더하기"}</button>
         <button className="btn sm gho" type="button" onClick={onClose}>닫기</button>
         {init.id && onRetire && <button className="btn sm gho" type="button" disabled={pending} data-act="item-retire" onClick={() => sure.ask("retire")}>항목 삭제</button>}
@@ -83,7 +86,7 @@ export default function Board({ d }) {
                     <button className="btn sm gho" type="button" disabled={pending} data-act="retire" {...icon("삭제")} onClick={() => run(() => setLineAct("area", l.id, { state: "retired" }), "삭제했습니다(아래 「삭제한 것」에서 복구합니다)")}>🗑</button>
                   </span>
                 </div>
-                {editing === l.id && <ItemForm init={{ id: l.item_id, name: l.name, method: l.method ?? "", checks: l.checks ?? [] }} pending={pending} onClose={() => setEditing(null)} onSave={(f) => run(() => editItemAct(l.item_id, f), "고쳤습니다. 이 항목을 쓰는 영역 전부")} onRetire={() => run(() => retireItemAct(l.item_id), (r) => `항목을 내렸습니다. 「${r.name}」을 쓰는 줄이 모든 영역·아이에서 빠집니다(+ 항목에 같은 이름을 넣으면 복구됩니다)`)} />}
+                {editing === l.id && <ItemForm init={{ id: l.item_id, name: l.name, method: l.method ?? "", checks: l.checks ?? [], byApp: l.by_app ?? null }} pending={pending} onClose={() => setEditing(null)} onSave={(f) => run(() => editItemAct(l.item_id, f), "고쳤습니다. 이 항목을 쓰는 영역 전부")} onRetire={() => run(() => retireItemAct(l.item_id), (r) => `항목을 내렸습니다. 「${r.name}」을 쓰는 줄이 모든 영역·아이에서 빠집니다(+ 항목에 같은 이름을 넣으면 복구됩니다)`)} />}
               </div>))}
             {retired.length > 0 && <details className="rout" data-g="retired"><summary style={{ cursor: "pointer" }}><b>삭제한 것 {retired.length}</b></summary>
               {retired.map((l) => <span key={l.id} className="wv" style={{ margin: "4px 0 0" }}><span className="tag" style={{ color: "var(--mute)", textDecoration: "line-through" }}>{l.name}</span><button className="btn sm gho" type="button" disabled={pending} data-act="revive" onClick={() => run(() => setLineAct("area", l.id, { state: "active" }), "복구했습니다")}>복구</button></span>)}

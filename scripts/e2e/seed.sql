@@ -77,12 +77,12 @@ insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, pa
   ('99999999-0000-4000-e100-000000000005', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-5 부정의문문', '본책', false, 5, 14, 14, 13, 'fixture'),
   ('99999999-0000-4000-e100-000000000006', '99999999-0000-4000-e000-000000000001', 'CHAPTER 2', 'PSS 2-1 시제', '본책', false, 6, 20, 21, 18, 'fixture')
 on conflict (id) do nothing;
-insert into v2.learn_items (id, name, method, sort, import_batch) values
-  ('99999999-0000-4000-e200-000000000001', 'zz_의미덩어리 구두테스트', '소단원 문장을 입으로', 1, 'fixture'),
-  ('99999999-0000-4000-e200-000000000002', 'zz_클카 문장훈련', '클래스카드 문장훈련', 2, 'fixture'),
-  ('99999999-0000-4000-e200-000000000003', 'zz_교재 풀기', '본책 문제', 3, 'fixture'),
-  ('99999999-0000-4000-e200-000000000004', 'zz_워크북 복습', '워크북', 4, 'fixture')
-on conflict (id) do nothing;
+insert into v2.learn_items (id, name, method, sort, by_app, import_batch) values
+  ('99999999-0000-4000-e200-000000000001', 'zz_의미덩어리 구두테스트', '소단원 문장을 입으로', 1, null, 'fixture'),
+  ('99999999-0000-4000-e200-000000000002', 'zz_클카 문장훈련', '클래스카드 문장훈련', 2, 'cc', 'fixture'),   -- (어77) 이 항목은 🃏 클래스카드에서 한다 → 아이가 완료를 누르면 「클래스카드」 단추가 뜬다
+  ('99999999-0000-4000-e200-000000000003', 'zz_교재 풀기', '본책 문제', 3, null, 'fixture'),
+  ('99999999-0000-4000-e200-000000000004', 'zz_워크북 복습', '워크북', 4, null, 'fixture')
+on conflict (id) do update set by_app = excluded.by_app;
 insert into v2.area_routine (area, item_id, place, required, sort, import_batch) values
   ('문법', '99999999-0000-4000-e200-000000000001', 'class', true,  1, 'fixture'),
   ('문법', '99999999-0000-4000-e200-000000000002', 'both',  true,  2, 'fixture'),
