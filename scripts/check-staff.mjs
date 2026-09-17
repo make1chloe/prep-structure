@@ -5,6 +5,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { STAFF_ID, toLoginEmail, INTERNAL_DOMAIN, ROLES } from "../lib/roles.js";
 import { STAFF_ROLES, isStaffRole, parseStaffLoginId, staffIdNag } from "../lib/staff-plan.js";
+import { RESET_KID, RESET_STAFF } from "../lib/student-plan.js";   // (어74) 되돌릴 수 있는 역할 한 벌
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 · 주석을 먼저 지운다
 const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = join(d, e); statSync(p).isDirectory() ? walk(p, out) : /\.js$/.test(p) && out.push(p); } return out; };
 const src = [...walk("app").filter((p) => !p.includes("/api/")), ...readdirSync("lib").filter((f) => f.endsWith(".js")).map((f) => "lib/" + f)].map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p, "utf8"))]);
@@ -67,5 +68,34 @@ ok("직원 계정 화면은 볼 것을 안 정한다(🔐 누가 무엇을 보�
 ok("옆 화면(🔐 누가 무엇을 보나)으로 가는 길이 있다", /href="\/settings\/access"/.test(page));
 ok("역할 세그는 누르면 먼저 바뀌고 실패면 되돌린다(속도-3)", /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: k \}\)\)/.test(board) && /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: prev \}\)\)/.test(board));
 ok("첫 비밀번호는 발급 뒤 화면에 뜬다(원장님이 그 자리에서 불러 주신다 · 대전제-22)", /staff-made/.test(board) && /made\.password/.test(board));
+
+
+console.log("■ (어74) 비밀번호 되돌리기 — 원장님 2026-09-17 「강사조교 비밀번호 초기화 가능하게 해줘 이게 제일급해」");
+{ const staff = text("lib/staff.js"), stu = text("lib/student.js"), act = text("app/settings/staff/actions.js");
+  ok("되돌리는 손은 **아이 쪽과 한 벌**이다(lib/student.js resetPassword) · lib/staff.js 가 제 손으로 인증을 안 건드린다(원칙-1)",
+    /resetPassword/.test(staff) && /resetStaffPassword = \(svc, sb, profileId\) => resetPassword\(svc, sb, profileId, RESET_STAFF\)/.test(staff)
+    && !/auth\.admin\.updateUserById/.test(staff), "staff.js 가 제 손으로 비밀번호를 적으면 두 벌이다");
+  ok("되돌릴 수 있는 역할은 한 곳에서 온다 · **원장은 어느 쪽에도 없다**(잠기면 들어올 문이 없다)",
+    RESET_KID.join() === "student,parent" && RESET_STAFF.join() === "instructor,assistant"
+    && ![...RESET_KID, ...RESET_STAFF].includes(ROLES.PRINCIPAL));
+  ok("손은 allow 를 받아 **부르는 화면이 제 몫만** 말한다(14 는 아이·학부모 · 설정 👤 는 선생님·조교)",
+    /resetPassword\(svc, sb, profileId, allow = RESET_KID\)/.test(stu) && /allow\.includes\(p\.role\)/.test(stu));
+  ok("앱이 낸 계정만 되돌린다(대전제-12 · canReset) — 문을 넓히지 않았다", /canReset\(p\)/.test(stu));
+  ok("발급이 **앱이 낸 계정 표시**를 켠다 — 이것이 없으면 되돌리기가 영영 안 듣는다((어74) 의 진짜 까닭)",
+    /issued_by_app: u\.issuedByApp/.test(staff) && /u\.issuedByApp \? \{ must_change_pw: true, issued_by_app: true \} : \{\}/.test(staff));
+  ok("목록이 그 표시를 함께 읽는다(화면이 단추를 그릴지 여기서 갈린다)", /select\("id,name,role,state,login_id,issued_by_app"\)/.test(staff));
+  ok("손은 원장만(onlyPrincipal) · 인증에 적는 것은 서버 자신(service role)", /staffReset = done\(async \(id\) => \{ const \{ sb \} = await onlyPrincipal\(\)/.test(act) && /resetStaffPassword\(serviceClient\(\), sb/.test(act)); }
+{ const board = text("app/settings/staff/board.js");
+  ok("화면 — 되돌리기는 **되돌릴 수 없어서** 한 번 더 묻는다(부품 하나 · 14 와 같은 꼴 · 대전제-10)",
+    /data-act="staff-reset"/.test(board) && /import Sure, \{ useSure \}/.test(board) && /sure\.ask\(/.test(board));
+  ok("앱이 안 낸 계정은 단추 대신 **까닭을 말한다**(대전제-0 — 화면은 거짓말하지 않는다)",
+    /canReset\(p\)\s*\n?\s*\?/.test(board) && /data-g="staff-noreset"/.test(board) && /이어 쓰는 계정/.test(board));
+  ok("되돌린 뒤 **그 자리에서** 아이디와 첫 비밀번호를 말한다(대전제-22)", /data-g="staff-back"/.test(board) && /되돌림/.test(board));
+  ok("원장 줄에는 되돌리기가 없다(boss 는 세그도 닫기도 없는 갈래)", /\{!boss && <>/.test(board) && /!boss && canReset\(p\) && <Sure/.test(board)); }
+{ const sql = readFileSync("supabase/migrations/0174_staff_reset.sql", "utf8");
+  ok("0174 는 **비밀번호를 안 바꾼다** — 이미 난 직원 줄의 표시만 켠다 · 원장 줄은 안 건드린다 · 몇 번을 돌려도 같다",
+    /set issued_by_app = true/.test(sql) && /role in \('instructor', 'assistant'\)/.test(sql)
+    && !/principal/.test(sql.replace(/^--.*$/gm, "")) && !/password/i.test(sql.replace(/^--.*$/gm, ""))
+    && /issued_by_app = false/.test(sql)); }
 
 console.log(`\n■ 직원 계정 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

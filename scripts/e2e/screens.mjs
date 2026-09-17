@@ -200,6 +200,26 @@ ok("(어71) 바꾼 뒤 비밀번호 화면으로 되돌아가도 갇히지 않�
 await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("선생님은 직원 계정 화면을 못 연다(원장만)", !(await p.locator("main [data-card=staff]").count()), (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 80));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
+console.log("■ (어74) 원장이 선생님 비밀번호를 되돌린다 (원장님 2026-09-17 「강사조교 비밀번호 초기화 가능하게 해줘 이게 제일급해」)");
+await login(p, "staff", "zz_principal@e2e.test", PW);
+await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(어74) 앱이 **안 낸** 계정은 단추 대신 까닭을 말한다(「이어 쓰는 계정」 · 대전제-0·12) · 씨앗 강사·조교가 그 줄이다",
+  (await p.locator("[data-g=staff-noreset]").count()) >= 1, String(await p.locator("[data-g=staff-list]").textContent()).replace(/\s+/g, " ").slice(0, 160));
+{ const row = p.locator("[data-g=staff-row]", { hasText: "zz_tea1" });
+  ok("(어74) 앱이 낸 선생님 줄에는 「비밀번호 " + FIRST_PW + "」 단추가 선다", (await row.locator("button[data-act=staff-reset]").count()) === 1);
+  await row.locator("button[data-act=staff-reset]").click();
+  await p.waitForSelector("[data-g=sure]", { timeout: 10000 });
+  ok("(어74) 되돌리기는 **되돌릴 수 없어서** 한 번 더 묻는다(부품 하나 · 14 와 같은 꼴)", (await p.locator("[data-g=sure]").textContent()).includes(FIRST_PW));
+  await Promise.all([p.waitForSelector("[data-g=staff-back]", { timeout: 20000 }).catch(() => {}), p.click("[data-g=sure] button[data-act=sure-yes]")]);
+  const said = String(await p.locator("[data-g=staff-back]").textContent().catch(() => ""));
+  ok("(어74) 되돌린 뒤 그 자리에서 「아이디 · 첫 비밀번호로 되돌림」 이라고 말한다(대전제-22)", said.includes("zz_tea1") && said.includes(FIRST_PW), said.slice(0, 120)); }
+await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
+await login(p, "staff", "zz_tea1", FIRST_PW);
+ok("(어74) 되돌린 계정은 **첫 비밀번호로 들어가고** 바꾸는 화면이 먼저 뜬다(쓰던 비밀번호는 사라진다)", new URL(p.url()).pathname === "/password", p.url());
+await p.fill("#pw", "다시비밀번호1"); await p.fill("#pw2", "다시비밀번호1");
+await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/password"), { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
+ok("(어74) 되돌린 뒤 새 비밀번호로 바꾸면 다시 들어간다", !new URL(p.url()).pathname.startsWith("/password"), p.url());
+await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 console.log("■ 학생 · 처음 비밀번호는 바꿔야 들어간다");
 await login(p, "student", "chloe0000", PW);
 ok("비밀번호 바꾸기 화면으로 보낸다", new URL(p.url()).pathname === "/password", p.url());

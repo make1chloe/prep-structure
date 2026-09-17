@@ -2,18 +2,20 @@
 /** (어64) 설정 › 👤 직원 계정 판 — 원장님 2026-09-16 「원장말고 다른 테스트 계정도 추가해줘 역할 선생님 권한」 · 「근데 선생님조교어디서추가해」.
  *  여기서 하는 것은 셋뿐이다: 계정 내기 · 역할 바꾸기 · 닫기·복구. **볼 것**은 옆의 🔐 「누가 무엇을 보나」가 이미 정한다(원칙-1).
  *  역할 세그는 누르면 먼저 바뀌고 실패면 되돌린다(속도-3) · 지우는 단추는 없다(대전제-6). */
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ROLES, ROLE_NAME } from "@/lib/roles";
 import { STAFF_ROLES, staffIdNag, staffState } from "@/lib/staff-plan";
-import { FIRST_PW } from "@/lib/student-plan";   // 첫 비밀번호는 한 곳((어65))
-import { staffIssue, staffRole, staffOpen } from "./actions.js";
+import { FIRST_PW, canReset } from "@/lib/student-plan";   // 첫 비밀번호·되돌릴 수 있나는 한 곳((어65) · (어74))
+import Sure, { useSure } from "../../_shell/sure.js";   // 한 번 더 묻기 부품 하나(대전제-10 · 14 와 같은 것)
+import { staffIssue, staffRole, staffOpen, staffReset } from "./actions.js";
 const EMO = { [ROLES.PRINCIPAL]: "👑", [ROLES.INSTRUCTOR]: "🧑‍🏫", [ROLES.ASSISTANT]: "🧰" };
 
 export default function Board({ rows = [], meId = null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [err, setErr] = useState(""); const [made, setMade] = useState(null);
+  const [err, setErr] = useState(""); const [made, setMade] = useState(null); const [back, setBack] = useState("");   // (어74) 되돌린 결과 한 줄
+  const sure = useSure();   // 비밀번호 되돌리기는 **되돌릴 수 없다** — 한 번 더 묻는다(14 와 같은 꼴)
   const [open, setOpen] = useState(false); const [f, setF] = useState({ name: "", loginId: "", role: ROLES.INSTRUCTOR });
   const [roleOf, setRoleOf] = useState({});   // 누른 즉시 바뀌는 역할(속도-3)
   const nag = staffIdNag(f.loginId);
@@ -28,10 +30,12 @@ export default function Board({ rows = [], meId = null }) {
   return (<div className="card" data-card="staff">
     <div className="ctitle"><span className="cemo">👤</span>직원 계정</div>
     {err && <p className="note" role="alert" data-g="staff-err" style={{ color: "var(--miss)" }}>{err}</p>}
+    {back && <p className="note" data-g="staff-back" style={{ color: "var(--on-ok)" }}>{back}</p>}
     {made && <p className="note" data-g="staff-made" style={{ color: "var(--on-ok)" }}>{made.name} · {ROLE_NAME[made.role]} · 아이디 <b>{made.login_id}</b> · {made.password ? <>첫 비밀번호 <b>{made.password}</b></> : <>이어 붙임 · 비밀번호는 쓰던 것 그대로</>}</p>}
     <div className="left" data-g="staff-list">
       {rows.map((p) => { const boss = p.role === ROLES.PRINCIPAL, shut = p.state !== "active"; return (
-        <div className="lf" key={p.id} data-g="staff-row" data-staff={p.id} data-role={roleAt(p)} data-state={p.state}>
+        <Fragment key={p.id}>
+        <div className="lf" data-g="staff-row" data-staff={p.id} data-role={roleAt(p)} data-state={p.state}>
           <span className="ln">{EMO[roleAt(p)] ?? "🧑"}</span>
           <div><b style={shut ? { textDecoration: "line-through", color: "var(--mute)" } : undefined}>{p.name}</b><small>{p.login_id ?? ""}</small></div>
           <span className="spacer" />
@@ -41,9 +45,16 @@ export default function Board({ rows = [], meId = null }) {
               </div>}
           {!boss && <>
             <span className={"tag" + (shut ? "" : " on")} data-g="staff-state">{staffState(p)}</span>
+            {canReset(p)
+              ? <button className="btn sm" type="button" data-act="staff-reset" disabled={pending} onClick={() => { setBack(""); sure.ask(`reset-${p.id}`); }}>비밀번호 {FIRST_PW}</button>
+              : <span className="tag" data-g="staff-noreset">이어 쓰는 계정</span>}
             <button className="btn sm" type="button" data-act="staff-open" disabled={pending || p.id === meId}
               onClick={() => run(() => staffOpen(p.id, shut ? "active" : "left"))}>{shut ? "복구" : "닫기"}</button></>}
-        </div>); })}
+        </div>
+        {!boss && canReset(p) && <Sure on={sure.is(`reset-${p.id}`)} yes={`${FIRST_PW} 으로`} pending={pending} onNo={sure.off}
+          text={`${p.name}(${p.login_id}) 의 비밀번호를 ${FIRST_PW} 으로 되돌릴까요?. 쓰던 비밀번호는 사라짐 · 본인에게 ${FIRST_PW} 알려 주기`}
+          onYes={() => { sure.off(); run(() => staffReset(p.id), (r) => setBack(`${r.login_id} · ${FIRST_PW} 으로 되돌림 · 첫 로그인에 바꿈`)); }} />}
+        </Fragment>); })}
     </div>
     <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}>
       <button className="btn pri" type="button" data-act="staff-new" aria-pressed={open} onClick={() => { setOpen(!open); setMade(null); setErr(""); }}>{open ? "닫기" : "+ 직원"}</button>
