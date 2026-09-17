@@ -38,7 +38,7 @@ console.log("■ (어48) 출결 곁의 도착·하원 시각 · 누가 찍었나
 console.log("■ (어55) 잘못 누른 하원을 취소(원장님 9/16 「하원버튼 실수할거같으니 강조해주고, 다시 누르면 취소가능하게」)");
 { const arr = strip(readFileSync("lib/arrival.js", "utf8"));
   const migs = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).map((f) => readFileSync(`supabase/migrations/${f}`, "utf8")).join("\n");
-  ok("취소하는 손은 lib/arrival clearStamp 하나 · **학원 사람이 찍은 줄만** 내린다(아이 앱이 찍은 시각은 1차 기준이라 시각 고치기로만 바꾼다)",
+  ok("취소하는 손은 lib/arrival clearStamp 하나 · **학원 사람이 찍은 줄만** 내린다(아이 앱이 찍은 시각은 1차 기준이라 시각 수정로만 바꾼다)",
     /export async function clearStamp\(/.test(arr) && /\.eq\("stamped_by", "staff"\)/.test(arr) && /아이 앱이 찍은 것은 취소할 수 없습니다/.test(arr));
   ok("**지우지 않는다**(대전제-6) · undone_at 을 찍어 내리고(0170) · 다시 찍으면 staffStamp 가 그 칸을 null 로 덮어 되살린다 · 앱 어디에도 arrival delete 0",
     /update\(\{ undone_at: new Date\(\)\.toISOString\(\) \}\)/.test(arr) && /\.is\("undone_at", null\)\.select\("id"\)/.test(arr)

@@ -30,7 +30,7 @@ export default function Templates({ items = [], ready = false, placeholders = []
     {!items.length && <p className="note" style={{ margin: 0 }}>문구가 없습니다. 표 0154 를 넣으면 기본 틀이 섭니다.</p>}
     {items.map((t) => (<div key={t.kind} data-g="tpl-row" data-kind={t.kind}>
       <div className="srow"><span className="si">✉️</span><div className="sn"><b>{t.title || templateName(t.kind)}</b><small>{lenText(t.body ?? "").text} · {String(t.body ?? "").split("\n")[0].slice(0, 40)}…</small></div>
-        <button className="btn sm" type="button" data-act="tpl-edit" aria-pressed={open === t.kind} onClick={() => edit(t)}>{open === t.kind ? "닫기" : "고치기"}</button></div>
+        <button className="btn sm" type="button" data-act="tpl-edit" aria-pressed={open === t.kind} onClick={() => edit(t)}>{open === t.kind ? "닫기" : "수정"}</button></div>
       {open === t.kind && <div className="card" style={{ margin: "4px 0 8px" }} data-g="tpl-form">
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={14} aria-label={`${t.title || t.kind} 문구`} name="tpl-body" style={{ width: "100%", fontFamily: "inherit" }} />
         <div className="wv" style={{ marginTop: 6 }}><span className={"pill" + (len.over ? " warn" : "")} data-g="tpl-len">{len.text}</span>

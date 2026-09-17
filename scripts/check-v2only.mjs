@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from "node:fs";
 const 예외 = new Set(["9000_switch_day.sql","9001_purge_public.sql"]);
 const 밖 = "(auth|storage|public)";
 const 규칙 = [
-  // 만들기·고치기·지우기의 **대상**이 밖일 때
+  // 만들기·수정·지우기의 **대상**이 밖일 때
   new RegExp(`\\b(?:create|alter|drop)\\s+(?:or\\s+replace\\s+)?(?:table|function|type|index|view|materialized\\s+view|sequence)\\s+(?:if\\s+(?:not\\s+)?exists\\s+)?${밖}\\.`, "i"),
   // 트리거·정책은 **on 뒤**가 대상이다
   new RegExp(`\\b(?:create|alter|drop)\\s+(?:trigger|policy)\\s+\\S+\\s+(?:before|after|instead|for|on)[\\s\\S]{0,60}?\\bon\\s+${밖}\\.`, "i"),

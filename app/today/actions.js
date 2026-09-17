@@ -39,14 +39,14 @@ export const add = done(async (form) => { const { sb } = await staff(); await ad
 export const give = done(async (sheetId, slot, text) => { const { sb } = await staff(); return addItems(sb, String(sheetId), String(slot), String(text ?? "")); });   // (어13) 숙제 주기 모달 — 여러 줄 한 번에
 export const givePool = wrap2(async (sheetId, bookId = null) => { const { sb } = await staff(); return givePoolOf(sb, String(sheetId), bookId ? String(bookId) : null); });   // (어56) 배정 모달이 읽는 것 — 교재 · 단원 · 그 자리의 루틴 활동 · 오늘 이미 깔린 줄
 export const giveApply = done(async (sheetId, bookId, slot, pick) => { const { sb } = await staff(); return applyGive(sb, String(sheetId), String(bookId), String(slot), pick ?? {}); });   // (어56) 고른 (단원 × 활동)이 그 교재·그 자리의 전부 — 넣고 · 되살리고 · 안 고른 것은 내린다
-export const itemText = done(async (itemId, text) => { const { sb } = await staff(); await editItemText(sb, itemId, text); });   // 대전제-19 · 손으로 더한 줄 고치기
+export const itemText = done(async (itemId, text) => { const { sb } = await staff(); await editItemText(sb, itemId, text); });   // 대전제-19 · 손으로 더한 줄 수정
 export const itemRemove = done(async (itemId) => { const { sb } = await staff(); await removeItem(sb, itemId); });
 export const itemRestore = done(async (itemId) => { const { sb } = await staff(); await restoreItem(sb, itemId); });
 export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
 export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
 export const lateLeft = done(async (studentId, date, hhmm) => { const { sb } = await staff(); return staffStamp(sb, { studentId: String(studentId), date: String(date), step: 4, hhmm: String(hhmm ?? "").trim() }); });   // 실제 하원 · 등원 표 걸음 4(판이 아니라 마감과 무관)
-export const stampAt = done(async (studentId, date, step, hhmm = null) => { const { sb } = await staff(); return staffStamp(sb, { studentId: String(studentId), date: String(date), step: Number(step), hhmm: hhmm ? String(hhmm).trim() : null }); });   // (어48) 출결 곁 · 하원 누르기(시각 없으면 지금) · 도착·하원 시각 고치기
+export const stampAt = done(async (studentId, date, step, hhmm = null) => { const { sb } = await staff(); return staffStamp(sb, { studentId: String(studentId), date: String(date), step: Number(step), hhmm: hhmm ? String(hhmm).trim() : null }); });   // (어48) 출결 곁 · 하원 누르기(시각 없으면 지금) · 도착·하원 시각 수정
 export const clearStampAt = done(async (studentId, date, step) => { const { sb } = await staff(); return clearStamp(sb, { studentId: String(studentId), date: String(date), step: Number(step) }); });   // (어55) 잘못 누른 하원 취소 · 원장님 2026-09-16
 export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
 export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
@@ -63,7 +63,7 @@ export const quizAdd = done(async (form) => { const { sb } = await staff(); cons
 export const quizSet = done(async (sheetId, quizId, patch) => { const { sb } = await staff(); await setQuiz(sb, sheetId, quizId, patch); });
 export const quizTake = done(async (sheetId, quizId, wrong, total) => { const { sb } = await staff(); return takeQuiz(sb, sheetId, quizId, { wrong, total }); });
 export const quizRetest = done(async (sheetId, quizId) => { const { sb } = await staff(); await retest(sb, sheetId, quizId); });
-export const quizStyle = done(async (sheetId, quizId, form) => { const { sb } = await staff(); return setStyle(sb, sheetId, quizId, form); });   // 방식 고치기 — 이 아이만(5단계-③)
+export const quizStyle = done(async (sheetId, quizId, form) => { const { sb } = await staff(); return setStyle(sb, sheetId, quizId, form); });   // 방식 수정 — 이 아이만(5단계-③)
 export const quizSkip = done(async (sheetId, quizId, skip) => { const { sb } = await staff(); await skipRetest(sb, sheetId, quizId, skip); });
 // 조절 모달(02) — 열 때 읽고(tunePool), 적용은 한 손(applyTune). 판단은 lib/routine.js
 export const tuneOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { pool: await tunePool(sb, sheetId, bookId) }; });

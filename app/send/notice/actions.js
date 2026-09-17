@@ -1,5 +1,5 @@
 "use server";
-/** 📢 공지의 손 — 학원 사람만. 판단·쓰기는 lib/notice.js 한 벌(만들기 · 고치기(보내기 전) · 📎 붙이기(보내기 전) · 보내기). 지우는 손이 없다(대전제-6) */
+/** 📢 공지의 손 — 학원 사람만. 판단·쓰기는 lib/notice.js 한 벌(만들기 · 수정(보내기 전) · 📎 붙이기(보내기 전) · 보내기). 지우는 손이 없다(대전제-6) */
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";

@@ -48,7 +48,7 @@ ok("(어9) 폰에서 탭은 **접는다** · 굴림막대에 숨기지 않는다
 // (어39) 대전제-22 「행동은 그 자리에서 · 페이지를 안 떠난다」(원장님 2026-09-15 「누르면 팝업이든 모달이든 뜨고 저장하면 페이지도 안 벗어나고」) · 다른 화면으로 보내 일하게 하는 「동사 👉」 래칫.
 //   참고로 가는 명사 👉(학교 시험 👉 · 자료 👉 · 일정 👉)는 둔다. 실측 17 → (어39) 발송 10 둘 걷고 문자틀 하나 명사로 → 14 · (어41) 대시보드·학생 14·설정·오늘 01 을 그 자리 모달로 → 0
 { const espree = (await import("espree")).default ?? (await import("espree"));
-  const VERB = /(고치기|열기|보내기|잡기|체크|하기|만들기|가져오기|가져오기|조절|보기|넣기|더하기|연결|배정) ?👉/;
+  const VERB = /(수정|열기|보내기|잡기|체크|하기|만들기|가져오기|가져오기|조절|보기|넣기|더하기|연결|배정) ?👉/;
   const hits = [];
   for (const f of walk("app").filter((p) => !p.includes("/api/"))) { let toks; try { toks = espree.parse(readFileSync(f, "utf8"), { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, tokens: true }).tokens; } catch { continue; }
     for (const t of toks) if (["String", "Template", "JSXText"].includes(t.type) && t.value.includes("👉") && VERB.test(t.value)) hits.push(`${f}: ${t.value.replace(/\s+/g, " ").trim().slice(0, 30)}`); }

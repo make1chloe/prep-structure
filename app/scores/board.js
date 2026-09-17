@@ -65,7 +65,7 @@ export default function Board({ d }) {
           <td data-g="at">{r.at ? `${md(seoulDate(r.at))} ${seoulTime(r.at)}${r.byWho === "student" ? " · 아이가 넣음" : ""}` : <span className="note" style={{ margin: 0 }}>아직 안 냄</span>}</td>
           <td data-g="show">{r.state === "confirmed" ? <select value={r.score.show_to} aria-label={`${r.name} 공개`} onChange={(x) => run(() => showAct(r.score.id, x.target.value), `${r.name} · ${showText(x.target.value)}`)} style={{ width: "auto" }}>{SHOW.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select> : ""}</td>
           <td>{r.state === "confirmed" ? <span className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="v y" data-g="state">확인됨</span><button className="btn sm gho" type="button" disabled={pending} data-act="unconfirm" onClick={() => run(() => unconfirmAct(r.score.id), `${r.name} · 확인을 풀었습니다 · 고친 뒤 다시 확인하세요`)}>풀기</button></span>
-              : dirty ? <button className="btn pri sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>{r.state === "none" ? "대신 넣기" : "고쳐 저장"}</button>
+              : dirty ? <button className="btn pri sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>{r.state === "none" ? "대신 넣기" : "수정 저장"}</button>
               : r.state === "pending" ? <button className="btn pri sm" type="button" disabled={pending} data-act="confirm" onClick={() => run(() => confirmAct(r.score.id), (x) => `${r.name} · 확인했습니다 · 공개 ${showText(x.show)}`)}>확인</button>
               : <button className="btn sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>대신 넣기</button>}</td>
         </tr>; })}

@@ -28,9 +28,9 @@ export default function Keys({ rows = [] }) {
       <div className="lf"><span className="ln">{r.emo}</span>
         <div><b>{r.name}</b><small data-g="key-sum">{r.ready ? r.fields.map((f) => `${f.label} ${f.shown}`).join(" · ") : `아직: ${r.missing.join(" · ")}`}</small>
           {r.bad?.length > 0 && <small data-g="key-bad" role="alert" style={{ color: "var(--miss)" }}>{r.bad.join(" · ")}</small>}</div>
-        {r.updated_at && <span className="tag" data-g="key-saved">고침 {md(seoulDate(r.updated_at))} {seoulTime(r.updated_at)}</span>}
-        <span className={"tag" + (r.bad?.length ? "" : r.ready ? " on" : "")} data-g="key-state" style={r.bad?.length ? { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" } : undefined}>{r.bad?.length ? "고쳐야 함" : r.ready ? "켜짐" : "안 켜짐"}</span>
-        <button className="btn sm" type="button" data-act="key-edit" aria-pressed={open === r.id} onClick={() => edit(r)}>{open === r.id ? "닫기" : "고치기"}</button></div>
+        {r.updated_at && <span className="tag" data-g="key-saved">수정 {md(seoulDate(r.updated_at))} {seoulTime(r.updated_at)}</span>}
+        <span className={"tag" + (r.bad?.length ? "" : r.ready ? " on" : "")} data-g="key-state" style={r.bad?.length ? { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" } : undefined}>{r.bad?.length ? "수정 필요" : r.ready ? "켜짐" : "안 켜짐"}</span>
+        <button className="btn sm" type="button" data-act="key-edit" aria-pressed={open === r.id} onClick={() => edit(r)}>{open === r.id ? "닫기" : "수정"}</button></div>
       {open === r.id && <div className="card" style={{ margin: "4px 0 8px" }} data-g="key-form">
         <p className="note k" style={{ marginTop: 0 }}>{r.why} {r.site && <a href={r.site} target="_blank" rel="noreferrer">{r.site} 👉</a>}</p>
         {r.fields.map((f) => { const v = form[f.k] ?? "", why = fieldNag(f, v); return (<div className="wv" key={f.k}><label className="fl" style={{ margin: 0, minWidth: 90 }}>{f.label}</label>

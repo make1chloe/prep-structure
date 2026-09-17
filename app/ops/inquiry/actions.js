@@ -1,5 +1,5 @@
 "use server";
-/** 신규 상담 18 의 손 — 학원 사람만(권한 ops.inquiry 는 화면이 가린다). 판단·쓰기는 lib/inquiry.js 한 벌(+ 문의 · 고치기 · 안내 보냄 · 단계 · 등록 전환 일곱) */
+/** 신규 상담 18 의 손 — 학원 사람만(권한 ops.inquiry 는 화면이 가린다). 판단·쓰기는 lib/inquiry.js 한 벌(+ 문의 · 수정 · 안내 보냄 · 단계 · 등록 전환 일곱) */
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";

@@ -1,6 +1,6 @@
 "use client";
-/** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
- *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/연결 · 학부모 계정 이름 · 비밀번호 처음으로 초기화 · 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
+/** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 수정) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
+ *  ✎ 수정 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/연결 · 학부모 계정 이름 · 비밀번호 처음으로 초기화 · 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
 import Link from "next/link";
 import Sure, { useSure } from "../../_shell/sure.js";
 import SchoolAdd from "../../_shell/schooladd.js";   // 학교 넣는 자리 한 벌(06c·12b·06b 와 같은 것)
@@ -83,13 +83,13 @@ export default function Board({ d }) {
         <b style={{ fontSize: "var(--fs-6)" }} data-g="name">{st.name}</b><span className="pill" data-g="grade">{[gradeText2(st.level, st.grade), st.school].filter(Boolean).join(" · ") || "학교 없음"}</span><span className="pill" data-g="class">{classLine(st.class)}</span><span className="pill" data-g="tenure">{tenureText(st, today)}</span>{st.login_id ? <span className="pill" data-g="app-id">🔑 {st.login_id}</span> : <span className="pill bad" data-g="no-app-id">앱 계정 없음</span>}{/* (어46) 앱 계정이 있나 · 머리에서 보인다(원장님 9/16 「학생어플에 연결안됐다고함」) */}
         {st.state !== "active" && <span className="tag act" data-g="state">{STATE.find(([k]) => k === st.state)?.[1]}</span>}
         <span className="spacer" />{st.siblings?.length > 0 && <span className="pill" data-g="siblings">{siblingText(st.siblings)}</span>}
-        <button className="btn sm" type="button" data-act="edit-open" onClick={() => { setEdit(!edit); setF(null); }}>✎ 고치기</button></div>
+        <button className="btn sm" type="button" data-act="edit-open" onClick={() => { setEdit(!edit); setF(null); }}>✎ 수정</button></div>
       {/* 👁 이 아이·이 집이 보는 화면을 그대로 — 읽기만(lib/asview). 원장님 2026-09-11 「학생 학부모기능 없고」: 화면은 있었는데 원장님이 열 길이 없었다 */}
       <div className="wv" style={{ marginBottom: 8 }} data-g="as-view-links">
         <Link prefetch={false} className="btn sm gho" href={`/me?as=${st.id}`} data-act="as-me">👁 아이 화면</Link>
         <Link prefetch={false} className="btn sm gho" href={`/parent?as=${st.id}`} data-act="as-parent">👁 학부모 화면</Link>
         <span className="note" style={{ margin: 0 }}>{st.name} 이(가) 보는 화면을 그대로 봅니다. <b>읽기만</b> 됩니다</span></div>
-      {edit && <div className="card" data-g="edit"><div className="ctitle"><span className="cemo">✎</span>고치기 · {st.name}</div>
+      {edit && <div className="card" data-g="edit"><div className="ctitle"><span className="cemo">✎</span>수정 · {st.name}</div>
         <div className="wv"><input type="text" value={form.name} aria-label="이름" onChange={(x) => setForm("name", x.target.value)} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={form.grade} placeholder="학년" aria-label="학년" onChange={(x) => setForm("grade", x.target.value.replace(/\D/g, ""))} />
           <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><SchoolAdd onAdded={(id) => setForm("schoolId", id)} />
           <input type="text" inputMode="numeric" value={form.phone} placeholder="아이 전화" aria-label="아이 전화" onChange={(x) => setForm("phone", x.target.value)} style={{ maxWidth: 150 }} /><input type="text" inputMode="numeric" value={form.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setForm("parentPhone", x.target.value)} style={{ maxWidth: 150 }} />
@@ -121,7 +121,7 @@ export default function Board({ d }) {
               {!books.length && <p className="note" style={{ margin: 0 }} data-g="no-books">배정된 교재 없음</p>}
               {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div> },
           { id: "cc-link", name: "클래스카드 아이디", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="cc-link"><div className="ctitle"><span className="cemo">🃏</span>클래스카드 아이디</div>
-              <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-hint">클래스카드 사이트 계정 · 앱 로그인 아이디(chloe…)는 ✎ 고치기 › 🔑 계정</p>{/* (어46) 원장님이 앱 아이디를 여기 적으셨다(9/16) */}
+              <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-hint">클래스카드 사이트 계정 · 앱 로그인 아이디(chloe…)는 ✎ 수정 › 🔑 계정</p>{/* (어46) 원장님이 앱 아이디를 여기 적으셨다(9/16) */}
               {d.cc ? <div className="lf" data-g="cc-row"><span className="ln">🃏</span><div><b>{d.cc.cc_login_id || d.cc.cc_user_idx}</b><small>아이디 {d.cc.cc_user_idx}{d.cc.updated_at ? ` · ${md(seoulDate(d.cc.updated_at))} 이음` : ""}</small></div>
                 <span className="lm">바꾸려면 아래에 새 아이디를 적고 연결</span></div>
                 : <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-none">아직 안 이었습니다</p>}

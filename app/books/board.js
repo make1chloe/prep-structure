@@ -73,7 +73,7 @@ export default function Board({ d }) {
           {!acts.length && <span className="note" style={{ margin: 0 }}>단원이 없습니다</span>}
           <span className="note k" style={{ margin: 0 }}>올린 줄 순서에서 <b>저절로 나왔습니다</b> · ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 자동 배정·진도도 따라갑니다</span></div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧱</span>단원 · 대 › 중 › 소<span className="spacer" /><span className="tag" data-g="unit-count">{(book.units ?? []).length}단원</span></div>
-        <div className="tblwrap"><table data-g="unit-table"><thead><tr><th><PickAll pick={pk} disabled={!(book.units ?? []).length} /></th><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>고치기</th></tr></thead><tbody>
+        <div className="tblwrap"><table data-g="unit-table"><thead><tr><th><PickAll pick={pk} disabled={!(book.units ?? []).length} /></th><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>수정</th></tr></thead><tbody>
           {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { color: "var(--mute)" } : undefined}><td><PickBox pick={pk} id={u.id} label={`${u.sub ?? u.chapter} 고르기`} /></td><td className="sch">{u.chapter}</td><td>{u.mid ?? ""}</td><td>{u.sub ?? ""}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
             <td className="num"><input type="text" className="scr" value={ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, ""))} aria-label={`${u.sub ?? u.chapter} 쪽`} placeholder="10-12" disabled={pending || u.state === "hidden"} style={{ width: 72 }} onChange={(x) => setUe(u, "pages", x.target.value)} /></td>
             <td className="num"><input type="text" className="scr" inputMode="numeric" value={ue(u, "qCount", u.q_count ?? "")} aria-label={`${u.sub ?? u.chapter} 문항`} disabled={pending || u.state === "hidden"} style={{ width: 56 }} onChange={(x) => setUe(u, "qCount", x.target.value.replace(/\D/g, ""))} /></td>
@@ -137,7 +137,7 @@ function Upload({ close, run, pending }) {
         <div className="upr ok" data-g="sum-changed"><i>✎</i><div><b>바뀜 {t.changed}줄</b><small>쪽수·문항수·내용이 다른 것</small></div></div>
         <div className="upr keep" data-g="sum-same"><i>=</i><div><b>손대지 않음 {t.same}줄</b><small>파일과 같습니다</small></div></div>
         <div className="upr keep" data-g="sum-untouched"><i>🔒</i><div><b>파일에 없는 기존 줄 {t.untouched}개 · 손대지 않음</b><small>엑셀에서 지워도 앱에서는 안 지워집니다(②만 지웁니다)</small></div></div>
-        {plan.mangled.length > 0 && <div className="upr warn" data-g="sum-mangled"><i>📅</i><div><b>날짜 꼴이 된 문항범위 {plan.mangled.length}줄</b><small>{plan.mangled.slice(0, 8).join(", ")}행 · 엑셀이 「1-25」를 날짜로 바꿨습니다. 파일에서 고쳐 다시 올리세요(개수는 안 셌습니다)</small></div></div>}
+        {plan.mangled.length > 0 && <div className="upr warn" data-g="sum-mangled"><i>📅</i><div><b>날짜 꼴이 된 문항범위 {plan.mangled.length}줄</b><small>{plan.mangled.slice(0, 8).join(", ")}행 · 엑셀이 「1-25」를 날짜로 바꿨습니다. 파일에서 수정해서 다시 올리세요(개수는 안 셌습니다)</small></div></div>}
         <div className={"upr" + (holdsLeft ? " warn" : " keep")} data-g="sum-holds"><i>⏸</i><div><b>보류 {holdsLeft}줄</b><small>교재 이름이 안 맞습니다. 아래에서 풉니다</small></div></div>
         {plan.holds.length > 0 && <div className="hold" data-g="holds">{plan.holds.map((h) => { const hv = holds[h.key] ?? { act: "skip" }; return <div key={h.key} className="holdr" data-g="hold" data-name={h.name}><b>「{h.name}」</b><small>{h.first}행부터 {h.lines}줄 · {h.candidates.length ? `후보가 ${h.candidates.length}입니다. ${h.candidates.map((c) => c.name).join(" / ")}` : "이 이름의 교재가 없습니다"}</small>
           <div className="wv" style={{ margin: "8px 0 0" }}>
@@ -157,9 +157,9 @@ function Upload({ close, run, pending }) {
 }
 /** 교재 시트 미리보기 — 줄마다 새로 만듦 · 고침(어느 칸) · 같음 · 보류(후보 둘) · 고칠 줄(영역 밖 · 링크 꼴 · 같은 교재 두 줄) — 판단은 lib/book-plan planBookUpload·parseBookRows */
 function BooksPlan({ plan }) {
-  const ACT = { new: ["＋", "새로 만듦", "ok"], update: ["✎", "고침", "ok"], same: ["=", "같음", "keep"], hold: ["⏸", "보류", "warn"] };
+  const ACT = { new: ["＋", "새로 만듦", "ok"], update: ["✎", "수정", "ok"], same: ["=", "같음", "keep"], hold: ["⏸", "보류", "warn"] };
   return <>
-    <div className="ctitle"><span className="cemo">📕</span>교재 시트 · 올리면 이렇게 됩니다<span className="spacer" /><span className="pill" data-g="books-totals">새로 {plan.totals.new} · 고침 {plan.totals.update} · 같음 {plan.totals.same}{plan.totals.hold ? ` · 보류 ${plan.totals.hold}` : ""}{plan.bad.length ? ` · 고칠 줄 ${plan.bad.length}` : ""}</span></div>
+    <div className="ctitle"><span className="cemo">📕</span>교재 시트 · 올리면 이렇게 됩니다<span className="spacer" /><span className="pill" data-g="books-totals">새로 {plan.totals.new} · 수정 {plan.totals.update} · 같음 {plan.totals.same}{plan.totals.hold ? ` · 보류 ${plan.totals.hold}` : ""}{plan.bad.length ? ` · 고칠 줄 ${plan.bad.length}` : ""}</span></div>
     {plan.perRow.map((p) => { const [i, nm, cls] = ACT[p.act]; return <div key={p.line} className={"upr " + cls} data-g="book-plan" data-kind={p.act}><i>{i}</i><div><b>{p.name}{p.book && p.book.name !== p.name ? ` ← 「${p.book.name}」(${p.how})` : ""} · {nm}{p.act === "update" ? `: ${p.labels.join(" · ")}` : ""}</b><small>{p.line}행{p.act === "hold" ? ` · 후보가 ${p.candidates.length}입니다. ${p.candidates.map((c) => c.name).join(" / ")} · 교재ID 열로 가르세요` : p.act === "new" ? ` · ${[p.area ?? "영역 없음", p.level, p.price != null ? `${p.price}원` : null].filter(Boolean).join(" · ")}` : p.act === "same" ? " · 시트와 같습니다(빈 칸은 지우지 않습니다)" : ""}</small></div></div>; })}
     {plan.bad.map((x) => <div key={x.line} className="upr warn" data-g="book-bad"><i>✕</i><div><b>{x.name} · 고칠 줄</b><small>{x.line}행 · {x.why} · 이 줄은 저장하지 않습니다</small></div></div>)}
     {plan.unknown.length > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>모르는 열은 무시했습니다. {plan.unknown.join(" · ")}</p>}

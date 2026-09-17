@@ -79,7 +79,7 @@ export default function Board({ d }) {
                   <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                     <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="up" {...icon("위로")} onClick={() => run(() => moveLineAct("area", l.id, "up"))}>▲</button>
                     <button className="btn sm gho" type="button" disabled={pending || i === lines.length - 1} data-act="down" {...icon("아래로")} onClick={() => run(() => moveLineAct("area", l.id, "down"))}>▼</button>
-                    <button className="btn sm gho" type="button" disabled={pending} data-act="edit" {...icon("고치기")} onClick={() => setEditing(editing === l.id ? null : l.id)}>✎</button>
+                    <button className="btn sm gho" type="button" disabled={pending} data-act="edit" {...icon("수정")} onClick={() => setEditing(editing === l.id ? null : l.id)}>✎</button>
                     <button className="btn sm gho" type="button" disabled={pending} data-act="retire" {...icon("삭제")} onClick={() => run(() => setLineAct("area", l.id, { state: "retired" }), "삭제했습니다(아래 「삭제한 것」에서 복구합니다)")}>🗑</button>
                   </span>
                 </div>
@@ -104,9 +104,9 @@ export default function Board({ d }) {
         return (
           <div key={area} className={"rcol2" + (v.custom ? " pick2" : "")} data-g="student-area" data-area={area} data-custom={v.custom}>
             <div className="rh2"><span className="rhi">{AREAS.find(([a]) => a === area)?.[1]}</span><b>{area}</b><span className="pill">{books}</span><span className="spacer" />
-              {v.custom ? <span className="tag act">이 아이만 고침</span> : <span className="tag on">학원 기본 그대로</span>}
+              {v.custom ? <span className="tag act">이 아이만 수정</span> : <span className="tag on">학원 기본 그대로</span>}
               {v.custom ? <button className="btn sm gho" type="button" disabled={pending} data-act="reset" onClick={() => run(() => resetAct(sid, area), "학원 기본으로 돌렸습니다(줄은 내렸을 뿐 지우지 않았습니다)")}>학원 기본으로</button>
-                        : <button className="btn sm" type="button" disabled={pending || !v.lines.length} data-act="customize" onClick={() => run(() => customizeAct(sid, area), "이 아이만의 줄을 만들었습니다. 구분·차례·빼기를 따로 정합니다")}>이 아이만 고치기</button>}</div>
+                        : <button className="btn sm" type="button" disabled={pending || !v.lines.length} data-act="customize" onClick={() => run(() => customizeAct(sid, area), "이 아이만의 줄을 만들었습니다. 구분·차례·빼기를 따로 정합니다")}>이 아이만 수정</button>}</div>
             {!v.lines.length && <div className="ritem"><span className="rn2"></span><b style={{ color: "var(--mute)" }}>{area} 영역 루틴이 없습니다. 위에서 만드세요</b></div>}
             {v.lines.map((l, i) => (
               <div key={l.id} className="ritem on" data-g="sline">

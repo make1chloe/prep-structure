@@ -1,5 +1,5 @@
 "use server";
-/** 학생 14 의 손 — 학원 사람만. 판단·쓰기는 lib/student.js 한 벌(+ 학생 · 고치기 · 퇴원·복귀 · 반 · 금액 · 상담 · 형제 · 계정 발급 · 비밀번호 초기화). 계정은 서버 자신(service role)이 auth 에 만든다 */
+/** 학생 14 의 손 — 학원 사람만. 판단·쓰기는 lib/student.js 한 벌(+ 학생 · 수정 · 퇴원·복귀 · 반 · 금액 · 상담 · 형제 · 계정 발급 · 비밀번호 초기화). 계정은 서버 자신(service role)이 auth 에 만든다 */
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { attachConsult } from "@/lib/files";

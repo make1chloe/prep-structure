@@ -208,7 +208,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「기타」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
   const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && (!isAuto(it) || sheet[slot].some((x) => isAuto(x) && x.unit_id === it.unit_id)));   // 뺀 줄(대전제-19 · 복구) · 루틴 줄은 그 단원이 아직 살아 있을 때만(손으로 건너뛴 것 · (어37)) · 단원째 뺀 것은 줄이기·조절·오늘 단원 몫
-  // (어24) 깔린 줄만 보인다 — 「+ 항목」(기타 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
+  // (어24) 깔린 줄만 보인다 — 「+ 항목」(기타 · 분량 · 줄이기) · 「다음 시간 시험 · 수정」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
   const extras = unitless("class").length + unitless("home").length;
   const [more, setMore] = useState(extras > 0);
   const prevExtras = useRef(extras);
@@ -234,7 +234,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       {books.length === 0 && <div className="lf" data-g="no-book"><span className="ln">📕</span><div><b>배정한 교재 없음</b></div>{!closed && <button type="button" className="btn sm pri" data-act="assign-book" onClick={() => setAssign(true)}>+ 교재 배정</button>}</div>}
       {assign && <AssignModal studentId={sheet.student_id} date={date} sheetId={sheet.id} onClose={() => setAssign(false)} />}
       {runBooks.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} onPrep={onPrep} pos={i} nOrder={nOrder} />)}
-      <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">🔤</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>고치기</button></div>
+      <div className="lf" style={{ marginTop: 8 }} data-g="quiz-line"><span className="ln">🔤</span><div><b>다음 시간 시험</b><small>{quizLine}</small></div><button type="button" className="btn sm gho" data-act="quiz-edit" aria-pressed={quizEdit} onClick={() => setQuizEdit((v) => !v)}>수정</button></div>
       {quizEdit && nextQuiz}
       <div className="folds wv" style={{ margin: "10px 0 0" }} data-g="folds">
         <button type="button" className="btn sm gho" data-act="fold-more" aria-pressed={more} onClick={() => setMore((v) => !v)}>+ 항목{extras ? ` ${extras}` : ""}</button>
@@ -331,16 +331,16 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
     </div>
   );
 }
-/** 손으로 더한 줄 하나(기타 · 나머지 조각) · ✎ 글 고치기 · 미루기 · ✕ 빼기(대전제-19 · 원장님 2026-09-15 「모든 항목을 추가/수정/삭제가 가능한게 기본」) */
+/** 손으로 더한 줄 하나(기타 · 나머지 조각) · ✎ 글 수정 · 미루기 · ✕ 빼기(대전제-19 · 원장님 2026-09-15 「모든 항목을 추가/수정/삭제가 가능한게 기본」) */
 function FreeLine({ it, no, closed, fail, start, mv, mvName, mvTip, other }) {
   const [edit, setEdit] = useState(false); const box = useRef(null);
   useEffect(() => { if (edit) box.current?.focus(); }, [edit]);   // 폰-2: autoFocus 는 안 건다 · ✎ 를 누른 뒤에만 칸으로(사람이 시킨 것)
   const name = itemTitle(it), sub = [itemSub(it), fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ");
   const save = (v) => { const t = String(v ?? "").trim(); setEdit(false); if (!t || t === name) return; start(async () => { fail(await itemText(it.id, t)); }); };
   return <div className="li" data-g="free-line"><span className="n">{no}</span>
-    {edit ? <input ref={box} type="text" defaultValue={it.range_note ?? name} aria-label="줄 고치기" onBlur={(e) => save(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(e.currentTarget.value); } if (e.key === "Escape") setEdit(false); }} style={{ flex: "1 1 120px", minWidth: 0 }} />
+    {edit ? <input ref={box} type="text" defaultValue={it.range_note ?? name} aria-label="줄 수정" onBlur={(e) => save(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(e.currentTarget.value); } if (e.key === "Escape") setEdit(false); }} style={{ flex: "1 1 120px", minWidth: 0 }} />
       : <div><b>{name}</b>{sub && <small>{sub}</small>}</div>}
-    {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" {...icon("고치기", "이 항목 고치기")} onClick={() => setEdit(true)}>✎</button>
+    {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" {...icon("수정", "이 항목 수정")} onClick={() => setEdit(true)}>✎</button>
       {other === "home" && <button type="button" className="btn sm gho icb" data-act="item-next" {...icon("다음 시간", "다음 시간으로 미루기")} onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>⏭</button>}
       <button type="button" className="btn sm gho icb" data-act="item-move" {...icon(mvName, mvTip)} onClick={() => start(async () => { fail(await move(it.id, other)); })}>{mv}</button>
       <button type="button" className="btn sm gho" data-act="item-del" {...icon("빼기", "이 항목 빼기")} onClick={() => start(async () => { fail(await itemRemove(it.id)); })}>✕</button></>}
@@ -451,7 +451,7 @@ function CcPart({ rows = [], closed, fail, start }) {   // 확장이 아직 안 
 }
 /** 📝 다음 시간 시험 — 숙제와 같이 나간다. 범위는 교재(오늘 학습 소단원)거나 직접 · 전체 개수를 적어야 리포트에 나간다(원장님 9/2) · 방식·통과선은 학생×교재×회독 한 곳(style_for) */
 function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
-  const [styleQ, setStyleQ] = useState(null);   // 방식 고치기 모달(5단계-③)
+  const [styleQ, setStyleQ] = useState(null);   // 방식 수정 모달(5단계-③)
   const unitOf = (bookId) => sheet.class.find((it) => it.units?.book_id === bookId)?.unit_id ?? sheet.home.find((it) => it.units?.book_id === bookId)?.unit_id ?? null;
   const patch = (q, p) => start(async () => { fail(await quizSet(sheet.id, q.id, p)); });
   return (
@@ -467,7 +467,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
             <span className="qlab">통과선</span><input className="scr" name="cut_pct" type="text" inputMode="numeric" defaultValue={numOr(q.cut_pct)} style={{ maxWidth: 52 }} disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.cut_pct)) patch(q, { cutPct: e.target.value }); }} /><b className="qof">%</b></div>
           {q.source === "manual" && <div className="lf" style={{ marginTop: 4 }}><span className="ln">✎</span><input type="text" defaultValue={q.free_note ?? ""} placeholder="예: 2409 학평 22-24번" disabled={closed} style={{ flex: 1, minWidth: 0 }} onBlur={(e) => { if (e.target.value !== (q.free_note ?? "")) patch(q, { freeNote: e.target.value }); }} /></div>}
           {q.total == null && <div className="lf warn" style={{ marginTop: 4 }}><span className="ln">!</span><div><b>전체 개수가 없어 리포트에 안 나갑니다</b></div></div>}
-          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>{q.quiz_style?.round ?? 1}회독 · {q.quiz_style?.student_id ? <span className="tag act" data-g="style-mine">이 아이만</span> : q.quiz_style?.book_id ? "교재 기본값" : "학원 기본값"}</b><small data-g="style-text">{q.quiz_style?.text ?? "방식 줄 없음"}{q.quiz_style?.units_per ? ` · ${q.quiz_style.units_per}단원씩` : ""}</small></div>{!closed && <button type="button" className="btn sm" data-act="style-open" onClick={() => setStyleQ(q)}>방식 고치기</button>}</div>
+          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>{q.quiz_style?.round ?? 1}회독 · {q.quiz_style?.student_id ? <span className="tag act" data-g="style-mine">이 아이만</span> : q.quiz_style?.book_id ? "교재 기본값" : "학원 기본값"}</b><small data-g="style-text">{q.quiz_style?.text ?? "방식 줄 없음"}{q.quiz_style?.units_per ? ` · ${q.quiz_style.units_per}단원씩` : ""}</small></div>{!closed && <button type="button" className="btn sm" data-act="style-open" onClick={() => setStyleQ(q)}>방식 수정</button>}</div>
         </div>); })}
       {!closed && <form className="wv" style={{ marginTop: 8 }} action={async (f) => { fail(await quizAdd(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
@@ -482,15 +482,15 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
     </div>
   );
 }
-/** 방식 고치기(5단계-③ · 목업 01 「이 아이만 다르게도 됩니다 · 방식 고치기」) · 학생 × 교재 × 회독 × 유형 한 줄: 단어는 네 비율(합 100) · 첫글자 힌트 · 몇 단원씩, 문장은 방식(구두·받아쓰기·녹음) · 통과선. 저장하면 아직 안 본 같은 짝의 시험이 따라온다 */
+/** 방식 수정(5단계-③ · 목업 01 「이 아이만 다르게도 됩니다 · 방식 수정」) · 학생 × 교재 × 회독 × 유형 한 줄: 단어는 네 비율(합 100) · 첫글자 힌트 · 몇 단원씩, 문장은 방식(구두·받아쓰기·녹음) · 통과선. 저장하면 아직 안 본 같은 짝의 시험이 따라온다 */
 function StyleModal({ q, sheet, fail, start, onClose }) {
   const [failM, errNode] = useModalErr();   // (어49) 모달 안 손의 실패는 모달 안에 선다 · 덮개 뒤 판에 뜨면 「단추가 안 먹힌다」로 보인다(원장님 9/16)
   const st = q.quiz_style ?? {}, [f, setF] = useState({ mc_meaning: st.mc_meaning ?? 0, sa_meaning: st.sa_meaning ?? 0, mc_word: st.mc_word ?? 0, sa_word: st.sa_word ?? 0, first_hint: Boolean(st.first_hint), units_per: st.units_per ?? "", s_way: st.s_way ?? "dictation", cut_pct: st.cut_pct ?? q.cut_pct ?? 90 });
   const set = (k, v) => setF((o) => ({ ...o, [k]: v }));
   const sum = Number(f.mc_meaning || 0) + Number(f.sa_meaning || 0) + Number(f.mc_word || 0) + Number(f.sa_word || 0);
   const N = ({ k, label }) => <label className="wv" style={{ gap: 4, margin: 0 }}><span className="fl" style={{ margin: 0, width: "auto" }}>{label}</span><input className="scr" name={k} type="text" inputMode="numeric" value={f[k]} onChange={(e) => set(k, e.target.value)} style={{ maxWidth: 56 }} /></label>;
-  return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 고치기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
-    <div className="mdlh"><b>방식 고치기 · 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
+  return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 수정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
+    <div className="mdlh"><b>방식 수정 · 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
     <div className="mdlb">{errNode}
       {q.kind === "word" ? <>
         <div className="wv" style={{ gap: 10 }}><N k="mc_meaning" label="객관식 뜻 %" /><N k="sa_meaning" label="주관식 뜻 %" /><N k="mc_word" label="객관식 영어 %" /><N k="sa_word" label="주관식 영어 %" /><span className={"pill" + (sum === 100 ? " ok" : " warn")} data-g="style-sum">합 {sum}</span></div>
@@ -523,7 +523,7 @@ function AttTimes({ student, date, closed, fail, start }) {
       {t.out ? <><span className="pill" data-g="arr-out" data-by={t.out.by}>하원 {t.out.at} · {t.out.name}</span>
         {!closed && t.out.by === "staff" && <button type="button" className="btn sm gho icb" data-act="leave-undo" {...icon("하원 취소", "잘못 눌렀으면 취소")} onClick={undo}>↩</button>}</>
         : !closed && <button type="button" className="btn sm pri" data-act="leave-now" onClick={() => put(4, null)}>하원</button>}
-      {!closed && (t.in || t.out) && <button type="button" className="btn sm gho icb" data-act="time-edit" {...icon("시각", "도착·하원 시각 고치기")} aria-pressed={edit} onClick={() => { setEdit(!edit); setWhich(t.out ? "out" : "in"); setVal((t.out ?? t.in)?.at ?? ""); }}>✎</button>}
+      {!closed && (t.in || t.out) && <button type="button" className="btn sm gho icb" data-act="time-edit" {...icon("시각", "도착·하원 시각 수정")} aria-pressed={edit} onClick={() => { setEdit(!edit); setWhich(t.out ? "out" : "in"); setVal((t.out ?? t.in)?.at ?? ""); }}>✎</button>}
       {edit && !closed && <>
         <span className="seg sm" data-g="time-which">{[["in", "도착"], ["out", "하원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={which === k} onClick={() => { setWhich(k); setVal((k === "out" ? t.out : t.in)?.at ?? ""); }}>{name}</button>)}</span>
         <input type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="예: 21:05" inputMode="numeric" aria-label="시각" style={{ maxWidth: 88 }} />
@@ -658,7 +658,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
   const [ask, setAsk] = useState(null);      // 마감 전에 한 번 묻는 것 · ["same"(AI 초안 그대로, 확정-64), "late"(안 보낸 하원 지연, 확정-⑭)]. 막지 않는다
   const [show, setShow] = useState(false);   // 👁 미리보기
   const [made, setMade] = useState(null);
-  const [edit, setEdit] = useState(false);   // (어24) 키워드·상황·길이는 「고치기」를 눌러야 — 상황·길이는 저절로
+  const [edit, setEdit] = useState(false);   // (어24) 키워드·상황·길이는 「수정」를 눌러야 — 상황·길이는 저절로
   const autoRan = useRef(false);    // 방금 만든 초안의 사정(다시 시킴 · 잘림)
   const askRef = useRef(null);
   useEffect(() => { if (ask) askRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [ask]);   // 저장줄이 화면 아래에 붙어 있을 때 묻는 상자가 눈 밖이면 데려온다
@@ -684,7 +684,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
         <div><b>글 밑에 붙는 줄</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div></div>}
       {closed && <div className="tags" style={{ marginBottom: 8 }}><span className="tag">{capName(cap)}</span><span className="tag type">{kindName(kind)}</span>{draft && sameAsDraft(text, draft) && <span className="tag">AI 초안 그대로</span>}</div>}
       {!closed && <div className="lf" data-g="comment-line"><span className="ln">✉️</span><div><b>{kindName(kind)} · {capName(cap)}</b><small>{draft ? "초안 준비됨" : "초안 없음"}{kind === autoKind ? " · 오늘 상태에서 저절로" : ""}</small></div>
-        <button type="button" className="btn sm gho" data-act="comment-edit" aria-pressed={edit} onClick={() => setEdit((v) => !v)}>고치기</button><button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑</button></div>}
+        <button type="button" className="btn sm gho" data-act="comment-edit" aria-pressed={edit} onClick={() => setEdit((v) => !v)}>수정</button><button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑</button></div>}
       {!closed && edit && <>
         <label className="fl">키워드</label>
         <input type="text" name="keys" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="예: 간접의문문, 어순 스스로 설명" style={{ width: "100%" }} />
@@ -704,7 +704,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
         {ask.includes("late") && <b>하원 지연 안내를 아직 안 보냈습니다</b>}</div>
         {ask.includes("late") && <button type="button" className="btn sm pri" data-act="send-close" onClick={sendAndFinish}>📨 보내고 마감</button>}
         <button type="button" className={"btn sm" + (ask.includes("late") ? "" : " pri")} data-act="close-anyway" onClick={() => finish(true)}>그대로 마감</button>
-        <button type="button" className="btn sm" onClick={() => setAsk(null)}>{ask.includes("same") ? "고치기" : "돌아가기"}</button></div>}
+        <button type="button" className="btn sm" onClick={() => setAsk(null)}>{ask.includes("same") ? "수정" : "돌아가기"}</button></div>}
       {!closed && <div className="wv" style={{ marginTop: 8 }}>
         <button className="btn sm gho" type="button" data-act="preview" aria-pressed={show} onClick={() => setShow((v) => !v)}>👁 미리보기</button></div>}
       {!closed && barHost && createPortal(<>

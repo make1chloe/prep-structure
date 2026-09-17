@@ -16,7 +16,7 @@ const Row = ({ icon = null, tip = null, cls = "", check = null, right = null, fo
   <div className={"srow" + (cls ? " " + cls : "") + (open ? " open" : "")} {...rest}>{check}{icon != null && <span className="si" title={tip ?? undefined}>{icon}</span>}<div className="sn">{children}{open && fold}</div>{fold && <button type="button" className="btn sm gho sfold" aria-expanded={open} aria-label="글 펼치기" data-act="fold" onClick={onFold}>{open ? "▾" : "▸"}</button>}{right}</div>
 );
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
-/** 펼친 줄 · 부모님께 나갈 글. 아직 안 나간 줄(마감 전 · 보낼 것 · 빈 칸 · 예약)은 그 자리에서 고쳐 저장(lib/send editDaily) · 나간 줄은 읽기만 */
+/** 펼친 줄 · 부모님께 나갈 글. 아직 안 나간 줄(마감 전 · 보낼 것 · 빈 칸 · 예약)은 그 자리에서 수정 저장(lib/send editDaily) · 나간 줄은 읽기만 */
 function DailyText({ r, editable, pending, run }) {
   const [text, setText] = useState(r.comment);
   useEffect(() => { setText(r.comment); }, [r.comment]);

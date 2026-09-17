@@ -1,5 +1,5 @@
 "use client";
-/** 🏫 학교 카드(06b) · 학교마다 이름·급 고치기 · 닫기(지우지 않는다 · 선택 목록에서 빠진다) · 「+ 새 학교」. 대전제-19 */
+/** 🏫 학교 카드(06b) · 학교마다 이름·급 수정 · 닫기(지우지 않는다 · 선택 목록에서 빠진다) · 「+ 새 학교」. 대전제-19 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Sure, { useSure } from "./sure.js";
@@ -29,7 +29,7 @@ export default function SchoolsCard({ schools = [] }) {
             <button type="button" className="btn sm pri" data-act="school-set" disabled={pending || !f.name.trim()} onClick={() => run(() => schoolSetAct(s.id, f))}>저장</button>
             <button type="button" className="btn sm gho" onClick={() => setEdit(null)}>닫기</button></span>
           : <><div><b>{s.name}</b><small>{levelName(s.level)}{s.neis_code ? ` · 나이스 ${s.neis_code}` : ""}</small></div>
-            <button type="button" className="btn sm gho" data-act="school-edit" onClick={() => { setEdit(s.id); setF({ name: s.name, level: s.level }); }} {...icon("고치기", "학교 이름·급 고치기")}>✎</button>
+            <button type="button" className="btn sm gho" data-act="school-edit" onClick={() => { setEdit(s.id); setF({ name: s.name, level: s.level }); }} {...icon("수정", "학교 이름·급 수정")}>✎</button>
             <button type="button" className="btn sm gho" data-act="school-close" disabled={pending} onClick={() => sure.ask(s.id)}>닫기</button></>}
         <Sure on={sure.is(s.id)} text={`${s.name} 을(를) 닫을까요? 선택 목록에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 복구됩니다`} pending={pending} onYes={() => run(() => schoolCloseAct(s.id))} onNo={() => sure.off()} />
       </div>)}

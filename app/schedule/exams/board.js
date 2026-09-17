@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import ScopeForm from "@/app/_shell/scopeform";
-import SchoolsCard from "@/app/_shell/schoolscard";   // 학교 이름·급 고치기 · 닫기 · + 새 학교(대전제-19)
+import SchoolsCard from "@/app/_shell/schoolscard";   // 학교 이름·급 수정 · 닫기 · + 새 학교(대전제-19)
 import ExamForm from "@/app/_shell/examform";   // (어52) 원장님 9/16 「내신에도 그게 가능해」 — 12 일정 · 12b 가져오기와 같은 칸(원칙-1) · 넣으면 일정 달력에도 뜬다
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";

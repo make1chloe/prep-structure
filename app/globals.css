@@ -1279,7 +1279,7 @@ input.dt2{max-width:120px;padding:4px 8px}
 .tag[class*=" "],.pill[class*=" "]{border-color:transparent}
 .tag.dim,.pill.dim,.tag.fx{border-color:var(--hair)}
 .note .tag,.note .pill,.stopnote .tag,.stopnote .pill,.savebar .pill,.sgh .pill,.mdlf .pill,.mdlh .pill{white-space:normal;height:auto;min-height:var(--h-chip);line-height:1.4;padding:1px 8px}
-/* (자) .mdlh .pill 도 — 폰에서 02c 요일 알약 · 방식 고치기 교재 알약이 닫기 단추 뒤로 잘렸다 */
+/* (자) .mdlh .pill 도 — 폰에서 02c 요일 알약 · 방식 수정 교재 알약이 닫기 단추 뒤로 잘렸다 */
 .tags{gap:6px}
 .tags>button.btn{height:var(--h-sm)}
 /* 단추 — 보통 36 · 작은 28 */

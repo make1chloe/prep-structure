@@ -20,7 +20,7 @@ const frame = (children) => <main className="frame" style={{ maxWidth: 1400, mar
 export default async function Today({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📋</span>오늘 수업은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role]} 화면은 곧 열립니다.` : "역할 줄이 없습니다."}</p></div>);
-  const sp = await searchParams;   // (머2) ?d=YYYY-MM-DD — 다른 날 판을 연다(과거 고치기 · 미래 미리 적기)
+  const sp = await searchParams;   // (머2) ?d=YYYY-MM-DD — 다른 날 판을 연다(과거 수정 · 미래 미리 적기)
   let date, r, band, cfg, todayStr, pref, prepMap;
   try { todayStr = await today(sb);
     date = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : todayStr;

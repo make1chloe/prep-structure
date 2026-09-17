@@ -93,7 +93,7 @@ ok("영역 머리 · 학원 2(구두·문장) · 숙제 2(문장·워크북) · 
 const v0 = studentAreaView(areaLines, []);
 ok("아이 줄이 없으면 「학원 기본 그대로」 · 영역 줄 넷 · 뺀 것 없음", v0.custom === false && v0.lines.map((l) => l.id).join() === "a1,a2,a4,a6" && v0.removed.length === 0);
 const v1 = studentAreaView(areaLines, [L("s1", "문장", "home", true, 1), L("s2", "구두", "class", true, 2), L("s3", "워크북", "home", true, 3, { state: "retired" })]);
-ok("아이 줄이 있으면 「이 아이만 고침」 · 아이 차례대로(문장·구두) · 뺀 것 = 워크북(내린 아이 줄)·교재예습", v1.custom === true && v1.lines.map((l) => l.name).join() === "문장,구두" && v1.removed.map((l) => l.name).join() === "워크북,교재예습");
+ok("아이 줄이 있으면 「이 아이만 수정」 · 아이 차례대로(문장·구두) · 뺀 것 = 워크북(내린 아이 줄)·교재예습", v1.custom === true && v1.lines.map((l) => l.name).join() === "문장,구두" && v1.removed.map((l) => l.name).join() === "워크북,교재예습");
 ok("▲▼ · 삭제한 줄은 건너뛰고 이웃과 sort 를 맞바꾼다(a4 ▲ → a2 와) · 맨 위에서 ▲ 는 빈 것", JSON.stringify(moveSort(areaLines, "a4", "up")) === JSON.stringify([{ id: "a4", sort: 2 }, { id: "a2", sort: 4 }]) && moveSort(areaLines, "a1", "up").length === 0);
 ok("예습 소단원(확정-57) · 오늘 덩어리 다음 것 · 대단원을 넘어도 다음 것이 다음 것", previewUnits(todo, [todo[0]], 1).map((u) => u.unit_id).join() === "1-5" && previewUnits(todo, [todo[0], todo[1]], 1).map((u) => u.unit_id).join() === "2-1");
 const pp = planBook({ lines: [...lines, { item_id: "e", name: "교재예습", place: "next", required: true, sort: 5 }], todo, sb: { stop_mode: "running", per_session: 1 }, date });

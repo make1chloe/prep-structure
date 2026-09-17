@@ -1,5 +1,5 @@
 "use server";
-/** 영상 19 의 손 · 학원 사람만. + 영상 · 고치기·삭제 · 배정 · 마감 미루기 · 배정 삭제 · 📨 알림(알림 길은 lib/notify 하나 · 서버 자신이 든다) */
+/** 영상 19 의 손 · 학원 사람만. + 영상 · 수정·삭제 · 배정 · 마감 미루기 · 배정 삭제 · 📨 알림(알림 길은 lib/notify 하나 · 서버 자신이 든다) */
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";

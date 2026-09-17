@@ -1,7 +1,7 @@
 /** 그림(이모지) 검사 — (어67) · 원장님 2026-09-16 「단순장식이 아닌 기능이있는 버튼역할의 이모지는 직관적으로 기능을 암시하면서 디자인상에 서로 뚜렷한 차별화가 필요해」 ·
  *  「그리고 숙제검사는 그냥 이모지쓰지말자 · 삭제. 오늘. 남아서. 숙제. 이렇게 만드러줘」.
  *  그림은 두 표에서만 온다(lib/emoji.js) — FACE(카드·탭 얼굴 · 장식) · ACT(손 · 단추). 표 안에서 같은 그림이 두 뜻을 맡으면 실패한다(뚜렷한 차별화).
- *  두 표 사이는 겹쳐도 된다 — 얼굴과 손은 서는 곳이 달라 헷갈리지 않는다. 다만 뜻이 같을 때만(🏠 집 · 🏫 학원 · 📨 문자 · ✏️ 고치기 · ✅ 다 함).
+ *  두 표 사이는 겹쳐도 된다 — 얼굴과 손은 서는 곳이 달라 헷갈리지 않는다. 다만 뜻이 같을 때만(🏠 집 · 🏫 학원 · 📨 문자 · ✏️ 수정 · ✅ 다 함).
  *  숙제 검사 카드는 그림 밖이다 — 글자가 곧 기능이다. 손 넷의 글은 lib/item-plan CHECK_MOVE 한 벌(화면이 다시 안 적는다).
  *  마지막은 래칫 — ACT 를 안 거치고 단추에 직접 박힌 그림 자리가 늘면 실패한다. 줄이는 것이 답이지 숫자를 올리는 것이 답이 아니다 */
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -39,7 +39,7 @@ ok(`카드·탭 얼굴 FACE ${Object.keys(FACE).length}종 · 겹침 0`, dupes(F
 ok(`손(단추) ACT ${Object.keys(ACT).length}종 · 겹침 0`, dupes(ACT).length === 0, dupes(ACT).join(" · "));
 { const f = new Map(Object.entries(FACE).map(([k, e]) => [e.replace(/️/g, ""), k])), same = { dash: "home", classes: "school", send: "sms", progress: "edit", password: "account" };
   const cross = Object.entries(ACT).filter(([k, e]) => f.has(e.replace(/️/g, "")) && same[f.get(e.replace(/️/g, ""))] !== k).map(([k, e]) => `${e} ${f.get(e.replace(/️/g, ""))}(얼굴) ↔ ${k}(손)`);
-  ok("두 표가 같은 그림을 쓰는 다섯(🏠 집 · 🏫 학원 · 📨 문자 · ✏️ 고치기 · 🔑 계정)은 뜻이 같다 · 그 밖의 겹침 0", cross.length === 0, cross.join(" · ")); }
+  ok("두 표가 같은 그림을 쓰는 다섯(🏠 집 · 🏫 학원 · 📨 문자 · ✏️ 수정 · 🔑 계정)은 뜻이 같다 · 그 밖의 겹침 0", cross.length === 0, cross.join(" · ")); }
 const seg = new Intl.Segmenter("ko", { granularity: "grapheme" });
 ok("한 글자짜리 손이 아니면 표에 안 넣는다(단추는 좁다) · ACT 는 전부 한 글자", Object.values(ACT).every((e) => [...seg.segment(e)].length === 1), Object.entries(ACT).filter(([, e]) => [...seg.segment(e)].length !== 1).map(([k]) => k).join(" "));
 
