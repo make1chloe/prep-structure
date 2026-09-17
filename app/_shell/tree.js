@@ -9,7 +9,7 @@ export function ItemTree({ rows = [], all = rows, row, unitHead = null, book = t
   const forest = itemForest(rows, all, { bySort }); if (!forest.length) return null;
   return forest.map((b) => (
     <div key={b.key} className={"tr" + (book ? "" : " nob") + (dense ? " dense" : "")} data-g="tree" data-area={book ? b.area ?? "" : ""}>
-      {book && <div className="trb" data-g="tree-book">{b.book ? <><b>📕 {b.book}</b>{b.area && <span className="tra">{areaEmo(b.area)} {b.area}</span>}</> : <b>그 밖에</b>}</div>}
+      {book && <div className="trb" data-g="tree-book">{b.book ? <><b>📕 {b.book}</b>{b.area && <span className="tra">{areaEmo(b.area)} {b.area}</span>}</> : <b>기타</b>}</div>}
       {b.chapters.map((ch) => ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null;
         if (!g.unit && !unitHead) return <div key={`_${ch.key}_${gi}`} className="trr" data-g="tree-free">{g.rows.map((it, i) => row(it, i, g, ch))}</div>;   // 단원 없는 줄(손으로 더한 것)은 머리 없이 줄만 · 「단원 없음」 글은 노이즈(대전제-21) · 01 학습·숙제 안(unitHead)에서는 손이 있어 머리를 둔다
         const key = g.id ?? `_${ch.key}_${gi}`;

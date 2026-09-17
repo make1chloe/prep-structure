@@ -205,10 +205,10 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const runBooks = ordered.filter((b) => stopOn(b, date) !== "book_off");
   const nOrder = runBooks.filter((b) => [...sheet.class, ...sheet.home].some((it) => it.units?.book_id === b.book_id)).length;   // 줄 있는 교재 수 · ▲▼ 는 그 안에서만
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
-  const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「그 밖에」
+  const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「기타」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
   const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && (!isAuto(it) || sheet[slot].some((x) => isAuto(x) && x.unit_id === it.unit_id)));   // 뺀 줄(대전제-19 · 복구) · 루틴 줄은 그 단원이 아직 살아 있을 때만(손으로 건너뛴 것 · (어37)) · 단원째 뺀 것은 줄이기·조절·오늘 단원 몫
-  // (어24) 깔린 줄만 보인다 — 「+ 항목」(그 밖에 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
+  // (어24) 깔린 줄만 보인다 — 「+ 항목」(기타 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
   const extras = unitless("class").length + unitless("home").length;
   const [more, setMore] = useState(extras > 0);
   const prevExtras = useRef(extras);
@@ -250,7 +250,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         {laid && <div className="ldw"><b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b></div>}
       </div>
       <div className="two">
-        {[["class", "그 밖에 · 학원", "home", "🏠", "숙제로", "집에서 할 숙제로"], ["home", "그 밖에 · 집", "class", "🏫", "학원으로", "학원에서 할 것으로"]].map(([slot, title, other, mv, mvName, mvTip]) => (
+        {[["class", "기타 · 학원", "home", "🏠", "숙제로", "집에서 할 숙제로"], ["home", "기타 · 집", "class", "🏫", "학원으로", "학원에서 할 것으로"]].map(([slot, title, other, mv, mvName, mvTip]) => (
           <div className="half" key={slot}>
             <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
             {unitless(slot).map((it, i) => <FreeLine key={it.id} it={it} no={i + 1} closed={closed} fail={fail} start={start} mv={mv} mvName={mvName} mvTip={mvTip} other={other} />)}
@@ -300,7 +300,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
   const [prog, setProg] = useState(false);
-  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && bookLine(it));   // 루틴이 깐 줄 + 지난 시간에서 넘어온 줄(fromLast) · 검사 나머지 조각(carry_of)은 「그 밖에」
+  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && bookLine(it));   // 루틴이 깐 줄 + 지난 시간에서 넘어온 줄(fromLast) · 검사 나머지 조각(carry_of)은 「기타」
   const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
   return (
     <div className={"bk" + (stop === "book_off" ? " stopped" : "")} data-book={b.book_id} data-area={b.books?.area ?? ""}>
@@ -331,7 +331,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep, 
     </div>
   );
 }
-/** 손으로 더한 줄 하나(그 밖에 · 나머지 조각) · ✎ 글 고치기 · 미루기 · ✕ 빼기(대전제-19 · 원장님 2026-09-15 「모든 항목을 추가/수정/삭제가 가능한게 기본」) */
+/** 손으로 더한 줄 하나(기타 · 나머지 조각) · ✎ 글 고치기 · 미루기 · ✕ 빼기(대전제-19 · 원장님 2026-09-15 「모든 항목을 추가/수정/삭제가 가능한게 기본」) */
 function FreeLine({ it, no, closed, fail, start, mv, mvName, mvTip, other }) {
   const [edit, setEdit] = useState(false); const box = useRef(null);
   useEffect(() => { if (edit) box.current?.focus(); }, [edit]);   // 폰-2: autoFocus 는 안 건다 · ✎ 를 누른 뒤에만 칸으로(사람이 시킨 것)
@@ -741,7 +741,7 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const pickSlot = (k) => { setSlot(k); if (pool?.units?.length) { const { us, its } = seed(pool, k); setUnits(us); setItems(its); } };
   const books = pool?.books ?? [], allUnits = pool?.units ?? [], lines = pool?.lines?.[slot] ?? [];
   const groups = (() => { const m = new Map();   // (어62) 대단원 고르개를 걷고 **교재 차례 그대로** 대단원 머리 + 소단원을 한 목록에 편다(원장님 2026-09-16 「대단원 목록불편함. 여러대단원에서 골라 배정하기어려움」)
-    for (const u of allUnits) { const c = u.chapter || "그 밖에"; if (!m.has(c)) m.set(c, []); m.get(c).push(u); }
+    for (const u of allUnits) { const c = u.chapter || "기타"; if (!m.has(c)) m.set(c, []); m.get(c).push(u); }
     return [...m].map(([name, us]) => ({ name, us })); })();
   const flip = (arr, set, id) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
   const allOn = (us) => us.length > 0 && us.every((u) => units.includes(u.id));
