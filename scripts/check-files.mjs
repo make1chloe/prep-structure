@@ -1,10 +1,10 @@
 /** 자료실 판단 검사(검사-62) · lib/files-plan.js 순수 셈: 유형 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 유형별 칸(학교·학년 · 아이별 · 빈 올린 기록 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
-import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads, pickRows, withoutPick } from "../lib/files-plan.js";
+import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads, pickRows, withoutPick, isAudio } from "../lib/files-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 자료실 판단(순수)");
 ok("유형 여섯 · 수행평가 · 시험 안내 · 수업자료 · 학사일정 · 가정통신문 · 기타(0015 의 check 와 같다)", KINDS.join() === "수행평가,시험 안내,수업자료,학사일정,가정통신문,기타");
-ok("종류 목록 · 사진·pdf·한글·워드·엑셀·파워포인트·글 22가지(9000 버킷과 같은 벌) · 사진 판별 · 아이콘", ALLOWED_MIME.length === 22 && isImage("image/heic") && !isImage("application/pdf") && icon("image/png") === "📷" && icon("application/pdf") === "📄");
+ok("종류 목록 · 사진·음성·pdf·한글·워드·엑셀·파워포인트·글 28가지(9000 버킷과 같은 벌 · (어76) 음성 여섯) · 사진·음성 판별 · 아이콘", ALLOWED_MIME.length === 28 && isImage("image/heic") && !isImage("application/pdf") && isAudio("audio/webm") && !isAudio("image/png") && icon("image/png") === "📷" && icon("audio/mp4") === "🎧" && icon("application/pdf") === "📄");
 ok("크기 글 · 480KB · 2.1MB · 0 은 1KB", sizeText(480 * 1024) === "480KB" && sizeText(2.1 * 1048576) === "2.1MB" && sizeText(0) === "1KB");
 ok("확장자 · 이름에서(대문자도) · 없으면 종류에서 · 모르면 bin · 경로는 연/월/아이디.확장자(사람 이름 없음)", extOf("안내문.JPG", "image/jpeg") === "jpg" && extOf("사진", "image/png") === "png" && extOf("x", "application/x-hwp") === "bin" && pathFor("2026-09-06", "abc", "jpg") === "2026/09/abc.jpg");
 ok("사진 줄이기 · 4000×3000 → 1600×1200 · 1200×800 은 그대로 · 세로 사진도 긴 변 기준", JSON.stringify(shrinkPlan(4000, 3000, 1600)) === JSON.stringify({ w: 1600, h: 1200, shrink: true }) && shrinkPlan(1200, 800, 1600).shrink === false && shrinkPlan(900, 3200, 1600).h === 1600);

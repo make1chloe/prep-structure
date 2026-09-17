@@ -43,12 +43,18 @@ ok(`손(단추) ACT ${Object.keys(ACT).length}종 · 겹침 0`, dupes(ACT).lengt
 const seg = new Intl.Segmenter("ko", { granularity: "grapheme" });
 ok("한 글자짜리 손이 아니면 표에 안 넣는다(단추는 좁다) · ACT 는 전부 한 글자", Object.values(ACT).every((e) => [...seg.segment(e)].length === 1), Object.entries(ACT).filter(([, e]) => [...seg.segment(e)].length !== 1).map(([k]) => k).join(" "));
 
-console.log("■ 숙제 검사 카드에는 그림을 안 쓴다 · 글자가 곧 기능이다(원장님 2026-09-16 「숙제검사는 그냥 이모지쓰지말자」)");
+console.log("■ (어76) 숙제 검사의 ○△✕ 는 그림 · 손 넷(삭제·수업중·수업후·숙제)은 글자(원장님 2026-09-17 「동그라미 세모 엑스 도 이모지로 바꾸고 반려 추가」 — 9/16 「숙제검사는 그냥 이모지쓰지말자」를 뒤집으신 것)");
 { const src = readFileSync("app/today/row.js", "utf8");
   const card = fnBody(src, "CheckCard"), item = fnBody(src, "CheckItem");
   ok("app/today/row.js 에 CheckCard · CheckItem 이 있다(잘라 보는 검사라 이름이 바뀌면 여기부터 고친다)", card.length > 200 && item.length > 200);
   const inButtons = [...buttons(card), ...buttons(item)].flatMap(pics);
-  ok(`검사 카드·검사 줄이 그리는 단추에 그림 0 (단추 ${buttons(card).length + buttons(item).length}개)`, inButtons.length === 0, [...new Set(inButtons)].join(" "));
+  // (어76) 검사 값 단추 넷만 그림이다 · 그 그림은 **제 손으로 안 적고** 기능 표(ACT)에서 온다 — lib/status.js CHECK 를 거친다(원칙-1 · 대전제-25)
+  const st = readFileSync("lib/status.js", "utf8");
+  ok("검사 넷의 그림은 lib/status.js 가 ACT 에서 가져온다(화면이 ⭕🔺❌🔙 를 제 손으로 안 적는다)",
+     /import \{ ACT \} from "\.\/emoji\.js"/.test(st) && /\[\["done", ACT\.checkDone\], \["weak", ACT\.checkWeak\], \["missing", ACT\.checkMiss\]\]/.test(st) && !/["']⭕["']|["']🔺["']|["']❌["']/.test(st));
+  ok("반려는 넷째 손 · ACT.reject 하나 · 사유 여섯은 lib/status.js REJECT 한 벌(DB 0176 과 같은 목록)",
+     /data-act="reject"/.test(item) && /\{ACT\.reject\}/.test(item) && /REJECT\.map/.test(item) && ["화질 저하", "페이지 잘림", "페이지 누락", "과제 미완료", "근거 누락", "기타"].every((w) => st.includes(w)));
+  ok(`검사 카드·검사 줄이 그리는 단추에 **표를 안 거친** 그림 0 (단추 ${buttons(card).length + buttons(item).length}개)`, inButtons.length === 0, [...new Set(inButtons)].join(" "));
   ok("검사 줄의 손 넷은 글자다 · 삭제 · 수업중 · 수업후 · 숙제(언제 하느냐로 읽힌다 · 원장님 9/16 「삭제 수업중 수업후 숙제」)", CHECK_MOVE.map(([, t]) => t).join(" · ") === "삭제 · 수업중 · 수업후 · 숙제" && CHECK_MOVE.every(([, t]) => pics(t).length === 0));
   ok("넷의 구분은 off(줄을 내린다 · 대전제-6) · class · stay · home 셋(carryRest)", CHECK_MOVE.map(([w]) => w).join() === "off,class,stay,home");
   ok("화면은 글을 다시 안 적는다 · row.js 가 CHECK_MOVE 를 들여온다(원칙-1)", /import \{[^}]*CHECK_MOVE[^}]*\} from "@\/lib\/item-plan"/.test(src) && !/\[\["class", "오늘/.test(src));

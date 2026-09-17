@@ -5,7 +5,7 @@ import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, restUndo, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, clearStampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, restUndo, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, clearStampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView, reject as rejectAct } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, countText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -24,13 +24,17 @@ import { markText } from "@/lib/mark";
 import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { itemTitle, itemSub, pagesText, CHECK_MOVE, UPTO, movedTo, movedLine } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」) · (어67) 검사 줄의 손 넷·「어디까지」도 거기 한 벌
+import { itemTitle, itemSub, pagesText, CHECK_MOVE, UPTO, movedTo, movedLine, submitted, rejectOf, rejectText } from "@/lib/item-plan";   // 항목 줄 글 한 벌((어27) · 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」) · (어67) 검사 줄의 손 넷·「어디까지」도 거기 한 벌
 import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
 import { useOpen, usePickCtx } from "./board.js";
 import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
-import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP } from "@/lib/status";
+import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP, REJECT, REJECT_NAME, REJECT_TIP } from "@/lib/status";
+import { ACT } from "@/lib/emoji";   // (어76) 검사 넷의 그림은 기능 표에서 온다(대전제-25)
+import Photo from "../_shell/photo.js";   // (어76) 아이가 낸 사진 — 작게 보고 누르면 크게
+import Play from "../_shell/play.js";     // (어76) 아이가 낸 음성 — 막대를 끌어 아무 데나
+import { isAudio } from "@/lib/files-plan";
 import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel, bookOrder } from "@/lib/routine-plan";
 import { timerText, arrivalTimes, STAMP_NAME } from "@/lib/arrival-plan";   // (어48) 출결 곁의 도착·하원 시각   // (어35) 학습 줄의 타이머 꼬리표(07 과 같은 글)
 import { icon } from "../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
@@ -154,13 +158,22 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
   const server = movedTo(it, sheet);   // (어68) 눌림은 **서버가 준 판**에서 읽는다 — 새로고침해도 남는다(lib/item-plan movedTo 한 벌)
   const [opt, setOpt] = useState(null);   // 누르는 즉시 덮어쓰는 것(속도-3) · 서버가 되그리면 지운다
   const [gone, setGone] = useState(false);   // 「삭제」도 낙관적 — 그 자리에서 사라지고 카드 밑 「삭제한 줄」로 간다
+  const [ask, setAsk] = useState(false);   // (어76) 🔙 를 누르면 사유 여섯이 그 자리에서 펴진다(대전제-22)
+  const [rj, setRj] = useState(rejectOf(it));   // 반려 — 서버가 준 판에서 읽고, 누르면 그 자리에서 바뀐다(속도-3)
+  const [note, setNote] = useState(rejectOf(it)?.note ?? "");
+  const sent = submitted(it);   // (어76) 아이가 낸 것(사진 · 음성) — 원래 숙제 줄에 붙어 있다(lib/item-plan srcOf)
   const moved = opt ?? server;
   const sub = itemSub(it, { unit: !grouped });   // 교재 · 단원 · 쪽 · 문항(단원 머리가 있으면 뺀다) · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
   const folded = Boolean(st) && !open;
   const pick = (v) => { if (closed) return; const prev = st, next = st === v ? "none" : v;   // (어51) 한 번 더 누르면 아예 체크 안 된 상태로(원장님 9/16)
     setSt(next === "none" ? null : next); if (next === "weak" || next === "missing") setOpen(true);
+    if (next !== "none") { setRj(null); setAsk(false); }   // (어76) 값을 매긴 순간 반려가 끝난다(서버도 같이 지운다 · lib/homework checkItem)
     start(async () => { const r = await check(it.id, next, next === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
+  const sendReject = (why) => { if (closed) return;   // (어76) 사유를 고르면 그 줄이 반려되고 **아이에게 알림**이 간다 · 같은 사유를 다시 누르면 반려 취소
+    const next = why === null || rj?.reason === why ? null : { reason: why, note: why === "기타" ? note.trim() : "", at: null };
+    const prev = rj; setRj(next); if (!next) setAsk(false);
+    start(async () => { const r = await rejectAct(it.id, next?.reason ?? null, next?.note ?? null); if (!fail(r)) setRj(prev); }); };
   const pickMove = (w) => { if (closed) return;   // (어67) 손 넷 · 글은 lib/item-plan CHECK_MOVE 한 벌. 삭제는 그 줄을 내리고(off · 카드 밑 「복구」), 나머지 셋은 나머지를 그 구분으로 넘긴다
     if (w === "off") { setGone(true); start(async () => { if (!fail(await itemRemove(it.id))) setGone(false); }); return; }
     const own = moved[w] === "own";   // (어68) 내가 세운 조각이면 **다시 눌러 취소**(○△✕ 와 같은 결) · 「이미 있음」은 내가 세운 것이 아니라 못 되돌린다
@@ -171,7 +184,13 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
   return (
     <div className="hw" data-g="check-line" data-folded={folded ? "1" : "0"}>{/* (어51) 줄 하나를 「그 자리에서」 접고 편다 · 이름을 -row 로 안 짓는다: 고르기(PickBox)를 붙일 목록이 아니라 한 줄짜리 검사 손이고, 일괄은 카드 머리의 「다 ○」 하나다((어28) 대전제-20 · check-pick 의 -row 규칙 밖 · gap-book · call-book 과 같은 뜻) */}
       <div className="hwname"><button type="button" className="nmb" data-act="unfold" data-id={it.id} aria-expanded={!folded} onClick={() => setOpen(!open)}><b>{itemTitle(it)}</b></button>
-        {folded ? (it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
+        {folded ? (rj ? <small data-g="rejected">{ACT.reject} {rejectText(rj)}</small> : it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
+        {sent.length > 0 && <div className="wv" data-g="sent" style={{ marginBottom: 0, gap: 4 }}>{/* (어76) 원장님 2026-09-17 「학생이 항목별로 제출한 사진을 확인가능하게. 이때 스크롤 늘지않도록 썸네일최소화」 — 44px · 누르면 크게 */}
+          {sent.map((f) => (isAudio(f.mime) ? <Play key={f.id} id={f.id} name={f.orig_name} size={180} /> : <Photo key={f.id} id={f.id} name={f.orig_name} size={44} />))}</div>}
+        {rj && <small data-g="rejected">{ACT.reject} {rejectText(rj)}</small>}
+        {ask && !closed && <div className="tags" data-g="reject-why" style={{ marginTop: 4 }}>{/* 사유 여섯 — 고르면 그 자리에서 반려되고 아이에게 알림(대전제-22) */}
+          {REJECT.map((w) => <button key={w} type="button" className={"btn sm" + (rj?.reason === w ? " pri" : "")} data-act="reject-why" data-why={w} onClick={() => sendReject(w)}>{w}</button>)}
+          {rj?.reason === "기타" && <input type="text" value={note} placeholder="한 마디" aria-label="반려 한 마디" data-g="reject-note" onChange={(e) => setNote(e.target.value)} onBlur={() => sendReject("기타")} style={{ flex: "1 1 120px" }} />}</div>}
         {st === "weak" && !closed && <div className="partial"><div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>어디까지</span><div className="seg sm" data-g="upto">{UPTO.map((u) => <button key={u} type="button" aria-pressed={upto === u} onClick={() => pickUpto(u)}>{u}</button>)}</div></div></div>}
         {!closed && <div className="wv acts" data-g="check-move">{/* (어67) 원장님 9/16 「숙제검사는 그냥 이모지쓰지말자 · 삭제. 오늘. 남아서. 숙제.」 — 검사 카드의 손은 글자다 */}
           {CHECK_MOVE.map(([w, name]) => <button key={w} type="button" className="btn sm gho" data-act={`check-${w}`} {...(w === "off" ? {} : { "aria-pressed": moved[w] === "own" })} onClick={() => pickMove(w)}>{name}</button>)}</div>}
@@ -179,6 +198,7 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
       </div>
       <div className="chk" aria-label="검사">
         {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} {...icon(CHECK_NAME[v], CHECK_TIP[v])} onClick={() => pick(v)}>{g}</button>)}
+        <button type="button" data-v="r" data-act="reject" aria-pressed={Boolean(rj)} disabled={closed} {...icon(REJECT_NAME, REJECT_TIP)} onClick={() => { setOpen(true); setAsk(!ask); }}>{ACT.reject}</button>{/* (어76) 넷째 손 — 원장님 2026-09-17 「반려 추가」 */}
       </div>
     </div>
   );

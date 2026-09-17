@@ -10,7 +10,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
 import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } from "@/lib/attend";
-import { checkItem, carryRest, carryUndo, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
+import { checkItem, carryRest, carryUndo, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems, rejectItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { staffStamp, clearStamp } from "@/lib/arrival";   // (어48) 도착·하원 시각을 원장님이 찍고 고친다(등원 표 한 곳)
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune, givePool as givePoolOf, applyGive, moveBook, nextRound, relayBook } from "@/lib/routine";
@@ -19,6 +19,7 @@ import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
+import { serviceClient } from "@/lib/supabase";   // (어76) 반려 알림은 서버 자신이 보낸다(발송 이력은 사람이 못 쓴다 · 0017)
 const done = doneAt("/today", "오늘 수업 01");
 const wrap2 = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 배정 읽기");   // (어56) 읽기만 하는 손은 화면을 다시 안 그린다
 const quiet = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 진도 체크");   // (어49) 진도 체크는 누를 때마다 화면을 다시 안 그린다 · 모달이 먼저 바꾸고 닫을 때 한 번 읽는다(원장님 9/16 「버튼이 제대로 작동하지않음」)   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
@@ -30,6 +31,7 @@ export const attendMany = done(async (list, date, value) => { const { sb } = awa
 export const closeMany = done(async (sheetIds) => { const { sb, user } = await staff(); return closeManySheets(sb, sheetIds, user.id); });   // (어28)-② 고른 판 마감 한 번에(저장된 글 그대로)
 export const checkAll = done(async (sheetId) => { const { sb } = await staff(); return checkAllItems(sb, String(sheetId)); });   // (어24) 「다 ○」
 export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
+export const reject = done(async (itemId, why, note) => { const { sb } = await staff(); return rejectItem(serviceClient(), sb, itemId, why ?? null, note ?? null); });   // (어76) 반려 · 사유 여섯 · 아이에게 알림(why 가 null 이면 반려 취소)
 export const rest = done(async (itemId, where) => { const { sb } = await staff(); return carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다) · 합쳐졌으면 merged 를 돌려준다((어68))
 export const restUndo = done(async (itemId, where) => { const { sb } = await staff(); return carryUndo(sb, itemId, where); });   // (어68) 같은 손을 다시 누르면 취소 — 내가 세운 조각만 내린다
 export const stayDoneAct = done(async (itemId) => { const { sb } = await staff(); await stayDone(sb, itemId); });

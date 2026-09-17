@@ -2,8 +2,14 @@
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { arrive, said, startItem, endItem, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct } from "./actions.js";
+import { arrive, said, startItem, endItem, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct, drop as dropAct } from "./actions.js";
 import Upload from "../_shell/upload.js";
+import Rec from "../_shell/rec.js";          // (어76) 🎙 음성으로 내기
+import Play from "../_shell/play.js";        // (어76) 🎧 낸 음성을 듣는다(막대를 끈다)
+import { icon } from "../_shell/icon.js";
+import { ACT } from "@/lib/emoji";
+import { isAudio } from "@/lib/files-plan";
+import { srcId, submitted, rejectOf, rejectText } from "@/lib/item-plan";
 import Photo from "../_shell/photo.js";
 import { myUploads } from "@/lib/files-plan";
 import { md } from "@/lib/dash-plan";
@@ -124,13 +130,36 @@ export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [], fold =
   return (
     <div className="task" data-card="files" data-folded={folded ? "1" : "0"}>
       <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span>{fold}</div>
-      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="" compact onDone={() => router.refresh()} />
+      <Upload rules={rules} hint="" compact onDone={() => router.refresh()} />
       {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"} style={{ marginTop: 4 }}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
         <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {past.length > 0 && <details style={{ marginTop: 8 }} data-g="past"><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>지난 것 보기 <b>{past.length}</b><span className="spacer" /><span className="tag on">1달간</span></summary>
         {past.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="past-row" data-file={l.file_id}><span className="ln">{l.icon}</span><div><b>{l.name}</b><small>{l.seen}{l.on ? ` · ${md(l.on)} 숙제` : ""}{l.item ? ` · ${l.item}` : ""} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}?dl=1`}>⬇</a></div>)}</details>}
       {hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>1달 지난 것 {hidden}개는 안 보여요</p>}
+    </div>
+  );
+}
+/** (어76) 내가 낸 것 — 원장님 2026-09-17 「알림이 떠야해. 그다음 기존사진 확인가능하게 해서 본인이 보고 그다음 삭제&다시 제출하게」.
+ *  세 걸음을 한 줄에 둔다: **반려 글** → **내가 낸 것**(누르면 크게 · 음성은 막대를 끈다) → **지우기 · 다시 내기**.
+ *  올리는 길은 원장·학부모와 같은 한 곳(Upload) · 녹음만 제 부품(Rec). 낸 것은 원래 숙제 줄에 붙는다(lib/item-plan srcId) */
+export function SubmitLine({ item, rules = {} }) {
+  const router = useRouter(); const [err, setErr] = useState(""); const [pending, start] = useTransition();
+  const [gone, setGone] = useState([]);
+  const id = srcId(item), rj = rejectOf(item), mine = submitted(item).filter((f) => !gone.includes(f.id));
+  const kill = (fid) => start(async () => { setErr(""); setGone((g) => [...g, fid]); const r = await dropAct(fid); if (!r.ok) { setErr(r.msg); setGone((g) => g.filter((x) => x !== fid)); return; } router.refresh(); });
+  if (!id) return null;
+  return (
+    <div data-g="submit" data-item={id} style={{ marginTop: 4 }}>
+      {rj && <p className="note" data-g="rejected" style={{ margin: "0 0 4px", color: "var(--miss)" }}>{ACT.reject} {rejectText(rj)} · 지우고 다시 내 줘요</p>}
+      {mine.length > 0 && <div className="wv" data-g="mine-files" style={{ marginBottom: 0, gap: 4 }}>
+        {mine.map((f) => <span key={f.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-g="mine-file" data-file={f.id}>
+          {isAudio(f.mime) ? <Play id={f.id} name={f.orig_name} size={180} /> : <Photo id={f.id} name={f.orig_name} size={44} />}
+          <button type="button" className="btn sm gho" data-act="drop" disabled={pending} {...icon(`${f.orig_name} 지우기`)} onClick={() => kill(f.id)}>✕</button></span>)}
+      </div>}
+      <Upload rules={rules} itemId={id} label="사진으로 내기" hint="" compact onDone={() => router.refresh()} />
+      <Rec rules={rules} itemId={id} onDone={() => router.refresh()} />
+      {err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}
     </div>
   );
 }

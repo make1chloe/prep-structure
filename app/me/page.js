@@ -13,7 +13,9 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText, quizTag } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton, TimerButton, MaterialCard, ScoreCard, AttachLines, FilesCard } from "./cards.js";
+import { ArrivalCard, SaidButton, TimerButton, MaterialCard, ScoreCard, AttachLines, FilesCard, SubmitLine } from "./cards.js";
+import { CHECK } from "@/lib/status";   // (어76) 검사 부호는 한 벌에서 온다(아이 화면이 ○△✕ 를 제 손으로 안 적는다 · 원칙-1)
+const MARK = Object.fromEntries(CHECK);
 import { childLinks } from "@/lib/files-plan";
 import AskCard from "../_shell/askcard.js";
 import BellCard from "../_shell/bell.js";
@@ -67,7 +69,7 @@ export default async function Me({ searchParams }) {
       </Card>) },
     { id: 'due', name: '숙제', node: can(ME.today) && (<Card emo="📘" title="숙제" id="due" {...fold("due")} pill={String(d.due.length)}>
         {!d.due.length && <p className="note" style={{ margin: "8px 0 0" }}>낼 숙제가 없어요</p>}
-        <ItemTree rows={d.due} row={(it) => <Line key={it.id} it={it} attach={att(it)} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {it.status === "done" ? "○" : it.status === "weak" ? "△" : "✕"}</span> : <><TimerButton item={it} state="now" said={false} /><SaidButton item={it} state="now" /></>} />} />{/* (어75) 검사 끝난 줄은 그 결과만 · 아직인 줄은 타이머 */}
+        <ItemTree rows={d.due} row={(it) => <Line key={it.id} it={it} attach={<>{att(it)}<SubmitLine item={it} rules={d.rules} /></>} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {MARK[it.status] ?? it.status}</span> : <><TimerButton item={it} state="now" said={false} /><SaidButton item={it} state="now" /></>} />} />{/* (어75) 검사 끝난 줄은 그 결과만 · 아직인 줄은 타이머 · (어76) 줄마다 「내가 낸 것」(반려 글 · 사진·음성 · 지우고 다시 내기) */}
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" {...fold("quiz")} pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
         {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 · {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}

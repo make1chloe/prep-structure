@@ -51,6 +51,7 @@ insert into storage.buckets (id, name, public, allowed_mime_types)
 values ('files', 'files', false,
         array['image/jpeg','image/pjpeg','image/png','image/heic','image/heif','image/webp',
               'image/gif','image/bmp','image/tiff',
+              'audio/webm','audio/mp4','audio/mpeg','audio/ogg','audio/wav','audio/x-m4a',   -- (어76) 음성 숙제(lib/files-plan ALLOWED_MIME 과 같은 벌)
               'application/pdf',
               'application/haansofthwp','application/x-hwp','application/vnd.hancom.hwp',
               'application/vnd.hancom.hwpx',

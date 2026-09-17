@@ -19,10 +19,12 @@ export async function POST(req) {
   const mime = String(fd.get("mime") || file.type || ""), name = String(file.name || "파일"), bytes = file.size, note = String(fd.get("note") ?? "").slice(0, 200) || null, shrunk = String(fd.get("shrunk")) === "1";
   const want = String(fd.get("student") ?? "").trim() || null, item = String(fd.get("item") ?? "").trim() || null;
   const [date, rules] = await Promise.all([today(sb), ruleMap(sb, ["file."])]);
-  const why = checkFile({ name, mime, bytes }, { maxMb: Number(rules["file.max_mb"] ?? 4) }); if (why) return say(400, why);
+  const why = checkFile({ name, mime, bytes }, { maxMb: Number(rules["file.max_mb"] ?? 4), audioMaxMb: Number(rules["file.audio_max_mb"] ?? 20) }); if (why) return say(400, why);   // (어76) 음성은 제 문턱
   let studentId = null;
   if (isStaff(me.role)) { if (want && !/^[0-9a-f-]{36}$/.test(want)) return say(400, "아이가 아닙니다"); studentId = want; }
-  else if (me.role === ROLES.STUDENT) { studentId = (await myStudent(sb, user.id)).id; if (item) return say(403, "아이는 숙제에 붙이지 못합니다"); }
+  // (어76) 원장님 2026-09-17 「숙제제출한 걸 보고 검사할수 있게 … 학생이 항목별로 제출한 사진을 확인가능하게」 · 「숙제 음성녹음으로 제출도 가능하게」
+  //   아이는 **제 판의 숙제 줄에만** 붙인다 — 어느 줄인지는 붙이는 자리(file_link child_attach)가 다시 본다(0176 · 여기만 믿지 않는다)
+  else if (me.role === ROLES.STUDENT) { studentId = (await myStudent(sb, user.id)).id; }
   else if (me.role === ROLES.PARENT) { const kids = await myChildren(sb); const k = kids.find((x) => x.id === want) ?? (kids.length === 1 ? kids[0] : null); if (!k) return say(400, kids.length > 1 ? "누구 학교 것인지 고르세요" : "이어진 아이가 없습니다"); studentId = k.id; if (item) return say(403, "학부모는 숙제에 붙이지 못합니다"); }
   else return say(403, "올릴 수 없는 계정입니다");
   if (item && !/^[0-9a-f-]{36}$/.test(item)) return say(400, "숙제 줄이 아닙니다");

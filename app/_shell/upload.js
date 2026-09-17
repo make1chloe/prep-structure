@@ -18,7 +18,7 @@ async function shrinkImage(file, maxPx) {
 export default function Upload({ rules = {}, studentId = null, kids = null, itemId = null, onDone = null, label = "📷 사진 · 📄 파일 보내기", hint = "원장님만 봅니다", compact = false }) {
   const [files, setFiles] = useState([]); const [urls, setUrls] = useState([]);   // ⑦ 고른 사진의 미리보기 주소(지우면 같이 지운다)
   useEffect(() => { const u = files.map((f) => (isImage(f.type) ? URL.createObjectURL(f) : null)); setUrls(u); return () => u.forEach((x) => x && URL.revokeObjectURL(x)); }, [files]); const [note, setNote] = useState(""); const [kid, setKid] = useState(kids?.[0]?.id ?? ""); const [busy, setBusy] = useState(false); const [out, setOut] = useState(null); const ref = useRef(null);
-  const maxPx = Number(rules["file.photo_px"] ?? 1600), batchMax = Number(rules["file.batch_max"] ?? 30), maxMb = Number(rules["file.max_mb"] ?? 4);
+  const maxPx = Number(rules["file.photo_px"] ?? 1600), batchMax = Number(rules["file.batch_max"] ?? 30), maxMb = Number(rules["file.max_mb"] ?? 4), audioMaxMb = Number(rules["file.audio_max_mb"] ?? 20);   // (어76) 음성은 사진보다 크다
   const target = kids ? kid : studentId;
   const go = async () => {
     const a = acceptBatch(files.length, batchMax); if (!a.ok) { setOut({ sent: 0, fails: [a.msg] }); return; }
@@ -26,7 +26,7 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
     setBusy(true); const fails = []; let sent = 0;
     for (const f of files) {
       const s = isImage(f.type) ? await shrinkImage(f, maxPx) : { blob: f, shrunk: false, mime: f.type, name: f.name };
-      const why = checkFile({ name: s.name, mime: s.mime, bytes: s.blob.size }, { maxMb }); if (why) { fails.push(why); continue; }
+      const why = checkFile({ name: s.name, mime: s.mime, bytes: s.blob.size }, { maxMb, audioMaxMb }); if (why) { fails.push(why); continue; }
       const fd = new FormData(); fd.append("file", s.blob, s.name); fd.append("mime", s.mime); if (target) fd.append("student", target); if (itemId) fd.append("item", itemId); if (note.trim()) fd.append("note", note.trim()); fd.append("shrunk", s.shrunk ? "1" : "0");
       try { const r = await fetch("/api/files", { method: "POST", body: fd }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.ok) fails.push(`${s.name} · ${j.msg ?? r.status}`); else sent++; }
       catch (e) { fails.push(`${s.name} · ${String(e?.message ?? e)}`); }
@@ -37,7 +37,7 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
     <div data-g="upload">
       {kids && kids.length > 1 && <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><label className="fl" style={{ margin: 0 }}>누구 학교 것인가요</label><select value={kid} aria-label="누구 학교 것인가요" data-g="kid-pick" onChange={(e) => setKid(e.target.value)} style={{ width: "auto" }}>{kids.map((k) => <option key={k.id} value={k.id}>{k.name}{k.schools?.name ? ` · ${k.schools.name}` : ""}</option>)}</select></div>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}>
-        <label className="btn sm" data-g="pick" style={{ cursor: "pointer" }}>{label}<input ref={ref} type="file" multiple accept="image/*,application/pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" aria-label={label} onChange={(e) => { setOut(null); setFiles([...(e.target.files ?? [])]); }} style={{ display: "none" }} /></label>
+        <label className="btn sm" data-g="pick" style={{ cursor: "pointer" }}>{label}<input ref={ref} type="file" multiple accept="image/*,audio/*,application/pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" aria-label={label} onChange={(e) => { setOut(null); setFiles([...(e.target.files ?? [])]); }} style={{ display: "none" }} /></label>
         {!compact && <input type="text" value={note} placeholder="한 마디 (예: 수행평가 안내문)" aria-label="한 마디" onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 160px" }} />}
         <button type="button" className="btn sm pri" data-act="upload" disabled={busy || !files.length} onClick={go}>{busy ? "보내는 중…" : `보내기${files.length ? ` ${files.length}장` : ""}`}</button>
       </div>

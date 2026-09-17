@@ -15,7 +15,7 @@ import { setStage, setDue } from "@/lib/material";
 import { ask as askRequest } from "@/lib/request";
 import { studentSubmit } from "@/lib/score";
 import { studentMark, studentMarkMany, raiseFlag } from "@/lib/road";
-import { markSeen } from "@/lib/files";
+import { markSeen, hideMine } from "@/lib/files";
 import { markSpan, fillDuration, openVideo } from "@/lib/video";
 import { fillMine } from "@/lib/mine";   // (어72) 내 빈 칸 채우기 — 켠 칸 · 빈 칸 · 제 줄인지는 그 안에서 다시 잰다
 const done = doneAt("/me", "아이 화면 07");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
@@ -56,6 +56,7 @@ export const markChapter = done(async (unitIds, round, status) => { const { sb, 
 export const flagUnit = done(async (unitId, round, kind, said) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const id = await raiseFlag(sb, { studentId: st.id, unitId: String(unitId), round: Number(round) || 1, kind: String(kind), said }); revalidatePath("/me/book"); return { id }; });
 /** 📎 붙은 파일을 처리했다 — 💾 저장(폰에 내려받음) · ✓ 안 보기(그 줄에서만 치움). 둘 다 「지난 것 보기」에서 1달간(목업 20) */
 export const seen = done(async (fileId, itemId, how) => { const { sb } = await child(); await markSeen(sb, String(fileId), String(itemId), String(how)); });
+export const drop = done(async (fileId) => { const { sb } = await child(); await hideMine(sb, String(fileId)); });   // (어76) 내가 낸 것을 지운다(지우지 않고 내린다 · 대전제-6) → 다시 제출
 /** 🎬 지나간 구간을 찍는다(재생기가 20초마다·멈출 때) — 다시 그리지 않는다(재생 중이다). 겹침·「다 봄」은 SQL(0128 video_mark) */
 export async function span(videoId, from, to, pos) { return act(async () => { const { sb } = await child(); return { r: await markSpan(sb, String(videoId), Number(from), Number(to), Number(pos)) }; }, "아이 화면 07 영상"); }
 /** 🎬 길이를 모르는 영상은 재생기가 처음 알려 준다(비어 있을 때만 — SQL 이 지킨다) */

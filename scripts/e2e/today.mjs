@@ -139,7 +139,22 @@ const first = row.locator(".panel .hw").filter({ hasText: "워크북 복습" });
 if (!(await first.locator(".chk button[data-v=w]").count())) { console.log("   ⚠️ △ 단추가 없다. row html:", (await row.innerHTML()).replace(/\s+/g, " ").slice(0, 900)); }
 await first.locator(".chk button[data-v=w]").click({ timeout: 5000 }); await p.waitForTimeout(300);
 ok("△ 누르면 「어디까지」가 열린다", (await first.locator(".partial").count()) === 1);
-ok("(어67) 검사 줄의 손은 글자 넷 · 삭제 · 수업중 · 수업후 · 숙제 · 그림 0(원장님 2026-09-16 「숙제검사는 그냥 이모지쓰지말자」 · 검사 줄 안 · 🃏 카드 같은 딸린 카드는 제 표에서 온다)", (await first.locator("[data-g=check-move] button").allTextContents()).join(" · ") === "삭제 · 수업중 · 수업후 · 숙제" && !/\p{Extended_Pictographic}/u.test((await row.locator("[data-card=check] [data-g=check-line] button").allTextContents()).join("")), (await first.locator("[data-g=check-move] button").allTextContents()).join(" · ") + " | " + (await row.locator("[data-card=check] [data-g=check-line] button").allTextContents()).join(""));
+ok("(어67) 검사 줄의 손 넷은 **글자**다 · 삭제 · 수업중 · 수업후 · 숙제(언제 하느냐로 읽힌다 · 원장님 2026-09-16)", (await first.locator("[data-g=check-move] button").allTextContents()).join(" · ") === "삭제 · 수업중 · 수업후 · 숙제" && !/\p{Extended_Pictographic}/u.test((await first.locator("[data-g=check-move] button").allTextContents()).join("")));
+ok("(어76) 검사 값은 **그림 넷**이다 · ⭕ 🔺 ❌ 🔙(원장님 2026-09-17 「동그라미 세모 엑스 도 이모지로 바꾸고 반려 추가」 — 9/16 말씀을 뒤집으신 것)", (await first.locator(".chk button").allTextContents()).join("") === "⭕🔺❌🔙", (await first.locator(".chk button").allTextContents()).join(""));
+console.log("■ (어76) 반려 · 사유 여섯 · 값이 아니라 제 칸(원장님 2026-09-17 「반려 추가. 반려 선택시 사유 … 선택하게 해줄것」)");
+{ const rj = () => row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).first();   // 바로 앞에서 △ 를 준 줄 — 반려는 그 값을 안 건드린다(그 점을 여기서 잰다)
+  const openWhy = async () => { if (!(await rj().locator("[data-g=reject-why]").count())) { await rj().locator(".chk button[data-act=reject]").click(); await p.waitForTimeout(300); } };   // 사유 칩은 한 번 펴면 그대로 있다(고른 뒤에도 바꿀 수 있게)
+  await openWhy();
+  const whys = await rj().locator("[data-g=reject-why] button[data-act=reject-why]").allTextContents();
+  ok("🔙 를 누르면 사유 여섯이 **그 자리에서** 펴진다(모달 아님 · 대전제-22) · 마지막은 「기타」 한 낱말((어69))", whys.join(" · ") === "화질 저하 · 페이지 잘림 · 페이지 누락 · 과제 미완료 · 근거 누락 · 기타", whys.join(" · "));
+  await rj().locator("[data-g=reject-why] button[data-why='페이지 잘림']").click(); await p.waitForTimeout(1500);
+  await pick(row, "check"); await unfoldAll();
+  ok("반려한 줄에 「반려 · 페이지 잘림」이 남는다 · **새로고침해도**(서버가 준 판에서 읽는다 · 낙관적 표시가 아니다)", ((await rj().locator("[data-g=rejected]").first().textContent().catch(() => "")) ?? "").includes("반려 · 페이지 잘림"), (await rj().textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120));
+  ok("반려해도 **검사 값(🔺)은 그대로** · 줄도 그대로 남는다(반려는 status 가 아니다 — 아이가 다시 내면 그때 값을 고친다)", (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1 && (await rj().locator(".chk button[data-act=reject][aria-pressed='true']").count()) === 1);
+  await openWhy();
+  await rj().locator("[data-g=reject-why] button[data-why='페이지 잘림']").click(); await p.waitForTimeout(1500);
+  await pick(row, "check"); await unfoldAll();
+  ok("같은 사유를 다시 누르면 **반려가 취소된다**(○🔺❌ 와 같은 결 · 반려 글 0 · 🔺 는 그대로)", (await rj().locator("[data-g=rejected]").count()) === 0 && (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1, (await rj().textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120)); }
 { const cls = row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).first();   // (어67) 삭제 → 카드 밑 「복구」 → 제자리(지우지 않는다 · 대전제-6·19)
   await cls.locator("[data-g=check-move] button", { hasText: /^삭제$/ }).click(); await p.waitForTimeout(1200);
   await pick(row, "check");   // 손이 판을 다시 그리면 업무가 처음 것으로 돌아간다 — 검사 판을 다시 고른다

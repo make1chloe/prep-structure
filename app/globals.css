@@ -214,6 +214,8 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .chk button[aria-pressed="true"][data-v="o"]{background:var(--ok);border-color:transparent;color:var(--surface)}
 .chk button[aria-pressed="true"][data-v="w"]{background:var(--weak);border-color:transparent;color:#111827}
 .chk button[aria-pressed="true"][data-v="x"]{background:var(--miss);border-color:transparent;color:var(--surface)}
+/* (어76) 반려 — 검사 넷째 손. 완료·미흡·미완료와 **다른 색**이라야 한 눈에 갈린다(원장님 2026-09-17 「완료 미흡은 각각 색깔 바꿔줘」와 같은 결) */
+.chk button[aria-pressed="true"][data-v="r"]{background:var(--navy);border-color:transparent;color:var(--surface)}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .tag{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;background:var(--sunk);border:1px solid var(--hair);color:var(--mid);font-family:var(--sans)}
 .tag.on{background:var(--ok-fill);color:var(--on-ok);border-color:transparent}
