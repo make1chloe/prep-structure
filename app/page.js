@@ -1,11 +1,9 @@
 /** 첫 화면 = 대시보드(목업 17) — 빵꾸 막이가 맨 위. 판단은 lib/dash(파도) + lib/dash-plan(순수), 여기는 가져다 그린다.
  *  층은 다섯(속도-상한 대시보드 20 · 5단): 로그인 확인 → 오늘 → 반·아이(∥ 예정) → 나머지 한 파도 — 뒤 둘은 lib/dash.dashboard 안. 단추는 전부 지은 화면으로 가는 링크(발송·루틴·시험 화면은 아직) */
 import Link from "next/link";
-import { icon } from "./_shell/icon.js";
 import { Oops } from "./_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLE_NAME, ROLES, isStaff, displayId } from "@/lib/roles";
-import { CELLS } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { dashboard } from "@/lib/dash";
 import { dateLabel, classLabel, whenText, md } from "@/lib/dash-plan";
@@ -43,7 +41,7 @@ export default async function Home() {
   catch (e) {   // 화면이 스스로 말한다(대전제-0)
     console.error("[화면] 대시보드 못 엶:", e); return frame(<Oops what="대시보드" e={e} />);
   }
-  const left = d.undecided, first = d.people.classes[0], unsent = d.late.filter((l) => !l.sent);
+  const first = d.people.classes[0], unsent = d.late.filter((l) => !l.sent);
   const fdd = foldedOf(d.pref);   // 접은 카드 — 사람마다(확정-⑮ · (어2))
   const fold = (id) => ({ fold: <Fold screen="dash" id={id} folded={fdd.has(id)} />, folded: fdd.has(id) });
   const cards = orderCards([
@@ -92,9 +90,6 @@ export default async function Home() {
       <span className="spacer" />
       <span className="pill">오늘 {d.people.students}명{first ? ` · ${first.start}` : ""}</span>
     </div>
-    {left?.length > 0 && (   /* (어86) 안 정한 칸이 **있을 때만**. 다 정하면 사라진다 — 끝난 일이 매일 자리를 차지하던 것을 걷었다(원장님 9/18 「이건 왜 대시보드로 왔지」) */
-      <Link prefetch={false} className="pill warn" href="/settings/access" style={{ marginBottom: 8 }} {...icon("권한 설정", `안 정한 칸 ${left.length} · 그만큼 메뉴가 안 보인다`)}>🔐 권한 설정 <b>{left.length}</b></Link>
-    )}
     <DashGaps gaps={d.gaps} calls={d.calls} summary={d.summary} people={d.people} date={date} progress={d.progress} />   {/* (어41) 이름(개수) 칩 → 모달 · 저장해도 그 자리 */}
     <div className="dash">
       {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}

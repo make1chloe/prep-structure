@@ -73,9 +73,14 @@ console.log("■ (어84) ⏰ 마감 필요 — 맨 위 · 두 파트(원장님 2
   await p.goto(APP + "/schedule/classes"); await p.waitForLoadState("networkidle").catch(() => {});
   ok("아래 화면(/schedule/classes)에서는 「일정」 탭이 파랗다(currentTab · 가장 긴 앞머리)", (await curTab()) === "일정", await curTab());
   await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {}); }
-const leftPill = () => p.locator('main a.pill[href="/settings/access"] b');   // (어86) 대시보드는 알약 하나 — 카드였던 것을 걷었다(원장님 9/18 「이건 왜 대시보드로 왔지」)
-const leftBefore = (await leftPill().first().textContent()).trim();
-ok("안 정한 권한 칸이 있으면 대시보드에 알약으로 뜬다(카드가 아니다 · (어86))", /^\d+$/.test(leftBefore), leftBefore);
+/* (어87) 권한 설정은 **설정에만** 있다 — 원장님 9/18 「그게 왜 설정이 아니라 대시보드에 있냐는거지」.
+   대시보드에는 흔적이 없어야 한다(알약도 아니다). 남은 칸은 설정 카드가 말한다. */
+ok("대시보드에 권한 설정이 **없다**(카드도 알약도 · (어87))", !/settings\/access/.test(await p.content()));
+const leftCount = async () => { await p.goto(APP + "/settings"); const t = (await p.locator('main .card:has(a[href="/settings/access"]) .ctitle').first().textContent()).trim();
+  return (t.match(/안 정한 칸\s*(\d+)/) ?? [])[1] ?? ""; };
+const leftBefore = await leftCount();
+ok("설정 카드가 안 정한 칸 수를 말한다(대시보드에서 옮겨 온 자리 · (어87))", /^\d+$/.test(leftBefore), leftBefore);
+await p.goto(APP + "/");
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 발송 10 · 아침: 늦게 가는 아이 없음 · 마감한 판 0 · 나간 것 0 · 리허설 스위치");
@@ -147,12 +152,10 @@ await cell.locator("button[value='1']").click(); await p.waitForLoadState("netwo
 await p.goto(APP + "/settings/access");
 ok("켬이 눌린 채로 남는다", (await cell.locator("button[value='1']").getAttribute("aria-pressed")) === "true");
 await p.goto(APP + "/");
-const leftAfter = (await leftPill().first().textContent()).trim();
-ok("안 정한 칸이 하나 줄었다", Number(leftAfter) === Number(leftBefore) - 1, `${leftBefore} → ${leftAfter}`);
-{ await p.goto(APP + "/settings"); const t = (await p.locator('main .card:has(a[href="/settings/access"]) .ctitle').first().textContent()).trim();
-  ok("설정 카드가 남은 칸을 말한다(대시보드에서 옮겨 온 자리 · (어86))", /권한 설정/.test(t) && /안 정한 칸/.test(t), t);
-  ok("이름이 명사다 — 「누가 무엇을 보나」 0(원장님 9/18 명사화)", !/누가 무엇을 보나/.test(await p.content()));
-  await p.goto(APP + "/"); }
+const leftAfter = await leftCount();
+ok("안 정한 칸이 하나 줄었다(설정 카드에서)", Number(leftAfter) === Number(leftBefore) - 1, `${leftBefore} → ${leftAfter}`);
+ok("이름이 명사다 — 「누가 무엇을 보나」 0(원장님 9/18 명사화)", !/누가 무엇을 보나/.test(await p.content()));
+await p.goto(APP + "/");
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.goto(APP + "/settings/access"); await p.screenshot({ path: `.tmp/e2e-access-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ (어64) 직원 계정 · 원장이 선생님·조교를 낸다(원장님 2026-09-16 「근데 선생님조교어디서추가해」)");

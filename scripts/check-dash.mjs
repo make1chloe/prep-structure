@@ -69,5 +69,14 @@ ok("메모로만 부르기 · 3회 연속이면 부른다(글 「3회 연속 메
   ok("(어84) 0181 을 아직 안 넣으셨으면 카드가 스스로 무엇을 하실지 말한다(대전제-27)", /data-g="due-none"/.test(card) && /0181\.sql/.test(card));
   ok("(어84) 오늘 마감할 것이 없으면 그렇게 말한다(빈 카드로 두지 않는다 · 대전제-0)", /data-g="due-clear"/.test(card)); }
 
+
+/* (어87) **대시보드는 오늘 할 일 자리다** — 원장님 2026-09-18 「그게 왜 설정이 아니라 대시보드에 있냐는거지」.
+   설정에서 한 번 하는 일(권한 · 배색 · 직원 계정 · 연동 · 회선)은 대시보드에 오지 않는다.
+   내가 1단계 첫 커밋부터 「권한 설정 · 안 정한 칸」 카드를 대시보드에 두고 있었다(다 정한 뒤에도 떠 있었다). */
+{ const home = readFileSync("app/page.js", "utf8");
+  const 설정길 = [...home.matchAll(/href="(\/settings[^"]*)"/g)].map((m) => m[1]);
+  ok("대시보드에 설정으로 가는 길 0 — 설정에서 한 번 하는 일은 대시보드에 안 온다((어87))", 설정길.length === 0, 설정길.join(" · "));
+  const dash = readFileSync("lib/dash.js", "utf8");
+  ok("대시보드가 권한 칸을 읽지 않는다(조회 하나를 되찾았다 · 20 → 19 · 속도-1)", !/accessAllQuery|undecided/.test(dash)); }
 console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
