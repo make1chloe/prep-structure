@@ -54,5 +54,26 @@ console.log("\n■ 걷기가 눈으로 본다");
 ok("걷기가 ① 대단원 접힘 ② 「이 대단원 완료」·「여기까지 ○」 ③ 여기까지 누르면 ○ 가 는다를 본다",
   /\(어79\) 대단원은 \*\*접힌 채\*\*/.test(walk) && /data-act=chapter-done/.test(walk) && /data-act=unit-upto/.test(walk));
 
+
+/* (어90) 원장님 2026-09-18 「진도체크시 대단원선택은 접힌 상태에서 가능하도록, 대단원 전체선택가능하도록,
+   선택후 일괄변경가능하도록, **저장버튼 누르지않으면 반영안되도록** 변경해」 */
+console.log("\n■ (어90) 진도 체크 — 접힌 채 고르기 · 전체 · 일괄 · 저장 눌러야 반영");
+{ const pm = readFileSync("app/_shell/progressmodal.js", "utf8");
+  ok("① 대단원 네모가 **접혀 있어도** 보인다(머리 .acch 는 button 이라 그 옆에 둔다 · 단추 속 단추 0)",
+     /data-g="chapter-pick"[\s\S]{0,200}<PickGroup pick=\{pk\} ids=\{c\.units/.test(pm) && !/<button type="button" className="acch"[^>]*>[\s\S]{0,200}<PickGroup/.test(pm));
+  ok("② 맨 위에 **전체**(모든 대단원 한 번에)", /data-g="prog-all"[\s\S]{0,120}<PickGroup pick=\{pk\} ids=\{allIds\}/.test(pm));
+  ok("③ 고른 것에 **한 번에**(띠의 ○◐·) — 있던 것 그대로", /<PickBar pick=\{pk\} unit="개">/.test(pm));
+  ok("④ **저장을 눌러야 적힌다** — 손들은 화면만 바꾸고(put) 서버는 save 가 한 번 부른다",
+     /const set = \(u, st\) => put\(/.test(pm) && /const setMany = \(st\) => \{[^}]*put\(/.test(pm)
+     && /const save = \(\) => start\(async \(\) => \{/.test(pm) && /api\.setMany\(ids, st\)/.test(pm));
+  ok("④b 「이 대단원 건너뛰기」도 저장 때 부른다(setMany 로는 못 보낸다 · 손이 따로다)",
+     /setSkipSet\(\(s\) => new Set\(s\)\.add\(chapter\)\)/.test(pm) && /for \(const ch of skipSet\)[\s\S]{0,80}api\.skip\(b\.book_id, ch\)/.test(pm));
+  ok("④c 실패하면 **마지막으로 저장된 모습**으로 되돌린다(속도-3 · check-buttons ⑤b 와 같은 뜻)",
+     /const before = base;/.test(pm) && (pm.match(/setT\(before\)/g) ?? []).length >= 2);
+  ok("④d 저장 뒤 **서버가 적은 것으로 다시 읽는다** — 화면과 DB 가 어긋나지 않는다", /await load\(\);   \/\/ 서버가 적은 것으로/.test(pm));
+  ok("⑤ **안 저장한 채 닫으면 묻는다**(조용히 잃지 않는다 · 대전제-0) · 되돌리기도 있다",
+     /data-g="prog-dirty"/.test(pm) && /data-act="prog-save"/.test(pm) && /data-act="prog-revert"/.test(pm)
+     && /const tryClose = \(\) => \{ if \(dirty > 0\) \{ setAsking\(true\); return; \}/.test(pm)
+     && /data-act="prog-discard"/.test(pm) && /<\/>, tryClose\);/.test(pm)); }
 console.log(`\n■ (어79) 매일 누르는 자리 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

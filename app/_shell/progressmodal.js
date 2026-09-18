@@ -13,34 +13,57 @@ import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름
 const isDone = (u) => u.status === "done" || u.status === "skip";
 export default function ProgressModal({ b, api, closed = false, fail, start, onClose }) {
   const [t, setT] = useState(null);
+  const [base, setBase] = useState(null);        // (어90) 마지막으로 **저장된** 모습 — 되돌리기·바뀐 것 세기의 기준
+  const [skipSet, setSkipSet] = useState(() => new Set());   // (어90) 저장할 때 부를 「이 대단원 건너뛰기」(setMany 로는 못 보낸다 · 손이 따로다)
+  const [asking, setAsking] = useState(false);   // (어90) 안 저장한 채 닫으려 할 때 한 번 더 묻는다(대전제-10 · 화면 안에서)
   const [open, setOpen] = useState(null);
   const [failM, errNode] = useModalErr();
   const allIds = useMemo(() => (t?.chapters ?? []).flatMap((c) => c.units.map((u) => u.id)), [t]);
   const pk = usePick(allIds);
-  const load = async () => { const r = await call(() => api.open(b.book_id)); if (!r.ok) { fail?.(r); onClose(); return; } setT(r.tree); setOpen((o) => o ?? r.tree.now ?? r.tree.chapters[0]?.chapter ?? null); };
+  const load = async () => { const r = await call(() => api.open(b.book_id)); if (!r.ok) { fail?.(r); onClose(); return; } setT(r.tree); setBase(r.tree); setSkipSet(new Set()); setAsking(false); setOpen((o) => o ?? r.tree.now ?? r.tree.chapters[0]?.chapter ?? null); };
   useEffect(() => { load(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const shell = (body) => <div className="mdlov" role="dialog" aria-modal="true" aria-label="진도 체크" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(560px,100%)" }}>{body}</div></div>;
+  const shell = (body, close = onClose) => <div className="mdlov" role="dialog" aria-modal="true" aria-label="진도 체크" onClick={(e) => { if (e.target === e.currentTarget) close(); }}><div className="mdl" style={{ width: "min(560px,100%)" }}>{body}</div></div>;
   if (!t) return shell(<div className="mdlb"><p className="note">읽는 중…</p></div>);
   const flat = () => t.chapters.flatMap((c) => c.units);
   const put = (pick, st) => { const before = t; const units = flat().map((u) => (pick(u) ? { ...u, status: st } : u)); setT({ ...t, ...chapterSummary(units, units.map((u) => ({ unit_id: u.id, status: u.status }))) }); return before; };   // 화면 먼저 · 셈은 서버와 같은 함수
-  const act = (before, run, sync = false) => start(async () => { const r = await call(run); if (!failM(r)) { setT(before); return; } if (sync) await load(); });
-  const set = (u, st) => act(put((x) => x.id === u.id, st), () => api.set(u.id, st));
-  const setMany = (st) => { const ids = new Set(pk.ids); const before = put((x) => ids.has(x.id), st); pk.clear(); act(before, () => api.setMany([...ids], st)); };
-  const upTo = (u) => { const all = flat(); const i = all.findIndex((x) => x.id === u.id); const ids = new Set(all.slice(0, i + 1).filter((x) => !isDone(x)).map((x) => x.id)); act(put((x) => ids.has(x.id), "done"), () => api.upTo(b.book_id, u.id), true); };
-  const skip = (chapter) => act(put((x) => x.chapter === chapter && !isDone(x), "skip"), () => api.skip(b.book_id, chapter), true);
+  /** (어90) 원장님 2026-09-18 「저장버튼 누르지않으면 반영안되도록 변경해」.
+   *  ○◐· 낱개 · 「여기까지 ○」 · 일괄 · 「이 대단원 건너뛰기」는 **화면만** 바꾼다(즉시 · 속도-3 의 「화면 먼저」는 그대로).
+   *  DB 에 적는 것은 **「저장」을 누를 때** 한 번이다. 실패하면 마지막으로 저장된 모습으로 되돌린다(setT(base) · check-buttons ⑤b).
+   *  ⚠️ 모달을 그냥 닫으면 안 적힌 것을 잃으므로 **닫기 전에 한 번 더 묻는다**(대전제-0 · 조용히 잃지 않는다). */
+  const set = (u, st) => put((x) => x.id === u.id, st);
+  const setMany = (st) => { const ids = new Set(pk.ids); put((x) => ids.has(x.id), st); pk.clear(); };
+  const upTo = (u) => { const all = flat(); const i = all.findIndex((x) => x.id === u.id); const ids = new Set(all.slice(0, i + 1).filter((x) => !isDone(x)).map((x) => x.id)); put((x) => ids.has(x.id), "done"); };
+  const skip = (chapter) => { put((x) => x.chapter === chapter && !isDone(x), "skip"); setSkipSet((s) => new Set(s).add(chapter)); };
+  /** 바뀐 것 — 마지막으로 저장된 모습과 견준다. skip 은 손이 따로라 여기서 빼고 skipSet 이 나른다 */
+  const changes = (() => { if (!base || !t) return [];
+    const was = new Map(base.chapters.flatMap((c) => c.units).map((u) => [u.id, u.status]));
+    return flat().filter((u) => was.get(u.id) !== u.status && u.status !== "skip").map((u) => ({ id: u.id, status: u.status })); })();
+  const dirty = changes.length + skipSet.size;
+  const revert = () => { setT(base); setSkipSet(new Set()); pk.clear(); setAsking(false); };
+  const save = () => start(async () => {
+    const before = base;
+    for (const ch of skipSet) { const r = await call(() => api.skip(b.book_id, ch)); if (!failM(r)) { setT(before); return; } }   // 건너뛰기 먼저 — 서버가 대단원을 훑는다
+    const byStatus = new Map(); for (const c of changes) { if (!byStatus.has(c.status)) byStatus.set(c.status, []); byStatus.get(c.status).push(c.id); }
+    for (const [st, ids] of byStatus) { const r = await call(() => api.setMany(ids, st)); if (!failM(r)) { setT(before); return; } }
+    await load();   // 서버가 적은 것으로 다시 읽는다 — 화면과 DB 가 어긋나지 않는다
+  });
+  const tryClose = () => { if (dirty > 0) { setAsking(true); return; } onClose(); };
   const undone = t.chapters.reduce((n, c) => n + (c.total - c.done - c.skip), 0);
   return shell(<>
-    <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
+    <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={tryClose}>✕</button></div>
     <div className="mdlb">
       {errNode}
+      {!closed && <div className="wv" data-g="prog-all" style={{ marginBottom: 6 }}><PickGroup pick={pk} ids={allIds} label="전체" /><span className="fl" style={{ margin: 0 }}>전체</span></div>}
       <div className="tags" style={{ marginBottom: 8 }}><span className="tag on">끝낸 대단원 {t.finished} / {t.chapters.length}</span>{t.now && <span className="tag act">지금 {t.now}</span>}<span className="tag">안 끝난 소단원 {undone}</span>{t.memo_streak > 0 && <span className={"tag" + (t.memo_streak >= t.memo_rule ? " act" : "")} data-g="memo-streak">✍ 메모로만 {t.memo_streak}회 연속</span>}</div>
       {t.memo_streak >= t.memo_rule && <p className="note" data-g="memo-warn" style={{ margin: "0 0 8px", color: "var(--miss)" }}>⚠️ 메모로만 {t.memo_streak}회 연속</p>}
       {t.chapters.map((c) => { const isOpen = open === c.chapter; const fin = c.done + c.skip === c.total && c.total > 0; return (
         <div key={c.chapter} className={"acc" + (isOpen ? " open" : "")} data-chapter={c.chapter}>
+          {/* (어90) 원장님 2026-09-18 「대단원선택은 **접힌 상태에서** 가능하도록」 — 전에는 펼쳐야만 네모가 보였다.
+              머리(.acch)는 button 이라 그 **안**에 네모를 넣으면 단추 속 단추가 된다 → 옆(형제)에 둔다. */}
+          {!closed && <span className="wv" data-g="chapter-pick" style={{ gap: 4, margin: 0, padding: "0 0 0 8px" }}><PickGroup pick={pk} ids={c.units.map((u) => u.id)} label={`${c.chapter} 전체`} /></span>}
           <button type="button" className="acch" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : c.chapter)}><span className="ar">›</span><b>{c.chapter}</b><span className="spacer" />
             {fin ? <span className="tag on">{c.done}/{c.total} 끝냄{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : c.chapter === t.now ? <span className="tag act">지금 · {c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : <span className="tag">{c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span>}</button>
           {isOpen && <div className="accb">
-            {!closed && <div className="wv" style={{ margin: "0 0 4px" }}><PickGroup pick={pk} ids={c.units.map((u) => u.id)} label="이 대단원 전체" /></div>}
             {c.units.map((u) => { const auto = t.today.includes(u.id) && t.memo; return (
               <div key={u.id} className="ur" data-g="prog-unit" data-unit={u.id} style={auto ? { background: "var(--sunk)", borderLeft: "3px solid var(--amber)", margin: "0 -8px", padding: "8px 8px", borderRadius: 8 } : undefined}>
                 {!closed && <PickBox pick={pk} id={u.id} label={`${u.short} 고르기`} />}
@@ -54,6 +77,15 @@ export default function ProgressModal({ b, api, closed = false, fail, start, onC
         </div>); })}
       {!closed && <PickBar pick={pk} unit="개">{TRI.map(([k, ch]) => <button key={k} type="button" className="btn sm" data-act={`pick-${k}`} onClick={() => setMany(k)}>{ch} {markText(k)}</button>)}</PickBar>}
     </div>
-    <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
-  </>);
+    <div className="mdlf" data-g="prog-foot">
+      {dirty > 0 && <span className="pill warn" data-g="prog-dirty">안 저장 {dirty}</span>}
+      {dirty > 0 && <button type="button" className="btn sm gho" data-act="prog-revert" onClick={revert}>되돌리기</button>}
+      <span className="spacer" />
+      {/* (어90) 안 저장한 채 닫으면 **조용히 잃는다** — 한 번 더 묻는다(대전제-0 · 대전제-10 화면 안에서) */}
+      {asking && <><span className="note" data-g="prog-ask" style={{ margin: 0, color: "var(--miss)" }}>안 저장 {dirty}</span>
+        <button type="button" className="btn sm gho" data-act="prog-discard" onClick={() => { setAsking(false); onClose(); }}>버리고 닫기</button></>}
+      {dirty > 0 && <button type="button" className="btn pri" data-act="prog-save" onClick={save}>저장</button>}
+      <button type="button" className="btn gho" data-act="prog-close" onClick={tryClose}>닫기</button>
+    </div>
+  </>, tryClose);
 }

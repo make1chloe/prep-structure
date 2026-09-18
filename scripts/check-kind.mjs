@@ -87,5 +87,16 @@ console.log("\n■ 걷기가 눈으로 본다");
 ok("걷기가 ① 분류 만들기 ② 분류로 옮기기 ③ 분류 삭제를 본다",
   /kind-add/.test(walk) && /move-kind/.test(walk) && /kind-drop/.test(walk));
 
+
+/* (어90b) 원장님 2026-09-18 「업무 칸반 서로 이동이 안돼 가로 순서변경」 —
+   칸 순서 손 ◀▶ 이 ✏️ 수정 양식 **안**에 있어 못 찾으셨다. 누르는 자리(칸 머리)에 둔다. */
+{ const board = readFileSync("app/schedule/todo/board.js", "utf8");
+  ok("(어90b) 칸 순서 ◀▶ 이 **칸 머리**에 있다(✏️ 를 열지 않아도 보인다 · 대전제-22)",
+     /data-g="kind-order"[\s\S]{0,400}data-act="kind-up"[\s\S]{0,400}data-act="kind-down"/.test(board)
+     && /<div className="nb-colh">[\s\S]{0,900}data-g="kind-order"/.test(board));
+  ok("(어90b) 맨 앞 칸은 ◀ 이, 맨 뒤 칸은 ▶ 이 꺼진다(눌러도 안 되는 단추 0 · 원장님 9/18 「눌리지도않음」)",
+     /data-act="kind-up"[^>]*disabled=\{pending \|\| i === 0\}/.test(board.replace(/\n/g, " ")) || /disabled=\{pending \|\| i === 0\}[\s\S]{0,120}data-act="kind-up"/.test(board));
+  ok("(어90b) 순서 손은 **한 곳**이다 — ✏️ 양식 안에 또 두지 않는다(원칙-1)",
+     (board.match(/data-act="kind-up"/g) ?? []).length === 1 && (board.match(/data-act="kind-down"/g) ?? []).length === 1); }
 console.log(`\n■ (어80)-B 업무 분류 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

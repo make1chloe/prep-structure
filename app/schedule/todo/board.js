@@ -49,8 +49,7 @@ export default function Board({ d }) {
     <div className="seg sm" data-g="kind-where" style={{ marginTop: 4 }}>{SHOW_ON.map(([v, nm]) => <button key={v} type="button" data-where={v} aria-pressed={kf.showOn === v} onClick={() => setKf({ ...kf, showOn: v })}>{nm}</button>)}</div>
     <div className="wv" style={{ marginTop: 4, gap: 4 }}>
       <button className="btn pri sm" type="button" disabled={pending || !kf.name.trim()} data-act={col ? "kind-save" : "kind-add"} onClick={() => run(() => (col ? editKindAct(col.kind, kf) : addKindAct(kf)), col ? "수정했어요" : `분류 ✓ · ${kf.name.trim()}`, () => setKindOpen(null))}>{col ? "수정" : "넣기"}</button>
-      {col && <><button className="btn sm icb" type="button" disabled={pending} data-act="kind-up" {...icon("앞으로")} onClick={() => run(() => kindOrderAct(col.kind, -1), "앞으로 ✓")}>◀</button>
-        <button className="btn sm icb" type="button" disabled={pending} data-act="kind-down" {...icon("뒤로")} onClick={() => run(() => kindOrderAct(col.kind, 1), "뒤로 ✓")}>▶</button></>}
+
       {col && !col.app && col.state === "active" && <button className="btn sm gho" type="button" disabled={pending} data-act="kind-drop" onClick={() => run(() => dropKindAct(col.kind), `삭제 ✓ · ${col.name}`, () => setKindOpen(null))}>삭제</button>}
       {col && col.state === "off" && <button className="btn sm" type="button" disabled={pending} data-act="kind-restore" onClick={() => run(() => restoreKindAct(col.kind), `복구 ✓ · ${col.name}`)}>{ACT.restore} 복구</button>}
       <span className="spacer" /><button className="btn sm gho" type="button" data-act="kind-cancel" onClick={() => setKindOpen(null)}>취소</button>
@@ -188,10 +187,16 @@ export default function Board({ d }) {
         <button className="btn pri sm" type="button" disabled={pending || !rp.name.trim()} data-act="repeat-save" onClick={() => run(() => repeatAct(rp), (r) => `반복 규칙을 넣었습니다${r.made ? ` · 오늘 걸리는 것 ${r.made}건이 섰습니다` : ""}`, () => { setNw(null); setRp({ ...rp, name: "" }); })}>저장</button></div>
       {(b.repeats ?? []).length > 0 && <div className="tags" data-g="repeat-rules" style={{ marginTop: 6 }}>{b.repeats.map((r) => <span key={r.id} className={"tag" + (r.active ? " on" : "")}>{r.name} · {repeatText(r.threshold ?? {})}<button className="lnk" type="button" style={{ marginLeft: 6 }} data-act="repeat-toggle" onClick={() => run(() => repeatActiveAct(r.id, !r.active), r.active ? "멈췄습니다" : "다시 돕니다")}>{r.active ? "보류" : "켬"}</button></span>)}</div>}</div>}
     {view === "board" && <div className="nb-board" data-g="board">
-      {cols.map((col) => <div className={"nb-col" + (drag && over === col.kind ? " nb-drop" : "")} key={col.kind} data-g="col" data-kind={col.kind} data-drop={drag && over === col.kind ? "1" : "0"}>
+      {cols.map((col, i) => <div className={"nb-col" + (drag && over === col.kind ? " nb-drop" : "")} key={col.kind} data-g="col" data-kind={col.kind} data-drop={drag && over === col.kind ? "1" : "0"}>
         <div className="nb-colh"><PickGroup pick={pk} ids={col.cards.filter((x) => x.todoId).map((x) => x.id)} label="" />{/* (어80) 원장님 2026-09-18 「전체선택버튼이 없음」 — 칸마다 그 칸만 집는다(20 올린 기록과 같은 부품) */}
           <span className={"nb-pill " + col.cls}>{col.name}</span><span className="nb-cnt" data-g="col-count">{col.count}</span>
           {col.state === "off" && <span className="tag" data-g="col-off">삭제됨</span>}
+          {/* (어90b) 원장님 2026-09-18 「업무 칸반 서로 이동이 안돼 가로 순서변경」 — 칸 순서 손 ◀▶ 이
+              **✏️ 수정 양식을 열어야만** 나와서 못 찾으셨다. 칸 머리로 꺼낸다(누르는 자리에 둔다 · 대전제-22). */}
+          {kinds && <span className="ord" data-g="kind-order" style={{ marginLeft: 4 }}>
+            <button className="btn sm gho icb" type="button" disabled={pending || i === 0} data-act="kind-up" {...icon(`${col.name} 앞으로`)} onClick={() => run(() => kindOrderAct(col.kind, -1), "앞으로 ✓")}>◀</button>
+            <button className="btn sm gho icb" type="button" disabled={pending || i === cols.length - 1} data-act="kind-down" {...icon(`${col.name} 뒤로`)} onClick={() => run(() => kindOrderAct(col.kind, 1), "뒤로 ✓")}>▶</button>
+          </span>}
           {kinds && <button className="btn sm gho icb" type="button" disabled={pending} data-act="kind-edit" aria-pressed={kindOpen === col.kind} {...icon("분류 수정")} onClick={() => openKind(col)}>{ACT.edit}</button>}</div>
         {kindOpen === col.kind && kindForm(col)}
         {col.cards.map((x) => <Card key={x.id} c={x} />)}

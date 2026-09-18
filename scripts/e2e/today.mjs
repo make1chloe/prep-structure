@@ -389,6 +389,15 @@ ok("되돌리기 · → 「0/1」", (await pm.locator(".acch", { hasText: "CHAPT
 await pm.locator(".acc", { hasText: "CHAPTER 2" }).locator("button", { hasText: "이 대단원 건너뛰기" }).click(); await p.waitForTimeout(1200);
 ok("이 대단원 건너뛰기 → 「0/1 끝냄 · 건너뜀 1」 (지운 것이 아니다)", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("건너뜀 1"));
 // (어34) 고르기 → 한 번에 · 여기까지 ○ (원장님 9/15) · CHAPTER 1 의 1-5 「여기까지 ○」 → 1-4(◐)·1-5(·)가 ○ → 띠로 되돌려 놓는다(1-4 ◐ · 1-5 ·). 뒤 걸음(마감 뒤 1-4 ○ 메모 자동 · 대비문제 ◐ 조각)이 그 상태를 본다
+/* (어90) 원장님 「대단원선택은 **접힌 상태에서** 가능하도록」 — 펴기 **전**에 네모가 있나 본다 */
+ok("(어90) 대단원 네모가 접힌 채로도 보인다 · 맨 위에 「전체」도 있다",
+  (await pm.locator(".acc:not(.open) [data-g=chapter-pick] [data-g=pick-group]").count()) >= 1
+  && (await pm.locator("[data-g=prog-all] [data-g=pick-group]").count()) === 1,
+  `접힌 대단원 네모 ${await pm.locator(".acc:not(.open) [data-g=chapter-pick] [data-g=pick-group]").count()}`);
+{ const c2 = pm.locator(".acc:not(.open)").first();
+  await c2.locator("[data-g=chapter-pick] [data-g=pick-group]").check(); await p.waitForTimeout(300);
+  ok("(어90) 접힌 대단원을 고르면 그 안 소단원이 다 고른 것이 된다(띠가 뜬다)", (await pm.locator("[data-g=pickbar]").count()) === 1);
+  await pm.locator("[data-g=pickbar] button[data-act=pick-clear]").click(); await p.waitForTimeout(200); }
 await pm.locator(".acch", { hasText: "CHAPTER 1" }).click(); await p.waitForTimeout(300);
 ok("(어34) 소단원 줄마다 네모 · 「여기까지 ○」 · 대단원을 펴면 「이 대단원 전체」 네모 · 고른 것이 없으면 띠 없음", (await pm.locator("[data-g=prog-unit] [data-g=pick]").count()) === 6 && (await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()) === 6 && (await pm.locator(".acc.open [data-g=pick-group]").count()) === 1 && (await pm.locator("[data-g=pickbar]").count()) === 0, `pick ${await pm.locator("[data-g=prog-unit] [data-g=pick]").count()} · upto ${await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()}`);
 await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] button[data-act=done-upto]").click(); await p.waitForTimeout(1500);
@@ -401,7 +410,15 @@ await pm.locator("[data-g=pickbar] button[data-act=pick-doing]").click(); await 
 ok("1-4·1-5 골라 「◐ 하는 중」 → 둘 다 ◐ · 띠는 비워진다", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing && (await pm.locator("[data-g=pickbar]").count()) === 0);
 await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] [data-g=pick]").check(); await p.waitForTimeout(200); await pm.locator("[data-g=pickbar] button[data-act=pick-none]").click(); await p.waitForTimeout(1500);
 ok("1-5 만 골라 「· 아직」 → 1-5 · · 1-4 는 ◐ 그대로(되돌려 놓음)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === P.none && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === P.doing);
-await pm.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
+/* (어90) 원장님 2026-09-18 「저장버튼 누르지않으면 반영안되도록 변경해」 — 여기까지는 **화면만** 바뀐 것이다 */
+ok("(어90) 바꾼 것이 「안 저장 N」으로 뜬다(아직 DB 에 안 적혔다)", (await pm.locator("[data-g=prog-dirty]").count()) === 1, await pm.locator("[data-g=prog-dirty]").textContent().catch(() => "없음"));
+await pm.locator("button[data-act=prog-close]").click(); await p.waitForTimeout(400);
+ok("(어90) 안 저장한 채 닫으려 하면 **묻는다** · 모달이 안 닫힌다(조용히 잃지 않는다 · 대전제-0)",
+  (await pm.locator("[data-g=prog-ask]").count()) === 1 && (await p.locator(".mdlov").count()) === 1);
+await pm.locator("button[data-act=prog-save]").click(); await p.waitForTimeout(2500);
+ok("(어90) **저장을 누르면** 적히고 「안 저장」이 사라진다", (await pm.locator("[data-g=prog-dirty]").count()) === 0);
+await pm.locator("button[data-act=prog-close]").click(); await p.waitForTimeout(300);
+ok("(어90) 저장한 뒤에는 그냥 닫힌다(묻지 않는다)", (await p.locator(".mdlov").count()) === 0);
 console.log("■ 🗺 진도 · 영역별 메모 · ✍️ 단원평가(목업 01 남긴 것 6)");
 await 펴기(row); await pick(row, "areamemo");   // 다시 읽으면 접힌 채로 선다 — 원장님이 ▾ 를 누른 것과 같게 편다
 const am = row.locator("[data-card=areamemo]");
