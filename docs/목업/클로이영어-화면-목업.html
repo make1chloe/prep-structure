@@ -158,7 +158,7 @@ section.screen{margin:0 0 64px}
 .pair>.pc{flex:1 1 520px;min-width:0}
 .pair>.ph{flex:0 1 auto;max-width:100%;min-width:0}
 
-.frame{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:clip} /* hidden 이 아니라 clip — hidden 은 스크롤 상자가 돼서 안의 sticky(줄 끝 저장줄)가 화면에 안 붙는다(폰-3 · 2026-09-05 밤 걷기가 잡음). clip 은 모서리만 자르고 스크롤 상자가 아니다 */
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow-x:clip;overflow-y:visible} /* ⚠️ **세로는 반드시 visible** — 세로를 자르는 순간 브라우저마다 그 상자를 「붙어 다니는 것(sticky)의 기준」으로 삼을 수 있고, 그러면 줄 끝 저장줄이 화면 아래가 아니라 **엉뚱한 자리**에 선다(원장님 2026-09-18 폰 사진 「몇 밑으로 내려 가니 화면이 겹쳐서 쓸 수가 없어」). hidden 은 예전에 같은 사고를 냈고(폰-3 · 2026-09-05 걷기), clip 은 크롬에선 괜찮지만 사파리는 다르다 — 그래서 **가로만** 자른다(모서리는 그대로 잘린다) */
 .chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sunk);border-bottom:1px solid var(--hair);font-size:var(--fs-2);color:var(--faint);font-family:var(--sans)}
 .dots{display:flex;gap:4px}.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
 .phone{width:375px;max-width:100%}
@@ -202,6 +202,7 @@ section.screen{margin:0 0 64px}
 .row[data-open="1"]{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
 .row[data-open="1"] button.open{background:var(--navy);color:var(--on-navy);border-color:transparent}
 .panel{display:none;border-top:1px solid var(--hair);padding:12px;background:var(--sunk)}
+.panel:has(>.rowbar){padding-bottom:calc(12px + var(--h-md) + 16px + env(safe-area-inset-bottom))} /* 저장줄이 붙어 다니는 판은 **제 키만큼 바닥을 비워 둔다** — 안 비우면 맨 끝 단추가 저장줄에 깔려 영영 안 눌린다(원장님 2026-09-18 「겹쳐서 쓸 수가 없어」 · check-bar 가 잰다) */
 .row[data-open="1"] .panel{display:block}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px;margin-bottom:8px}
@@ -578,7 +579,7 @@ button.btn.lockb::after{content:"";position:absolute;left:0;bottom:0;height:3px;
 .pickbar{position:sticky;bottom:0;z-index:5;margin-top:8px;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .pickbar>b{font-size:var(--fs-3);color:var(--navy)}
 .sendbar{position:sticky;bottom:0;gap:8px}
-.rowbar{position:sticky;bottom:0;z-index:5;border-radius:0 0 12px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))} /* 01·03 줄 끝 저장줄 — 줄을 열면 화면 아래(폰은 홈 표시줄 위)에 붙어 따라온다: 판 끝까지 안 내려가도 마감한다. 흐름 안(sticky)이라 visualViewport 로 높이를 잴 일이 없다(폰-6 · viewportFit cover 는 layout.js · 조상에 overflow hidden 없음, 폰-3) */
+.rowbar{position:sticky;bottom:0;z-index:5;border-radius:0 0 12px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 14px -10px rgba(15,23,42,.28)} /* 01·03 줄 끝 저장줄 — 줄을 열면 화면 아래(폰은 홈 표시줄 위)에 붙어 따라온다: 판 끝까지 안 내려가도 마감한다. 흐름 안(sticky)이라 visualViewport 로 높이를 잴 일이 없다(폰-6 · viewportFit cover 는 layout.js · 조상에 overflow hidden 없음, 폰-3) */
 .rowbar [data-act=collapse]{display:none}
 @media(max-width:760px),(pointer:coarse){.rowbar [data-act=collapse]{display:inline-flex}.rowbar .note{display:none}} /* 폰: 「닫기」가 저장줄에(머리의 닫기는 위로 멀다) · 설명은 접는다 */
 /* (어12) 2026-09-13 원장님 「pc부터 고쳐야되고 애초에 수업중에 업무를 할수가없는구조야」 — 01 을 PC 에서 두 열로: 왼쪽은 이름 줄(늘 보인다 · 아이가 무작위로 오는 수업 중에 찾는 자리) · 오른쪽은 열린 한 아이의 판. 줄(.row)·반(section)은 display:contents 로 격자에 풀고, 판만 오른쪽 열에 absolute 로 세워 이름 줄 사이가 안 벌어진다. 폰(<1100)은 그대로 세로 */

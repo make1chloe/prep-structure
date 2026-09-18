@@ -43,5 +43,14 @@ ok("학원 화면 틀 1100 은 0 · 전부 1400(01·아이 화면과 같은 최�
 const colsPages = ["app/send/page.js", "app/send/monthly/page.js", "app/send/notice/page.js", "app/ops/files/page.js", "app/books/videos/page.js", "app/schedule/classes/page.js", "app/settings/page.js"];
 ok("카드 목록 화면 일곱(발송 · 월간 · 공지 · 자료실 · 영상 배정 · 반 · 설정)은 frame.cols · 목업 CSS 가 PC 두 열로 흘린다(머리줄·저장줄·모달은 걸침)", colsPages.every((f) => /className="frame cols"/.test(readFileSync(f, "utf8"))) && /@media\(min-width:1100px\)\{\s*\.frame\.cols\{column-count:2/.test(css) && /\.frame\.cols>\.mdlov\{column-span:all\}/.test(css), colsPages.filter((f) => !/className="frame cols"/.test(readFileSync(f, "utf8"))).join(", "));
 
+/* (어81) 원장님 2026-09-18 폰 사진 「저장 및 마감이 맨 아래에 항상 떠 있는것 자체는 좋은데 몇 밑으로 내려 가니 화면이 겹쳐서 쓸 수가 없어」.
+   붙어 다니는 저장줄(.rowbar)이 **일하는 단추 위에 올라앉았다.** 세 가지를 글자로 지킨다 — 실제 자리는 걷기가 잰다(today 「(어81)」). */
+ok("(어81) 틀(.frame)은 **세로를 안 자른다** — 세로를 자르면 브라우저가 그 상자를 붙어 다니는 것의 기준으로 삼아 저장줄이 엉뚱한 자리에 선다",
+  /\.frame\{[^}]*overflow-x:clip;overflow-y:visible/.test(css) && !/\.frame\{[^}]*overflow:(clip|hidden|auto)/.test(css));
+ok("(어81) 저장줄이 붙는 판은 **제 키만큼 바닥을 비운다**(.panel:has(>.rowbar) padding-bottom) — 안 비우면 맨 끝 단추가 깔린다",
+  /\.panel:has\(>\.rowbar\)\{padding-bottom:calc\([^}]*env\(safe-area-inset-bottom\)\)\}/.test(css));
+ok("(어81) 저장줄은 **그림자로 떠 있음을 말한다** — 내용인지 띠인지 헷갈리지 않게(대전제-21)",
+  /\.rowbar\{[^}]*box-shadow:[^};]+/.test(css));
+
 console.log(`\n■ 폰·속도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

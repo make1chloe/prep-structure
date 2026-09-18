@@ -132,6 +132,22 @@ const rb = row.locator(".savebar.rowbar");
 const stick = await rb.evaluate((el) => { el.closest(".row").scrollIntoView({ block: "start" }); const r = el.getBoundingClientRect(); return { pos: getComputedStyle(el).position, bottom: r.bottom, h: innerHeight, rowBottom: el.closest(".row").getBoundingClientRect().bottom, env: [...document.styleSheets].some((s) => { try { return [...s.cssRules].some((x) => x.selectorText === ".rowbar" && /safe-area-inset-bottom/.test(x.style.paddingBottom)); } catch { return false; } }) }; });
 ok("저장줄이 sticky 로 화면 아래에 붙는다(줄이 화면보다 길 때) · 「저장하고 마감(→ 다음 아이) · 임시 저장 · 닫기」", stick.pos === "sticky" && stick.rowBottom > stick.h && Math.abs(stick.bottom - stick.h) < 2 && /^저장하고 마감( → 다음 아이)?,임시 저장,닫기$/.test((await rb.locator("button").allTextContents()).join(",")), JSON.stringify(stick) + " " + (await rb.locator("button").allTextContents()).join(","));
 ok("padding-bottom 에 env(safe-area-inset-bottom) · 홈 표시줄에 안 깔린다(viewportFit cover 는 check-sw)", stick.env === true);
+/* (어81) 원장님 2026-09-18 폰 사진 「저장 및 마감이 맨 아래에 항상 떠 있는것 자체는 좋은데 몇 밑으로 내려 가니 화면이 겹쳐서 쓸 수가 없어」
+   — 붙어 다니는 것은 맞았는데 **일하는 단추 위에 올라앉았다**(맨 위 자리에서 「삭제 · 수업중 · ⭕🔺❌」 셋이 깔렸다).
+   붙는지만 재고 **덮는지는 안 쟀다.** 판이 제 키만큼 바닥을 비우는지 + 맨 끝에서 깔린 손이 0인지 잰다. */
+{ const room = await rb.evaluate((el) => { const pan = el.closest(".panel"); return { pad: parseFloat(getComputedStyle(pan).paddingBottom), bar: el.getBoundingClientRect().height }; });
+  ok("(어81) 저장줄이 붙어 다니는 판은 **제 키만큼 바닥을 비운다** — 안 비우면 맨 끝 단추가 영영 안 눌린다", room.pad >= room.bar - 1, JSON.stringify(room));
+  await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(400);
+  const trap = await p.evaluate(() => { const bar = document.querySelector(".rowbar"); if (!bar) return ["저장줄 없음"]; const r = bar.getBoundingClientRect();
+    return [...bar.closest(".panel").querySelectorAll("button,input,select,textarea,a")].filter((el) => { const q = el.getBoundingClientRect();
+      if (!q.width || !q.height || bar.contains(el)) return false;
+      if (q.bottom <= r.top || q.top >= r.bottom || q.right <= r.left || q.left >= r.right) return false;
+      const hit = document.elementFromPoint(Math.min(innerWidth - 2, Math.max(2, q.left + q.width / 2)), Math.min(innerHeight - 2, Math.max(2, q.top + q.height / 2)));
+      return hit && bar.contains(hit); }).map((el) => (el.getAttribute("data-act") || el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 20)); });
+  ok("(어81) 맨 밑까지 내려도 저장줄에 **깔려서 못 누르는 손이 0**(원장님 「겹쳐서 쓸 수가 없어」)", trap.length === 0, trap.join(" | "));
+  const box = await rb.evaluate((el) => { const q = el.closest(".panel").getBoundingClientRect(), r = el.getBoundingClientRect(); return { fitsW: r.left >= q.left - 1 && r.right <= q.right + 1, shadow: getComputedStyle(el).boxShadow !== "none" }; });
+  ok("(어81) 저장줄은 판 너비 안에 있고 **그림자로 떠 있음을 말한다**(내용인지 띠인지 헷갈리지 않게 · 대전제-21)", box.fitsW && box.shadow, JSON.stringify(box));
+  await p.evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(200); }
 ok("폰에서는 「닫기」가 저장줄에 보인다", await rb.locator("button[data-act=collapse]").isVisible());
 await p.setViewportSize({ width: 1280, height: 900 });
 ok("PC 에서는 저장줄의 「닫기」가 숨는다(머리의 닫기가 있다)", !(await rb.locator("button[data-act=collapse]").isVisible()));
