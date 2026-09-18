@@ -2165,9 +2165,25 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
     ok("(어59) 검사에서 연 배정 · 제목 「검사할 숙제 배정」 · 세그는 「지난 숙제」 하나(집·학원 없음) · 단원 머리 📕 와 활동 머리 ✓ 로 갈렸다(원장님 「학습항목과 단원이 구별이 안되는점」)", (await gm.locator(".mdlh b").textContent()) === "검사할 숙제 배정" && (await gm.locator("[data-g=give-slot] button").allTextContents()).join() === "지난 숙제" && (await gm.locator("[data-g=give-units-h]").count()) === 1 && (await gm.locator("[data-g=give-items-h]").count()) === 1 && (await gm.locator("[data-g=give-item]").count()) >= 1, (await gm.locator(".mdlh").textContent()) + " | " + (await gm.locator("[data-g=give-units-h]").textContent().catch(() => "머리 없음")));
     ok("(어59) 이미 끝낸 단원은 「다 함」으로 표시되고 안 한 단원이 먼저(원장님 「이미 완료된 부분이 표시안되는점」)", (await gm.locator("[data-g=give-unit]").count()) >= 1 && (await gm.locator("[data-g=give-unit][data-done]").count()) === (await gm.locator("[data-g=give-unit]").count()) && ((await gm.locator("[data-g=give-unit][data-done='1']").count()) === 0 || (await gm.locator("[data-g=give-unit][data-done='1'] [data-g=unit-done]").count()) >= 1) && (await gm.locator("[data-g=give-unit]").first().getAttribute("data-done")) === "0", `단원 ${await gm.locator("[data-g=give-unit]").count()} · 다 함 ${await gm.locator("[data-g=give-unit][data-done='1']").count()}`);
     const nChk = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
-    { const heads = gm.locator("[data-g=give-chapter]"), nCh = await heads.count(), nU = await gm.locator("[data-g=give-unit]").count();   /* (어62) 원장님 9/16 「대단원 목록불편함. 여러대단원에서 골라 배정하기어려움」 · 「이미 내가 배정하기전에 체크박스에 체크가 되어있음」 */
-      ok("(어62) 대단원 고르개(한 번에 한 대단원) 대신 **대단원 머리 + 소단원**이 한 목록에 · 교재 단원이 전부 보인다",
-        (await gm.locator("select[data-g=give-chapter]").count()) === 0 && nCh >= 1 && nU >= nCh, `대단원 ${nCh}개 · 단원 ${nU}개`);
+    { const heads = gm.locator("[data-g=give-chapter]"), nCh = await heads.count();
+      /* (어79) 원장님 2026-09-17 「기본적으로 대단원은 [접힌] 상태이고 하다가 만 대단원이 있으면 그 부분만 펼쳐진걸 기본값으로. 전부 다 펼쳐져 있으면 너무 양이 많아」 */
+      ok("(어79) 대단원은 **접힌 채** 열린다 · 펼쳐진 것은 **하나뿐** · 접힌 대단원은 소단원을 안 그린다",
+        (await gm.locator("[data-g=give-chapter][data-open='1']").count()) <= 1 && nCh >= 1
+        && (await gm.locator("[data-g=give-unit]").count()) === (await gm.locator("[data-g=give-chapter][data-open='1']").count() ? await gm.locator("[data-g=give-unit]").count() : 0),
+        `대단원 ${nCh} · 펼침 ${await gm.locator("[data-g=give-chapter][data-open='1']").count()} · 보이는 소단원 ${await gm.locator("[data-g=give-unit]").count()}`);
+      if ((await heads.first().getAttribute("data-open")) !== "1") { await heads.first().locator("button[data-act=chapter-open]").click(); await p.waitForTimeout(300); }   // 첫 대단원을 펴고 아래를 본다(이미 펴져 있으면 누르면 닫힌다)
+      ok("(어79) 펼친 대단원에만 **「전체」 · 「이 대단원 완료」**가 선다(접힌 것에는 없다 · 원장님 「숙제검사-숙제배정에서 진도체크도 가능하게: 여기까지, 대단원완료」)",
+        (await gm.locator("[data-g=give-chapter][data-open='1'] button[data-act=chapter-done]").count()) === 1
+        && (await gm.locator("[data-g=give-chapter][data-open='0'] button[data-act=chapter-done]").count()) === 0
+        && (await gm.locator("button[data-act=unit-upto]").count()) >= 1,
+        `대단원 완료 ${await gm.locator("button[data-act=chapter-done]").count()} · 여기까지 ${await gm.locator("button[data-act=unit-upto]").count()}`);
+      { const before = await gm.locator("[data-g=give-unit][data-st='done']").count();
+        await gm.locator("button[data-act=unit-upto]").first().click(); await p.waitForTimeout(900);
+        ok("(어79) 「여기까지 ○」 → 그 줄까지 진도가 ○ 로 (진도 체크 모달과 **같은 손** · 원칙-1)",
+          (await gm.locator("[data-g=give-unit][data-st='done']").count()) > before, `다 함 ${before} → ${await gm.locator("[data-g=give-unit][data-st='done']").count()}`); }
+      const nU = await gm.locator("[data-g=give-unit]").count();
+      ok("(어62) 대단원 고르개(한 번에 한 대단원) 대신 **대단원 머리 + 소단원** · 편 대단원의 소단원이 보인다",
+        (await gm.locator("select[data-g=give-chapter]").count()) === 0 && nCh >= 1 && nU >= 1, `대단원 ${nCh}개 · 보이는 소단원 ${nU}개`);
       { const said = (await gm.locator("[data-g=give-saved]").textContent()) ?? "";   // 체크는 제안일 뿐 — 판에 실제로 있는 줄만 「지금 나감 N」 이고 없으면 「아직 안 나감」
         const real = await gm.evaluate((m) => [...m.querySelectorAll("[data-g=give-unit] input:checked")].length > 0);
         ok("(어62) 체크가 거짓말하지 않는다 — 체크가 있어도 판에 안 들어갔으면 「아직 안 나감」", /^(아직 안 나감|지금 나감 \d+)$/.test(said.trim()) && real, said); }
@@ -2389,7 +2405,7 @@ console.log("■ (어41) 14 교재 진도 머리 「+ 교재 배정」 → 같�
   ok(`14 「+ 교재 배정」 → 모달 · 학생셋은 교재 0 · 「배정된 교재 없음」 · 배정 안 된 교재 = 살아 있는 교재 전부(문법책 · 독해책 · 걷기가 만든 zz_새 교재 = ${nRows}권 · 다 진도 없음 📕) · 고르기 전엔 「배정」 잠김`, before === 0 && (await bc.locator("[data-g=no-books]").count()) === 1 && nRows >= 2 && (await am.locator("[data-g=assign-row][data-progressed='0']").count()) === nRows && (await am.locator("[data-g=assign-row]").allTextContents()).join().includes("zz_리허설 독해책") && (await am.locator("button[data-act=assign-save]").isDisabled()), `줄 ${before} · 고를 것 ${nRows} · ${(await am.textContent()).replace(/\s+/g, " ").slice(0, 120)}`);
   await am.locator("[data-g=assign-row] input[data-g=pick]").first().click(); await p.waitForTimeout(150);
   const on1 = await am.locator("[data-g=assign-row].on").count(), en1 = !(await am.locator("button[data-act=assign-save]").isDisabled());
-  await am.locator("input[data-g=pick-all]").click(); await p.waitForTimeout(150);
+  await am.locator("input[data-g=pick-group]").click(); await p.waitForTimeout(150);   // (어79) 거르개가 생겨 「전체」는 **보이는 것만** 집는 PickGroup 이다
   ok(`고르기 한 벌 · 네모 하나 → 줄 on 1 · 「배정」 열림 · 「전체」 → 다 on · 단추 「배정 ${nRows}권」`, on1 === 1 && en1 && (await am.locator("[data-g=assign-row].on").count()) === nRows && (await am.locator("button[data-act=assign-save]").textContent()) === `배정 ${nRows}권`, `${on1} · ${await am.locator("[data-g=assign-row].on").count()} · ${await am.locator("button[data-act=assign-save]").textContent()}`);
   await am.locator("button[data-act=assign-save]").click(); await p.waitForFunction(() => !document.querySelector(".mdlov[aria-label='교재 배정']"), null, { timeout: 20000 }).catch(() => {}); await p.waitForTimeout(1500);
   ok(`배정 → 모달 닫힘 · 주소 그대로(/ops/students) · 교재 진도 0 → ${nRows}(문법책 · 독해책 · … · 오늘부터 · 루틴 11 과 같은 손 assignBook)`, (await p.locator(".mdlov").count()) === 0 && new URL(p.url()).pathname === "/ops/students" && (await bc.locator("[data-g=bkline]").count()) === nRows && (await bc.textContent()).includes("zz_리허설 문법책") && (await bc.textContent()).includes("zz_리허설 독해책"), `${await bc.locator("[data-g=bkline]").count()} · ${(await bc.textContent()).replace(/\s+/g, " ").slice(0, 160)}`); }

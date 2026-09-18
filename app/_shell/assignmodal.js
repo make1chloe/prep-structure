@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { usePick, PickAll, PickBox } from "./pick.js";
+import { usePick, PickGroup, PickBox } from "./pick.js";
 import { useModalErr, call } from "./modalerr.js";
 import { markCh } from "@/lib/mark";
 import { assignChoices, assignBooksFor } from "./assign-actions.js";
@@ -14,7 +14,13 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
   const router = useRouter(); const [pending, start] = useTransition();
   const [rows, setRows] = useState(null); const [total, setTotal] = useState(0); const [on, setOn] = useState(date); const [failM, errNode] = useModalErr();
   const [why, setWhy] = useState(null);   // 배정은 됐는데 오늘 줄이 0 · 그 까닭
+  const [q, setQ] = useState(""); const [area, setArea] = useState("");   // (어79) 원장님 2026-09-17 「교재 배정 할 때 필터링과 검색 가능하게 해 줘. 찾기가 어렵다.」
   const ids = useMemo(() => (rows ?? []).map((r) => r.book_id), [rows]); const pk = usePick(ids);
+  const areas = useMemo(() => [...new Set((rows ?? []).map((r) => r.area).filter(Boolean))], [rows]);
+  /** 보이는 줄 — 영역 칩과 이름 검색을 걸러 준다. **고른 것은 걸러도 그대로 남는다**(거르개를 바꿔 가며 여러 권을 고른다 · 저장 단추가 고른 수를 말한다) */
+  const shown = useMemo(() => { const t = q.trim().toLowerCase();
+    return (rows ?? []).filter((r) => (!area || r.area === area) && (!t || `${r.name} ${r.area ?? ""}`.toLowerCase().includes(t))); }, [rows, q, area]);
+  const sift = (rows ?? []).length >= 3;   // 두 권뿐이면 거르개가 되레 짐이다
   useEffect(() => { let alive = true; (async () => { const r = await call(() => assignChoices(studentId)); if (!alive) return; if (!failM(r)) { setRows([]); return; } setRows(r.choices); setTotal(r.total ?? 0); })(); return () => { alive = false; }; }, [studentId]);   // eslint-disable-line react-hooks/exhaustive-deps
   const save = () => start(async () => { const picked = pk.ids; const r = await call(() => assignBooksFor(studentId, picked, on, sheetId)); if (!failM(r)) return; router.refresh();
     if (sheetId && r.laid === 0) { setWhy(on > date ? `${on} 부터 배정 · 그 날 수업 일지에 줄이 선다` : r.why || "까닭을 못 읽음"); return; }
@@ -28,7 +34,14 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
           {why != null ? <div className="lf warn" data-g="assign-why"><span className="ln">📕</span><div><b>배정은 됐고 오늘 줄은 0</b><small>{why}</small></div><Link prefetch={false} className="btn sm" href="/settings/routine">루틴 11 👉</Link></div>
             : !rows ? <p className="note">읽는 중…</p>
             : !rows.length ? <p className="note" data-g="assign-none">배정할 교재 없음{total ? ` · 교재 ${total}권이 다 배정됨` : " · 교재 15 에 쓰는 교재가 없음"}</p>
-            : <div data-g="assign-list"><div className="wv" style={{ margin: "0 0 4px" }}><PickAll pick={pk} /></div>{rows.map((r) => (
+            : <div data-g="assign-list">
+              {sift && <div className="wv" data-g="assign-sift" style={{ margin: "0 0 6px" }}>
+                <input type="search" value={q} aria-label="교재 찾기" placeholder="교재 이름" data-g="assign-q" style={{ flex: "1 1 140px" }} onChange={(e) => setQ(e.target.value)} />
+                {areas.length > 1 && <span className="tags">{[["", "전체"], ...areas.map((a) => [a, a])].map(([k, name]) => <button key={k || "all"} type="button" className={"tag" + (area === k ? " on" : "")} data-act="assign-area" aria-pressed={area === k} onClick={() => setArea(k)}>{name}</button>)}</span>}
+              </div>}
+              <div className="wv" style={{ margin: "0 0 4px" }}><PickGroup pick={pk} ids={shown.map((r) => r.book_id)} label="전체" /></div>
+              {!shown.length && <p className="note" data-g="assign-nohit">찾는 교재 없음</p>}
+              {shown.map((r) => (
               <div key={r.book_id} className={"lf pick" + (pk.has(r.book_id) ? " on" : "")} data-g="assign-row" data-book={r.book_id} data-progressed={r.progressed ? "1" : "0"} onClick={() => pk.toggle(r.book_id)}>
                 <PickBox pick={pk} id={r.book_id} label={r.name} /><span className="ln">{r.progressed ? markCh("doing") : "📕"}</span><div><b>{r.name}</b><small>{r.area}{r.progressed ? ` · 진도 ${r.done}` : ""}</small></div>
               </div>))}</div>}
