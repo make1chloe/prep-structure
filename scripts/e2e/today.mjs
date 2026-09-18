@@ -133,7 +133,7 @@ const stick = await rb.evaluate((el) => { el.closest(".row").scrollIntoView({ bl
 ok("저장줄이 sticky 로 화면 아래에 붙는다(줄이 화면보다 길 때) · 「저장하고 마감(→ 다음 아이) · 임시 저장 · 닫기」", stick.pos === "sticky" && stick.rowBottom > stick.h && Math.abs(stick.bottom - stick.h) < 2 && /^저장하고 마감( → 다음 아이)?,임시 저장,닫기$/.test((await rb.locator("button").allTextContents()).join(",")), JSON.stringify(stick) + " " + (await rb.locator("button").allTextContents()).join(","));
 ok("padding-bottom 에 env(safe-area-inset-bottom) · 홈 표시줄에 안 깔린다(viewportFit cover 는 check-sw)", stick.env === true);
 /* (어81) 원장님 2026-09-18 폰 사진 「저장 및 마감이 맨 아래에 항상 떠 있는것 자체는 좋은데 몇 밑으로 내려 가니 화면이 겹쳐서 쓸 수가 없어」
-   — 붙어 다니는 것은 맞았는데 **일하는 단추 위에 올라앉았다**(맨 위 자리에서 「삭제 · 수업중 · ⭕🔺❌」 셋이 깔렸다).
+   — 붙어 다니는 것은 맞았는데 **일하는 단추 위에 올라앉았다**(맨 위 자리에서 「삭제 · 수업중 · ○△✕」 셋이 깔렸다).
    붙는지만 재고 **덮는지는 안 쟀다.** 판이 제 키만큼 바닥을 비우는지 + 맨 끝에서 깔린 손이 0인지 잰다. */
 { const room = await rb.evaluate((el) => { const pan = el.closest(".panel"); return { pad: parseFloat(getComputedStyle(pan).paddingBottom), bar: el.getBoundingClientRect().height }; });
   ok("(어81) 저장줄이 붙어 다니는 판은 **제 키만큼 바닥을 비운다** — 안 비우면 맨 끝 단추가 영영 안 눌린다", room.pad >= room.bar - 1, JSON.stringify(room));
@@ -156,21 +156,30 @@ if (!(await first.locator(".chk button[data-v=w]").count())) { console.log("   �
 await first.locator(".chk button[data-v=w]").click({ timeout: 5000 }); await p.waitForTimeout(300);
 ok("△ 누르면 「어디까지」가 열린다", (await first.locator(".partial").count()) === 1);
 ok("(어67) 검사 줄의 손 넷은 **글자**다 · 삭제 · 수업중 · 수업후 · 숙제(언제 하느냐로 읽힌다 · 원장님 2026-09-16)", (await first.locator("[data-g=check-move] button").allTextContents()).join(" · ") === "삭제 · 수업중 · 수업후 · 숙제" && !/\p{Extended_Pictographic}/u.test((await first.locator("[data-g=check-move] button").allTextContents()).join("")));
-ok("(어76) 검사 값은 **그림 넷**이다 · ⭕ 🔺 ❌ 🔙(원장님 2026-09-17 「동그라미 세모 엑스 도 이모지로 바꾸고 반려 추가」 — 9/16 말씀을 뒤집으신 것)", (await first.locator(".chk button").allTextContents()).join("") === "⭕🔺❌🔙", (await first.locator(".chk button").allTextContents()).join(""));
+ok("(어82) 검사 값은 **글자 넷**이다 · ○ △ ✕ ←(그림이면 제 색을 못 버려 상자 색을 못 입는다 · 원장님 2026-09-18 「기호색깔을 박스랑 통일해줘」)", (await first.locator(".chk button").allTextContents()).join("") === "○△✕←", (await first.locator(".chk button").allTextContents()).join(""));
+{ // (어82) 진짜로 **한 색인지** 브라우저에서 잰다 — 누르기 전엔 글자색 = 테두리색 · 누르면 상자가 그 색으로 차고 글자가 희어진다
+  const 재기 = async (v) => first.locator(`.chk button[data-v=${v}]`).evaluate((e) => { const c = getComputedStyle(e); return { color: c.color, border: c.borderTopColor, bg: c.backgroundColor }; });
+  const 같나 = (a, b) => a === b;
+  const 셋 = await Promise.all(["o", "x", "r"].map(재기));
+  ok("누르기 전 — 완료 · 미완료 · 반려의 **글자색이 테두리색과 같다**(상자와 한 색)", 셋.every((c) => 같나(c.color, c.border)), 셋.map((c) => `${c.color} ↔ ${c.border}`).join(" · "));
+  const w = await 재기("w");
+  ok("미흡만 글자가 진하다 — 노랑·주황은 글씨로 못 쓴다(원장님 9/5 「이 색 금지」) · 상자(테두리·바탕)가 제 색을 낸다", w.border !== w.bg && w.color !== w.border, `글자 ${w.color} · 테두리 ${w.border}`);
+  const 눌린 = await first.locator(".chk button[data-v=w][aria-pressed='true']").evaluate((e) => { const c = getComputedStyle(e); return { color: c.color, bg: c.backgroundColor }; }).catch(() => null);
+  ok("누른 칸은 **상자가 그 색으로 찬다**(기호와 상자가 한 덩어리 · 대전제-21)", Boolean(눌린) && 눌린.bg !== "rgba(0, 0, 0, 0)" && 눌린.color !== 눌린.bg, 눌린 ? `${눌린.color} on ${눌린.bg}` : "눌린 칸 없음"); }
 console.log("■ (어76) 반려 · 사유 여섯 · 값이 아니라 제 칸(원장님 2026-09-17 「반려 추가. 반려 선택시 사유 … 선택하게 해줄것」)");
 { const rj = () => row.locator(".panel .hw").filter({ hasText: "워크북 복습" }).first();   // 바로 앞에서 △ 를 준 줄 — 반려는 그 값을 안 건드린다(그 점을 여기서 잰다)
   const openWhy = async () => { if (!(await rj().locator("[data-g=reject-why]").count())) { await rj().locator(".chk button[data-act=reject]").click(); await p.waitForTimeout(300); } };   // 사유 칩은 한 번 펴면 그대로 있다(고른 뒤에도 바꿀 수 있게)
   await openWhy();
   const whys = await rj().locator("[data-g=reject-why] button[data-act=reject-why]").allTextContents();
-  ok("🔙 를 누르면 사유 여섯이 **그 자리에서** 펴진다(모달 아님 · 대전제-22) · 마지막은 「기타」 한 낱말((어69))", whys.join(" · ") === "화질 저하 · 페이지 잘림 · 페이지 누락 · 과제 미완료 · 근거 누락 · 기타", whys.join(" · "));
+  ok("← 를 누르면 사유 여섯이 **그 자리에서** 펴진다(모달 아님 · 대전제-22) · 마지막은 「기타」 한 낱말((어69))", whys.join(" · ") === "화질 저하 · 페이지 잘림 · 페이지 누락 · 과제 미완료 · 근거 누락 · 기타", whys.join(" · "));
   await rj().locator("[data-g=reject-why] button[data-why='페이지 잘림']").click(); await p.waitForTimeout(1500);
   await pick(row, "check"); await unfoldAll();
   ok("반려한 줄에 「반려 · 페이지 잘림」이 남는다 · **새로고침해도**(서버가 준 판에서 읽는다 · 낙관적 표시가 아니다)", ((await rj().locator("[data-g=rejected]").first().textContent().catch(() => "")) ?? "").includes("반려 · 페이지 잘림"), (await rj().textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120));
-  ok("반려해도 **검사 값(🔺)은 그대로** · 줄도 그대로 남는다(반려는 status 가 아니다 — 아이가 다시 내면 그때 값을 고친다)", (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1 && (await rj().locator(".chk button[data-act=reject][aria-pressed='true']").count()) === 1);
+  ok("반려해도 **검사 값(△)은 그대로** · 줄도 그대로 남는다(반려는 status 가 아니다 — 아이가 다시 내면 그때 값을 고친다)", (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1 && (await rj().locator(".chk button[data-act=reject][aria-pressed='true']").count()) === 1);
   await openWhy();
   await rj().locator("[data-g=reject-why] button[data-why='페이지 잘림']").click(); await p.waitForTimeout(1500);
   await pick(row, "check"); await unfoldAll();
-  ok("같은 사유를 다시 누르면 **반려가 취소된다**(○🔺❌ 와 같은 결 · 반려 글 0 · 🔺 는 그대로)", (await rj().locator("[data-g=rejected]").count()) === 0 && (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1, (await rj().textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120)); }
+  ok("같은 사유를 다시 누르면 **반려가 취소된다**(○△✕ 와 같은 결 · 반려 글 0 · △ 는 그대로)", (await rj().locator("[data-g=rejected]").count()) === 0 && (await rj().locator(".chk button[data-v=w][aria-pressed='true']").count()) === 1, (await rj().textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120)); }
 { const cls = row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).first();   // (어67) 삭제 → 카드 밑 「복구」 → 제자리(지우지 않는다 · 대전제-6·19)
   await cls.locator("[data-g=check-move] button", { hasText: /^삭제$/ }).click(); await p.waitForTimeout(1200);
   await pick(row, "check");   // 손이 판을 다시 그리면 업무가 처음 것으로 돌아간다 — 검사 판을 다시 고른다

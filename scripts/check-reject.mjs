@@ -6,8 +6,7 @@
  *  여기서 잡는 것: **반려가 status 로 새지 않는가** · **낸 것과 반려가 한 곳(원래 숙제 줄)에 사는가** ·
  *  **아이가 붙일 길과 내릴 길이 열려 있는가** · **음성이 받아지고 끌리는가**. */
 import { readFileSync } from "node:fs";
-import { REJECT, CHECK, isReject } from "../lib/status.js";
-import { ACT } from "../lib/emoji.js";
+import { REJECT, CHECK, isReject, REJECT_MARK } from "../lib/status.js";
 import { ALLOWED_MIME, isAudio, checkFile, extOf } from "../lib/files-plan.js";
 import { srcOf, srcId, submitted, rejectOf, rejectText } from "../lib/item-plan.js";
 import { LABEL } from "../lib/notify-plan.js";
@@ -29,7 +28,7 @@ ok("0176 은 day_item.status 의 값 목록을 안 건드린다(판 함수 여�
 ok("칸 셋을 더한다 · reject_reason · reject_note · rejected_at(멱등 · add column if not exists)", ["reject_reason", "reject_note", "rejected_at"].every((c) => new RegExp(`add column if not exists\\s+${c}\\b`).test(sql)));
 ok("lib/homework rejectItem 이 status 를 안 쓴다", /export async function rejectItem/.test(hw) && !/rejectItem[\s\S]{0,900}?status:/.test(hw));
 ok("반려는 **원래 숙제 줄**(carry_of)에 적는다 — 아이 07 이 보는 줄이 그 줄이다", /const target = it\.carry_of \?\? it\.id;/.test(hw));
-ok("○🔺❌ 를 주면 반려가 끝난다(서버가 그 줄의 반려를 지운다 · 화면도 그 자리에서)", /reject_reason: null, reject_note: null, rejected_at: null \}\)\.eq\("id", it\.carry_of \?\? it\.id\)/.test(hw) && /setRj\(null\); setAsk\(false\);/.test(row));
+ok("○△✕ 를 주면 반려가 끝난다(서버가 그 줄의 반려를 지운다 · 화면도 그 자리에서)", /reject_reason: null, reject_note: null, rejected_at: null \}\)\.eq\("id", it\.carry_of \?\? it\.id\)/.test(hw) && /setRj\(null\); setAsk\(false\);/.test(row));
 
 console.log("■ 알림 — 반려하면 아이에게(원장님 「알림이 떠야해」)");
 ok("알림 유형에 reject 가 있다 · 이름은 「숙제 다시 내기 안내」", LABEL.reject === "숙제 다시 내기 안내");
@@ -37,7 +36,7 @@ ok("DB 제약(notify_log_kind_choice)에도 reject 가 있다", /'reject'\)\) no
 ok("보내는 길은 lib/notify 하나(대전제-7) · 받는 이는 아이(who: \"student\") · 반려 취소면 안 보낸다", /notify\(svc, \{ kind: "reject"[\s\S]{0,200}who: "student" \}\)/.test(hw) && /if \(why === null\) return \{ rejected: false/.test(hw));
 
 console.log("■ 화면 — 검사 넷째 손 · 사유 칩 · 아이가 낸 것");
-ok("검사 단추는 넷(⭕🔺❌ + 🔙) · 그림은 ACT 에서", CHECK.length === 3 && CHECK[0][1] === ACT.checkDone && /data-act="reject"/.test(row) && /\{ACT\.reject\}/.test(row));
+ok("검사 단추는 넷(○△✕ + ←) · 기호는 lib/status.js 에서 · (어82) 상자 색을 입는 글자다", CHECK.length === 3 && CHECK.map(([, g]) => g).join("") === "○△✕" && REJECT_MARK === "←" && /data-act="reject"/.test(row) && /\{REJECT_MARK\}/.test(row));
 ok("사유는 그 자리에서 칩으로 고른다(대전제-22 · 모달 아님)", /data-g="reject-why"/.test(row) && /REJECT\.map/.test(row) && !/RejectModal/.test(row));
 ok("「기타」를 고르면 한 마디 칸이 뜬다", /data-g="reject-note"/.test(row));
 ok("검사 줄에 아이가 낸 것이 **작게** 뜬다(원장님 「스크롤 늘지않도록 썸네일최소화」 · 44px)", /data-g="sent"/.test(row) && /size=\{44\}/.test(row));

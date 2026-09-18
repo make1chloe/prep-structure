@@ -43,17 +43,29 @@ ok(`손(단추) ACT ${Object.keys(ACT).length}종 · 겹침 0`, dupes(ACT).lengt
 const seg = new Intl.Segmenter("ko", { granularity: "grapheme" });
 ok("한 글자짜리 손이 아니면 표에 안 넣는다(단추는 좁다) · ACT 는 전부 한 글자", Object.values(ACT).every((e) => [...seg.segment(e)].length === 1), Object.entries(ACT).filter(([, e]) => [...seg.segment(e)].length !== 1).map(([k]) => k).join(" "));
 
-console.log("■ (어76) 숙제 검사의 ○△✕ 는 그림 · 손 넷(삭제·수업중·수업후·숙제)은 글자(원장님 2026-09-17 「동그라미 세모 엑스 도 이모지로 바꾸고 반려 추가」 — 9/16 「숙제검사는 그냥 이모지쓰지말자」를 뒤집으신 것)");
+console.log("■ (어82) 숙제 검사의 ○△✕← 는 **글자**다 — 상자 색을 입어야 해서(원장님 2026-09-18 「기호색깔을 박스랑 통일해줘」) · 손 넷(삭제·수업중·수업후·숙제)도 글자");
 { const src = readFileSync("app/today/row.js", "utf8");
   const card = fnBody(src, "CheckCard"), item = fnBody(src, "CheckItem");
   ok("app/today/row.js 에 CheckCard · CheckItem 이 있다(잘라 보는 검사라 이름이 바뀌면 여기부터 고친다)", card.length > 200 && item.length > 200);
   const inButtons = [...buttons(card), ...buttons(item)].flatMap(pics);
   // (어76) 검사 값 단추 넷만 그림이다 · 그 그림은 **제 손으로 안 적고** 기능 표(ACT)에서 온다 — lib/status.js CHECK 를 거친다(원칙-1 · 대전제-25)
   const st = readFileSync("lib/status.js", "utf8");
-  ok("검사 넷의 그림은 lib/status.js 가 ACT 에서 가져온다(화면이 ⭕🔺❌🔙 를 제 손으로 안 적는다)",
-     /import \{ ACT \} from "\.\/emoji\.js"/.test(st) && /\[\["done", ACT\.checkDone\], \["weak", ACT\.checkWeak\], \["missing", ACT\.checkMiss\]\]/.test(st) && !/["']⭕["']|["']🔺["']|["']❌["']/.test(st));
-  ok("반려는 넷째 손 · ACT.reject 하나 · 사유 여섯은 lib/status.js REJECT 한 벌(DB 0176 과 같은 목록)",
-     /data-act="reject"/.test(item) && /\{ACT\.reject\}/.test(item) && /REJECT\.map/.test(item) && ["화질 저하", "페이지 잘림", "페이지 누락", "과제 미완료", "근거 누락", "기타"].every((w) => st.includes(w)));
+  // (어82) 그림이면 상자 색을 못 입는다 — 넷은 lib/status.js 한 곳에 **글자**로 산다(그림이 아님을 글자로 잰다)
+  { const 넷 = (st.match(/export const CHECK = [^\n]*/) ?? [""])[0] + (st.match(/export const REJECT_MARK = [^\n]*/) ?? [""])[0];
+    ok("검사 넷의 기호는 lib/status.js 한 곳 · ○ △ ✕ ← · **그림이 하나도 없다**(그림은 제 색이 있어 상자 색을 못 따라간다 · 원장님 2026-09-18)",
+       /\[\["done", "○"\], \["weak", "△"\], \["missing", "✕"\]\]/.test(st) && /REJECT_MARK = "←"/.test(st)
+       && pics(넷).length === 0 && !/from "\.\/emoji\.js"/.test(st), pics(넷).join(" ")); }
+  ok("반려는 넷째 손 · REJECT_MARK 하나 · 사유 여섯은 lib/status.js REJECT 한 벌(DB 0176 과 같은 목록)",
+     /data-act="reject"/.test(item) && /\{REJECT_MARK\}/.test(item) && /REJECT\.map/.test(item) && ["화질 저하", "페이지 잘림", "페이지 누락", "과제 미완료", "근거 누락", "기타"].every((w) => st.includes(w)));
+  // (어82) 「기호색깔을 박스랑 통일」 — 넷 다 **누르기 전에도** 제 상자 색을 글자색으로 입는다(미흡만 --on-weak: 노랑·주황은 글씨로 못 쓴다)
+  { const css = readFileSync("app/globals.css", "utf8");
+    const rule = (v) => (css.match(new RegExp(`\\.chk button\\[data-v="${v}"\\]\\{([^}]*)\\}`)) || [, ""])[1];
+    const 짝 = [["o", "--ok"], ["x", "--miss"], ["r", "--navy"]];
+    const 어긋난 = 짝.filter(([v, c]) => !(rule(v).includes(`color:var(${c})`) && rule(v).includes(`border-color:var(${c})`)));
+    ok("기호 색 = 상자 색 · 완료 --ok · 미완료 --miss · 반려 --navy 셋은 글자색과 테두리색이 같다(원장님 2026-09-18 「기호색깔을 박스랑 통일해줘」)",
+       어긋난.length === 0, 어긋난.map(([v]) => v).join(" "));
+    ok("미흡만 글자가 진하다(--on-weak) · 상자는 --amber 테두리로 제 색을 낸다(노랑·주황을 글씨로 쓰면 대비 4.5 를 못 넘는다 · 원장님 9/5 「이 색 금지」)",
+       rule("w").includes("color:var(--on-weak)") && rule("w").includes("border-color:var(--amber)"), rule("w")); }
   ok(`검사 카드·검사 줄이 그리는 단추에 **표를 안 거친** 그림 0 (단추 ${buttons(card).length + buttons(item).length}개)`, inButtons.length === 0, [...new Set(inButtons)].join(" "));
   ok("검사 줄의 손 넷은 글자다 · 삭제 · 수업중 · 수업후 · 숙제(언제 하느냐로 읽힌다 · 원장님 9/16 「삭제 수업중 수업후 숙제」)", CHECK_MOVE.map(([, t]) => t).join(" · ") === "삭제 · 수업중 · 수업후 · 숙제" && CHECK_MOVE.every(([, t]) => pics(t).length === 0));
   ok("넷의 구분은 off(줄을 내린다 · 대전제-6) · class · stay · home 셋(carryRest)", CHECK_MOVE.map(([w]) => w).join() === "off,class,stay,home");
@@ -88,7 +100,7 @@ console.log("■ 래칫 · 손의 그림은 ACT 표에서 온다(늘면 실패 �
   const out = [];
   for (const p of files("app")) for (const b of buttons(readFileSync(p, "utf8"))) for (const c of pics(b)) if (!act.has(c)) out.push([p, c]);
   const kinds = [...new Set(out.map(([, c]) => c))];
-  const MAX = 59;   // (어67) 처음 60자리(26종) → (어67)-③ 「다른 화면으로」를 ACT.goto 👉 로 옮겨 59. ACT 로 옮길 때마다 이 숫자를 내린다 · 올리지 않는다
+  const MAX = 52;   // (어67) 처음 60자리(26종) → (어67)-③ 「다른 화면으로」를 ACT.goto 👉 로 옮겨 59 → (어82) 실측 52 로 조임. ACT 로 옮길 때마다 이 숫자를 내린다 · 올리지 않는다
   ok(`ACT 밖 단추 그림 ${out.length}자리 · ${kinds.length}종 ≤ ${MAX}`, out.length <= MAX, `${kinds.join(" ")} · 늘었으면 lib/emoji.js ACT 에 넣고 그 이름을 쓴다`); }
 { const noC = (x) => x.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " ")).replace(/(^|[^:\\])\/\/.*$/gm, (m, p1) => p1 + m.slice(p1.length).replace(/./g, " "));
   let face = 0;

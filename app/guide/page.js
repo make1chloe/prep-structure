@@ -9,7 +9,7 @@ import { guard } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { ROLES } from "@/lib/roles";
 import { ACT, FACE } from "@/lib/emoji";
-import { REJECT_NAME } from "@/lib/status";
+import { REJECT_NAME, REJECT_MARK } from "@/lib/status";
 export const dynamic = "force-dynamic";
 const Row = ({ emo, what, where }) => <div className="li" data-g="guide-row"><span className="n">{emo}</span><div><b>{what}</b><small>{where}</small></div></div>;
 
@@ -21,7 +21,7 @@ const 아이 = [
   { emo: FACE.cc, what: "클래스카드 숙제", where: "완료를 누르면 클래스카드로 가는 단추가 떠요" },
   { emo: ACT.upload, what: "교재 숙제는 사진으로", where: "완료를 누르면 사진 · 음성으로 낼 수 있어요" },
   { emo: ACT.rec, what: "음성으로 내기", where: "읽기 숙제는 녹음해서 내요" },
-  { emo: ACT.reject, what: REJECT_NAME, where: "다시 내라는 뜻이에요 · 낸 것을 지우고 다시 내요" },
+  { emo: REJECT_MARK, what: REJECT_NAME, where: "다시 내라는 뜻이에요 · 낸 것을 지우고 다시 내요" },
   { emo: ACT.push, what: "알림", where: "켜 두면 숙제 · 공지가 폰으로 와요" },
   { emo: ACT.reload, what: "새로고침", where: "화면이 오래된 것 같으면 눌러요" },
 ];

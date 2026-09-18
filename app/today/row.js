@@ -30,7 +30,7 @@ import { useOpen, usePickCtx } from "./board.js";
 import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* 고르기 한 벌((어28)-② · 대전제-20) · 마감된 줄은 자리만 */
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
-import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP, REJECT, REJECT_NAME, REJECT_TIP } from "@/lib/status";
+import { isUnchecked, CHECK, CHECK_KEY, CHECK_NAME, CHECK_TIP, REJECT, REJECT_NAME, REJECT_TIP, REJECT_MARK } from "@/lib/status";
 import { ACT } from "@/lib/emoji";   // (어76) 검사 넷의 그림은 기능 표에서 온다(대전제-25)
 import Photo from "../_shell/photo.js";   // (어76) 아이가 낸 사진 — 작게 보고 누르면 크게
 import Play from "../_shell/play.js";     // (어76) 아이가 낸 음성 — 막대를 끌어 아무 데나
@@ -158,7 +158,7 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
   const server = movedTo(it, sheet);   // (어68) 눌림은 **서버가 준 판**에서 읽는다 — 새로고침해도 남는다(lib/item-plan movedTo 한 벌)
   const [opt, setOpt] = useState(null);   // 누르는 즉시 덮어쓰는 것(속도-3) · 서버가 되그리면 지운다
   const [gone, setGone] = useState(false);   // 「삭제」도 낙관적 — 그 자리에서 사라지고 카드 밑 「삭제한 줄」로 간다
-  const [ask, setAsk] = useState(false);   // (어76) 🔙 를 누르면 사유 여섯이 그 자리에서 펴진다(대전제-22)
+  const [ask, setAsk] = useState(false);   // (어76) ← 를 누르면 사유 여섯이 그 자리에서 펴진다(대전제-22)
   const [rj, setRj] = useState(rejectOf(it));   // 반려 — 서버가 준 판에서 읽고, 누르면 그 자리에서 바뀐다(속도-3)
   const [note, setNote] = useState(rejectOf(it)?.note ?? "");
   const sent = submitted(it);   // (어76) 아이가 낸 것(사진 · 음성) — 원래 숙제 줄에 붙어 있다(lib/item-plan srcOf)
@@ -184,10 +184,10 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
   return (
     <div className="hw" data-g="check-line" data-folded={folded ? "1" : "0"}>{/* (어51) 줄 하나를 「그 자리에서」 접고 편다 · 이름을 -row 로 안 짓는다: 고르기(PickBox)를 붙일 목록이 아니라 한 줄짜리 검사 손이고, 일괄은 카드 머리의 「다 ○」 하나다((어28) 대전제-20 · check-pick 의 -row 규칙 밖 · gap-book · call-book 과 같은 뜻) */}
       <div className="hwname"><button type="button" className="nmb" data-act="unfold" data-id={it.id} aria-expanded={!folded} onClick={() => setOpen(!open)}><b>{itemTitle(it)}</b></button>
-        {folded ? (rj ? <small data-g="rejected">{ACT.reject} {rejectText(rj)}</small> : it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
+        {folded ? (rj ? <small data-g="rejected">{REJECT_MARK} {rejectText(rj)}</small> : it.done_note ? <small>{it.done_note}</small> : null) : <>{sub && <small>{sub}</small>}
         {sent.length > 0 && <div className="wv" data-g="sent" style={{ marginBottom: 0, gap: 4 }}>{/* (어76) 원장님 2026-09-17 「학생이 항목별로 제출한 사진을 확인가능하게. 이때 스크롤 늘지않도록 썸네일최소화」 — 44px · 누르면 크게 */}
           {sent.map((f) => (isAudio(f.mime) ? <Play key={f.id} id={f.id} name={f.orig_name} size={180} /> : <Photo key={f.id} id={f.id} name={f.orig_name} size={44} />))}</div>}
-        {rj && <small data-g="rejected">{ACT.reject} {rejectText(rj)}</small>}
+        {rj && <small data-g="rejected">{REJECT_MARK} {rejectText(rj)}</small>}
         {ask && !closed && <div className="tags" data-g="reject-why" style={{ marginTop: 4 }}>{/* 사유 여섯 — 고르면 그 자리에서 반려되고 아이에게 알림(대전제-22) */}
           {REJECT.map((w) => <button key={w} type="button" className={"btn sm" + (rj?.reason === w ? " pri" : "")} data-act="reject-why" data-why={w} onClick={() => sendReject(w)}>{w}</button>)}
           {rj?.reason === "기타" && <input type="text" value={note} placeholder="한 마디" aria-label="반려 한 마디" data-g="reject-note" onChange={(e) => setNote(e.target.value)} onBlur={() => sendReject("기타")} style={{ flex: "1 1 120px" }} />}</div>}
@@ -198,7 +198,7 @@ function CheckItem({ it, sheet, closed, fail, start, grouped = false }) {   // g
       </div>
       <div className="chk" aria-label="검사">
         {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} {...icon(CHECK_NAME[v], CHECK_TIP[v])} onClick={() => pick(v)}>{g}</button>)}
-        <button type="button" data-v="r" data-act="reject" aria-pressed={Boolean(rj)} disabled={closed} {...icon(REJECT_NAME, REJECT_TIP)} onClick={() => { setOpen(true); setAsk(!ask); }}>{ACT.reject}</button>{/* (어76) 넷째 손 — 원장님 2026-09-17 「반려 추가」 */}
+        <button type="button" data-v="r" data-act="reject" aria-pressed={Boolean(rj)} disabled={closed} {...icon(REJECT_NAME, REJECT_TIP)} onClick={() => { setOpen(true); setAsk(!ask); }}>{REJECT_MARK}</button>{/* (어76) 넷째 손 — 원장님 2026-09-17 「반려 추가」 · (어82) 남색 상자와 같은 남색 글자 */}
       </div>
     </div>
   );

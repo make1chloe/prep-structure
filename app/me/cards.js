@@ -9,6 +9,7 @@ import Play from "../_shell/play.js";        // (어76) 🎧 낸 음성을 듣�
 import { icon } from "../_shell/icon.js";
 import { ACT, FACE } from "@/lib/emoji";
 import { isAudio } from "@/lib/files-plan";
+import { REJECT_MARK } from "@/lib/status";   // (어82) 반려 기호는 한 곳에서 — 상자 색을 입는 글자다
 import { srcId, submitted, rejectOf, rejectText, nextStep } from "@/lib/item-plan";
 import { CC_URL } from "@/lib/cc-plan";   // (어77) 🃏 클래스카드가 사는 곳 — 확장과 같은 곳(check-cc 가 견준다)
 import Photo from "../_shell/photo.js";
@@ -179,7 +180,7 @@ export function SubmitLine({ item, rules = {} }) {
   if (!id || (!send && step !== "cc")) return null;
   return (
     <div data-g="submit" data-item={id} style={{ marginTop: 4 }}>
-      {rj && <p className="note" data-g="rejected" style={{ margin: "0 0 4px", color: "var(--miss)" }}>{ACT.reject} {rejectText(rj)} · 지우고 다시 내 줘요</p>}
+      {rj && <p className="note" data-g="rejected" style={{ margin: "0 0 4px", color: "var(--miss)" }}>{REJECT_MARK} {rejectText(rj)} · 지우고 다시 내 줘요</p>}
       {mine.length > 0 && <div className="wv" data-g="mine-files" style={{ marginBottom: 0, gap: 4 }}>
         {mine.map((f) => <span key={f.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-g="mine-file" data-file={f.id}>
           {isAudio(f.mime) ? <Play id={f.id} name={f.orig_name} size={180} /> : <Photo id={f.id} name={f.orig_name} size={44} />}

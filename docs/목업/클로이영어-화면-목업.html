@@ -231,9 +231,13 @@ section.screen{margin:0 0 64px}
 .chk button{width:29px;height:29px;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--faint);font-size:var(--fs-3);font-weight:700;display:grid;place-items:center;padding:0}
 /* (어68) 원장님 2026-09-17 「완료 미흡은 각각 색깔 바꿔줘」 — 셋이 **누르기 전에도** 제 색을 갖는다(고를 때 눈이 먼저 찾는다). 누르면 그 색으로 채워진다(아래 규칙이 이긴다).
    미흡은 --weak(노랑)을 흰 바탕에 글자색으로 쓰면 안 읽혀서 --amber 를 쓴다 — 채움색은 그대로 --weak */
+/* (어82) 원장님 2026-09-18 「기호색깔을 박스랑 통일해줘」 — **기호가 상자 색을 입는다.** 그러려면 기호가 글자여야 한다:
+   그림(⭕🔺❌🔙)은 제 색을 가지고 있어 color 가 안 먹는다(⭕ 는 어디에 놓아도 빨갛고 상자는 초록이었다). 그래서 lib/status.js 가 ○△✕← 로 돌아갔다.
+   ⚠️ 미흡만 글자가 진하다(--on-weak) — 노랑·미흡의 주황은 **글씨로 못 쓴다**(위 「이 색 금지」 · 대비 4.5 를 못 넘는다). 상자(테두리·바탕)가 제 색을 낸다 */
 .chk button[data-v="o"]{color:var(--ok);border-color:var(--ok);background:var(--ok-wash)}
 .chk button[data-v="w"]{color:var(--on-weak);border-color:var(--amber);background:var(--weak-wash)}
 .chk button[data-v="x"]{color:var(--miss);border-color:var(--miss);background:var(--miss-wash)}
+.chk button[data-v="r"]{color:var(--navy);border-color:var(--navy);background:var(--navy-wash)}
 .chk button[aria-pressed="true"][data-v="o"]{background:var(--ok);border-color:transparent;color:var(--surface)}
 .chk button[aria-pressed="true"][data-v="w"]{background:var(--weak);border-color:transparent;color:#111827}
 .chk button[aria-pressed="true"][data-v="x"]{background:var(--miss);border-color:transparent;color:var(--surface)}
@@ -1519,7 +1523,7 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
               <div class="hw">
                 <div class="hwname"><b>클카 단어훈련 · Day 38-40</b><small>마감 오늘</small>
                   <div class="tags"><span class="tag on">완료 100%</span><span class="tag type">단어 세트</span><span class="tag">필수 모드 4개</span></div></div>
-                <div class="chk" data-g="c"><button data-v="o" aria-pressed="true">○</button><button data-v="w" aria-pressed="false">△</button><button data-v="x" aria-pressed="false">✕</button></div>
+                <div class="chk" data-g="c"><button data-v="o" aria-pressed="true">○</button><button data-v="w" aria-pressed="false">△</button><button data-v="x" aria-pressed="false">✕</button><button data-v="r" aria-pressed="false">←</button></div>
               </div>
               <div class="ccg">
                 <div class="ccm"><span>암기</span><b>100%</b><i class="ok">목표 100%</i></div>
