@@ -40,6 +40,14 @@ ok("옮기는 줄을 **짐작하지 않는다** — v2.todo.id = public.tasks.id
 ok("kind 를 여덟 값에 가두던 옛 제약(0131 todo_kind_choice)을 **표 참조**로 바꾼다 — 안 바꾸면 분류를 만들어도 DB 가 옮기기를 튕긴다(게이트 걷기가 잡은 것)",
   /alter table v2\.todo drop constraint if exists todo_kind_choice/.test(sql)
   && /foreign key \(kind\) references v2\.todo_kind\(kind\)/.test(sql) && /validate constraint todo_kind_ref/.test(sql));
+/* ⚠️ 2026-09-18 원장님 실측 — 옛 제약을 **옮기기보다 뒤에** 풀어서 실 DB 가 통째로 되돌아갔다:
+   「new row for relation "todo" violates check constraint "todo_kind_choice"」.
+   눌러보기 DB 에는 옛 앱 줄(public.tasks)이 **비어 있어** 옮기기가 빈손으로 지나갔고 걷기가 못 봤다.
+   **옛 자료를 건드리는 줄은 걷기가 못 본다 — 차례를 글자로 잰다.** */
+{ const 푼데 = sql.indexOf("drop constraint if exists todo_kind_choice");
+  const 옮긴데 = sql.indexOf("set kind = 'school_event'"), 잰데 = sql.indexOf("validate constraint todo_kind_ref");
+  ok("옛 제약을 **옮기기보다 먼저** 푼다 · 참조 검증은 **옮긴 뒤**에 한다(눌러보기 DB 는 옛 자료가 비어 있어 걷기가 못 잡는 자리다)",
+    푼데 > 0 && 옮긴데 > 0 && 잰데 > 0 && 푼데 < 옮긴데 && 옮긴데 < 잰데, `푼데 ${푼데} · 옮긴데 ${옮긴데} · 잰데 ${잰데}`); }
 
 console.log("\n■ (어80)-B 칸은 표에서 오고, 카드는 사라지지 않는다");
 const KS = [{ kind: "note", name: "📋 메모", cls: "", ord: 10, app: true, show_in: "todo", state: "active" },

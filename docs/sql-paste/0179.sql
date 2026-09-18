@@ -102,7 +102,17 @@ insert into v2.todo_kind(kind, name, cls, ord, app, show_in) values
   ('school_event', '🏛️ 학교 행사', 'nb-blue', 110, false, 'schedule')
 on conflict (kind) do nothing;
 
--- ④ 옛 앱에서 넘어온 학사일정 226줄을 옮긴다 ───────────────
+-- ④ kind 를 여덟 값에 가두던 옛 제약을 **먼저 푼다** ─────────
+--    0131 이 여덟 값을 글자로 박았고(`todo_kind_choice`) 0164 가 그것을 validate 했다 —
+--    **그래서 원장님이 분류를 만드셔도 그리로 옮길 수가 없었다**(DB 가 튕긴다).
+--    ⚠️ 2026-09-18 원장님 실측 — 이 줄이 아래 ⑤(학사일정 옮기기)보다 **뒤에** 있어서 실 DB 에서 터졌다:
+--       「new row for relation "todo" violates check constraint "todo_kind_choice"」.
+--       눌러보기 DB 에는 옛 앱 줄(public.tasks)이 비어 있어 ⑤ 가 빈손으로 지나가 걷기가 못 잡았다 —
+--       **옛 자료를 건드리는 줄은 걷기가 못 본다. 차례를 글자로 지킨다**(check-kind).
+--    이제 규칙은 「분류 표에 있는 것」 하나다. 글자 목록을 지우고 ⑥ 에서 참조로 바꾼다(표가 곧 규칙 · 원칙-1).
+alter table v2.todo drop constraint if exists todo_kind_choice;
+
+-- ⑤ 옛 앱에서 넘어온 학사일정 226줄을 옮긴다 ───────────────
 --    짐작하지 않는다 — v2.todo.id 는 public.tasks.id 를 그대로 받았다(0110 ⑨). 그 줄만 정확히 고른다.
 --    public 은 **읽기만** 한다(check-v2only 는 밖에 만들거나 고치는 것을 막는다).
 do $$ begin
@@ -113,12 +123,10 @@ do $$ begin
   end if;
 end $$;
 
--- ⑤ kind 를 여덟 값에 가두던 옛 제약을 **표 참조**로 바꾼다 ─────
---    0131 이 여덟 값을 글자로 박았고(`todo_kind_choice`) 0164 가 그것을 validate 했다 —
---    **그래서 원장님이 분류를 만드셔도 그리로 옮길 수가 없었다**(DB 가 튕긴다). 게이트의 걷기가 이것을 잡았다.
---    이제 규칙은 「분류 표에 있는 것」 하나다. 글자 목록을 지우고 참조로 바꾼다(표가 곧 규칙 · 원칙-1).
---    씨앗 열 벌 + 🏛️ 학교 행사가 이미 들어간 뒤라 지금 있는 줄은 전부 짝이 있다(0164 가 꼴 안 맞는 것을 'note' 로 몰아 두었다).
-alter table v2.todo drop constraint if exists todo_kind_choice;
+
+-- ⑥ 값 목록을 **표 참조**로 ────────────────────────────────
+--    씨앗 열 벌 + 🏛️ 학교 행사가 이미 들어갔고 ⑤ 가 옮긴 뒤라 지금 있는 줄은 전부 짝이 있다
+--    (0164 가 꼴 안 맞는 kind 를 죄다 'note' 로 몰아 두었다).
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'todo_kind_ref' and conrelid = 'v2.todo'::regclass) then
     alter table v2.todo add constraint todo_kind_ref
@@ -132,7 +140,7 @@ commit;
 -- 표 모양이 바뀌었으니 API 쪽(PostgREST)의 기억도 새로 읽게 한다. 여러 번 돌려도 탈 없다.
 notify pgrst, 'reload schema';
 
-insert into v2.migration(file, sha) values ('0179_todo_kind.sql', 'cab8cf5176e8b3b9')
+insert into v2.migration(file, sha) values ('0179_todo_kind.sql', 'a5679e921c1c2dd5')
   on conflict (file) do update set sha = excluded.sha, applied_at = now();
 
 commit;
