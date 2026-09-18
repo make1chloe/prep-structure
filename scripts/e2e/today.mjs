@@ -105,13 +105,19 @@ ok("(카) 줄 머리 「2일째 안 봄」 · 안 본 줄 중 가장 오래된 �
 console.log("■ (어83) 출결 — 기본은 아무것도 안 눌림 · 다시 누르면 취소(원장님 2026-09-18 「다시 누르면 선택 안한 상태로, 취소가능하게」 · 「출석처리를 안하면 검사가 불가능」)");
 { const att = row.locator(".seg[data-g=att]");
   const 눌린 = async () => (await att.locator("button[aria-pressed=true]").allTextContents()).join(",");
-  /* 이 아이는 **아이 화면 걷기(screens)에서 제가 늦게 등원을 찍었다** — 그것이 출결로 적힌 것이라 「지각」이 눌려 있다(lib/arrival.js).
+  /* 이 아이는 **아이 화면 걷기(screens)에서 제가 등원을 찍었다** — 그것이 그대로 출결로 적힌다(lib/arrival.js).
+     ⚠️ (어89c) **씨앗 반은 17:00 시작이라 「지각이냐 출석이냐」는 돌리는 시각에 달렸다.**
+        전에는 「지각」으로 못 박아 두어, 자정을 넘겨 돌리면 게이트가 터졌다(2026-09-18 서울 00:22 실측).
+        시계를 **읽어서** 기대를 정한다 — 원장님이 물으신 것(정정 · 취소 · 남음)은 시각과 상관없이 잰다.
      「아무것도 안 눌린 기본」은 아무 일도 없던 아이로 잰다 — 아래 (어83) 결석 예정 아이(학생둘) 줄에서 본다 */
-  ok("아이가 늦게 등원을 찍으면 그것이 그대로 출결이 된다(원장님이 안 눌러도 기록은 아이 쪽에서 온다 · 지각)", (await 눌린()) === "지각", await 눌린());
+  const 서울지금 = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Seoul", hour12: false }).slice(0, 5);
+  const 기대 = 서울지금 > "17:00" ? "지각" : "출석";
+  ok(`아이가 찍은 등원이 그대로 출결이 된다(17:00 반 · 지금 ${서울지금} → ${기대})`, (await 눌린()) === 기대, await 눌린());
   ok("판은 출결과 상관없이 **이미 서 있다** — 검사·학습 카드가 보인다(원장님 「예정된 수업에서도 검사및 학습배정까지 미리」)", (await row.locator("[data-card=work], [data-g=tasks]").count()) >= 1);
-  await att.locator("button", { hasText: /^출석$/ }).click(); await p.waitForTimeout(700);
-  ok("원장님이 출석을 누르면 그것으로 **정정된다**(아이가 찍은 것보다 원장님이 이긴다)", (await 눌린()) === "출석", await 눌린());
-  await att.locator("button", { hasText: /^출석$/ }).click(); await p.waitForTimeout(900);
+  const 다른칩 = 기대 === "지각" ? "출석" : "지각";   // (어89c) 지금 눌린 것과 **다른** 칩을 눌러야 정정이 된다(같은 칩이면 취소다)
+  await att.locator("button", { hasText: new RegExp(`^${다른칩}$`) }).click(); await p.waitForTimeout(700);
+  ok(`원장님이 ${다른칩}을 누르면 그것으로 **정정된다**(아이가 찍은 것보다 원장님이 이긴다)`, (await 눌린()) === 다른칩, await 눌린());
+  await att.locator("button", { hasText: new RegExp(`^${다른칩}$`) }).click(); await p.waitForTimeout(900);
   ok("**같은 칩을 다시 누르면 취소된다** · 아무것도 안 눌린 상태로 돌아간다", (await 눌린()) === "", await 눌린());
   await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await p.waitForTimeout(300);
   ok("새로고침해도 취소가 남는다(낙관적 표시가 아니라 서버가 적었다)", (await 눌린()) === "", await 눌린()); }
@@ -444,6 +450,28 @@ ok("재시험지 만들기 단추는 「재시험 대상 ✓」", (await row.loc
 await row.locator("[data-card=quiz] button", { hasText: "오늘은 재시험 건너뜀" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("건너뛰면 재시험 줄은 「오늘 건너뜀」 · 사유에서 빠진다 · 점수는 그대로(85%)", (await row.locator("[data-card=quiz] .lf", { hasText: "오늘 건너뜀" }).count()) === 1 && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("재시험이 남음") && (await row.locator("[data-card=quiz] .lf").first().locator(".lm").textContent()).includes("85%"));
+/* (어89) 재시험도 끝난다 — 원장님 2026-09-18 「재시함지는 왜 완료가 없어?」.
+   ⚠️ **여기서 본다** — 뒤로 가면 이 판을 마감해서 재시험을 못 고친다(검사-⑤ assertOpen).
+   상태는 **원래대로 돌려놓는다**(다시 건너뜀) — 뒤 걸음이 「오늘 건너뜀」을 본다. */
+{ const 토글 = () => row.locator("[data-card=quiz] button", { hasText: "오늘은 재시험 건너뜀" }).first();
+  await 펴기(row); await pick(row, "check");
+  await 토글().click(); await p.waitForTimeout(1500);                       // 건너뜀 → planned(05 판은 planned 만 그린다)
+  await p.goto(APP + "/schedule/todo"); await p.waitForLoadState("networkidle").catch(() => {});
+  const tdq = p.locator("main"), rt = tdq.locator("[data-g=col][data-kind=retest] [data-g=card]").first();
+  ok("(어89) 재시험 카드가 05 에 선다 · 「✓ 끝냄」이 있다(🖨 종이 ✓ 는 중간 표시일 뿐 · 다른 카드와 같다)",
+    (await rt.count()) === 1 && (await rt.locator("button[data-act=retest-done]").count()) === 1,
+    `카드 ${await rt.count()}`);
+  await rt.locator("button[data-act=retest-done]").click(); await p.waitForTimeout(400);
+  ok("(어89) 끝냄을 누르면 **그 자리에서** 틀린 개수를 묻는다(페이지를 안 떠난다 · 대전제-22)",
+    (await tdq.locator("[data-g=retest-take] [data-g=retest-wrong]").count()) === 1);
+  await tdq.locator("[data-g=retest-take] button[data-act=retest-cancel]").click(); await p.waitForTimeout(300);
+  ok("(어89) 취소하면 칸이 닫힌다(아무것도 안 적힌다)", (await tdq.locator("[data-g=retest-take]").count()) === 0);
+  await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
+  await 펴기(row); await pick(row, "check");
+  await 토글().click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  await 펴기(row); await pick(row, "check");
+  ok("(어89) 보고 나서 **원래대로**(다시 오늘 건너뜀) — 뒤 걸음이 그대로 선다",
+    (await row.locator("[data-card=quiz] .lf", { hasText: "오늘 건너뜀" }).count()) === 1); }
 console.log("■ 다음 시간 시험 · 숙제와 같이 나간다 · 전체 개수를 적어야 리포트에");
 await pick(row, "work");
 await pick(row, "quiz");
@@ -1589,9 +1617,9 @@ ok("🖨 한 번에 뽑기 · 6장 단추", (await td.locator("button[data-act=p
 await td.locator("button[data-act=print-all]").click(); await p.waitForSelector("[data-g=print-all]"); await snapModal("05-print-all"); await p.locator("[data-g=print-all] button[data-act=print-all-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("뽑았습니다 → 「자료 2개 · 6장」 · 인쇄 칸 「0장」 · 만들기 칸 1(뽑았으면 만든 것 · 분석지 만들기도 끝) · ✓ 끝냄 늘어남", (await td.locator("[data-g=msg]").textContent()).includes("자료 2개 · 6장") && (await colCount("print")) === "0장" && (await colCount("make")) === "1" && Number(await td.locator("[data-g=done-count]").textContent()) >= 3, [await colCount("print"), await colCount("make"), await td.locator("[data-g=done-count]").textContent()].join(" | "));
 const handCard = td.locator("[data-g=card][data-kind=hand]").filter({ hasText: "zz_분석지" }).first();
-await handCard.click(); await p.waitForTimeout(300);
+await handCard.click(); await p.waitForTimeout(400);   // (어88b) 모든 카드가 모달을 연다 — 흐름은 모달 안에서 본다
 ok("자료 카드를 누르면 📦 자료 하나 안에서만 순서 · 만들기 ✓ · 인쇄 ✓ · 배부가 「지금」(0/1)", (await td.locator("[data-g=flow] .mf[data-step=make][data-state=done]").count()) === 1 && (await td.locator("[data-g=flow] .mf[data-step=print][data-state=done]").count()) === 1 && (await td.locator("[data-g=flow] .mf[data-step=hand][data-state=now]").count()) === 1, (await td.locator("[data-g=flow]").textContent()).replace(/\s+/g, " "));
-await handCard.locator("button[data-act=done]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+await p.locator("[data-g=card-detail] button[data-act=detail-done]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);   // (어88b) 모달 안에서 끝낸다
 ok("배부 끝냄 → 배부 칸 2 · 저장줄 「업무 N · 마감 지남 N · 이미 있음 1」", (await colCount("hand")) === "2" && /업무 \d+ · 마감 지남 \d+ · 이미 있음 1/.test(await td.locator("[data-g=bar-count]").textContent()), await td.locator("[data-g=bar-count]").textContent());
 await td.locator("button[data-act=show-done]").click(); await p.waitForTimeout(300);
 ok("숨긴 그룹 ✓ 끝냄을 펴면 끝낸 카드가 보인다(되돌리기 단추)", (await td.locator("[data-g=hidden] [data-g=card][data-state=done]").count()) >= 3 && (await td.locator("[data-g=hidden] button[data-act=undo]").count()) >= 3);

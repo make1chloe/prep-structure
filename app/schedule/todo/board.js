@@ -9,7 +9,7 @@ import { usePick, PickAll, PickGroup, PickBox, PickBar } from "../../_shell/pick
 import { useRouter } from "next/navigation";
 import Photo from "@/app/_shell/photo.js";
 import { isImage } from "@/lib/files-plan";
-import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct , restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct } from "./actions.js";
+import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct } from "./actions.js";
 import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 import { ACT, FACE } from "@/lib/emoji";
@@ -33,6 +33,7 @@ export default function Board({ d }) {
   const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), "due"), [all, only, school]);   // (어10) 늘 마감 순 — 「만든 순」으로 보실 날이 없어 단추를 뺐다(대전제-14)
   const todoIds = useMemo(() => cards.filter((x) => x.todoId).map((x) => x.id), [cards]); const pk = usePick(todoIds);   /* 고른 업무 줄(자료 단계 카드는 ☑ 로 · 여기선 안 고른다) */
   const [detail, setDetail] = useState(null);   // (어88) 세부 내용 모달 · 카드 id
+  const [taking, setTaking] = useState(null); const [wrong, setWrong] = useState("");   // (어89) 재시험 끝냄 · 틀린 개수
   const [drag, setDrag] = useState(null);       // (어88) 끌고 있는 카드 id
   const [over, setOver] = useState(null);       // (어88) 지금 가리키는 칸(분류)
   const pickedCards = cards.filter((x) => pk.has(x.id)), toDone = pickedCards.filter((x) => x.state !== "done"), toUndo = pickedCards.filter((x) => x.state === "done"), toRestore = pickedCards.filter((x) => x.state === "dropped");   /* (어80) 복구 — 뺀 것만 */ const [dueTo, setDueTo] = useState("");
@@ -70,11 +71,15 @@ export default function Board({ d }) {
   const drop = (c) => { const to = over; setDrag(null); setOver(null);
     if (!to || to === c.kind || !c.todoId) return;   // 제 칸에 놓으면 아무 일도 안 한다
     run(() => moveKindAct([c.todoId], to), (r) => `옮겼습니다 ✓ · ${kindName(to, klist)}`); };
-  const openCard = (c) => (e) => { if (e.target.closest("button,a,input,select,textarea,label")) return; setSel(c.id);
-    /* ⚠️ **자료 카드는 모달을 안 연다** — 누르면 아래 📦 자료 단계 흐름이 서는 것이 그 카드의 세부 내용이고,
-       그 위에 모달을 덮으면 흐름을 못 본다(2026-09-18 걷기가 잡았다: 모달이 카드의 「끝냄」을 가로막았다).
-       원장님이 말씀하신 것은 「**추가한** 업무를 눌러서 세부내용확인」이라 메모·업무 카드가 그 자리다. */
-    if (c.todoId && !c.material) setDetail(c.id); };
+  /** (어88b) 📦 자료 단계 흐름 한 벌 — 원장님 2026-09-18 「이거 그냥 다 모달 가능하게해줘」.
+   *  모든 카드가 모달을 열게 되면서, 자료 카드의 세부 내용인 이 흐름도 **모달 안**으로 들어왔다.
+   *  누른 자리에서 바로 보이니 화면 아래까지 내려갈 일이 없다 · 두 벌로 그리지 않는다(원칙-1). */
+  const Flow = ({ card }) => <div className="mflow">{flowOf(card.material).map((s, i) => <span key={s.step} style={{ display: "contents" }}>{i > 0 && <span className="mar">→</span>}<div className={"mf" + (s.state === "done" ? " done" : s.state === "now" ? " now" : "")} data-step={s.step} data-state={s.state}>{s.name}<i>{s.state === "done" ? "✓" : s.text ?? ""}</i></div></span>)}</div>;
+  /** (어88b) 카드를 누르면 세부 내용 — 원장님 2026-09-18 「이거 그냥 다 모달 가능하게해줘」.
+   *  처음엔 자료 카드만 빼 두었다(흐름이 아래에 서니 모달이 덮는다고 보았다) — 원장님이 **다 열라** 하셨고,
+   *  그러면 흐름을 모달 **안**에 두면 될 일이었다(Flow 한 벌). 누른 자리에서 바로 보여 더 낫다.
+   *  ⚠️ 안의 손은 안 건드린다 — **여는 쪽에서 한 번 거른다**(today/row.js:90 rowtop 과 같은 본 · 원칙-1). */
+  const openCard = (c) => (e) => { if (e.target.closest("button,a,input,select,textarea,label")) return; setSel(c.id); setDetail(c.id); };
   const Card = ({ c }) => <div className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} data-drag={drag === c.id ? "1" : "0"} onClick={openCard(c)} aria-pressed={sel === c.id}>
     {c.todoId ? <span className="grip" data-g="card-grip" aria-hidden="true" onPointerDown={(e) => grab(e, c)} onPointerMove={follow} onPointerUp={() => drop(c)} onPointerCancel={() => drop(c)}>⠿</span> : null}
     {c.todoId ? <PickBox pick={pk} id={c.id} label={`${c.title} 고르기`} /> : null}<span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
@@ -105,12 +110,26 @@ export default function Board({ d }) {
       {c.todoId && (c.state === "todo" || c.state === "doing") && <input type="date" className="dt" value={c.due ?? ""} aria-label={`${c.title} 마감`} onClick={(x) => x.stopPropagation()} onChange={(x) => run(() => dueAct(c.todoId, x.target.value), "마감을 바꿨습니다")} style={{ width: "auto" }} />}
       {c.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => { run(() => unitTestMadeAct(c.unitTestId), "출제했습니다. 오늘 수업 카드에 섭니다"); }}>출제 완료</button>}
       {c.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => { run(() => unitTestDueAct(c.dueUnitTest), "출제했습니다. 오늘 수업 카드에 섭니다(같은 것은 다시 안 생깁니다)"); }}>출제 완료</button>}
-      {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={() => { run(() => quizPaperAct(c.quizId, true), "재시험지 만들었음 · 시험을 보면 카드가 사라집니다"); }}>🖨 재시험지 만들었음</button>}
-      {c.quizId && c.paperAt && <><span className="tag on" data-g="paper">🖨 종이 ✓</span><button className="btn sm" type="button" disabled={pending} data-act="paper-undo" onClick={() => { run(() => quizPaperAct(c.quizId, false), "무렀습니다"); }}>취소</button></>}
+      {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={() => { run(() => quizPaperAct(c.quizId, true), "종이 ✓ · 다음은 「✓ 끝냄」"); }}>🖨 재시험지 만들었음</button>}
+      {c.quizId && c.paperAt && <><span className="tag on" data-g="paper">🖨 종이 ✓</span><button className="btn sm" type="button" disabled={pending} data-act="paper-undo" onClick={() => { run(() => quizPaperAct(c.quizId, false), "취소 ✓"); }}>취소</button></>}
+      {/* (어89) 재시험도 **끝난다** — 원장님 2026-09-18 「재시함지는 왜 완료가 없어?」.
+          종이는 중간 표시일 뿐이고, 카드를 사라지게 하는 것은 **아이가 그날 남아서 보는 것**이었는데
+          그 자리가 01 에만 있어 05 에서는 끝낼 길이 없었다(다른 카드는 다 「✓ 끝냄」이 있다).
+          여기서 틀린 개수만 적으면 **01 과 같은 손**(takeQuiz)이 그 아이 그날 일지에 적는다 — 새 손 0 */}
+      {c.quizId && c.sheetId && !c.closed && <button className="btn sm pri" type="button" disabled={pending} data-act="retest-done" aria-pressed={taking === c.id} onClick={() => setTaking(taking === c.id ? null : c.id)}>✓ 끝냄</button>}
+      {c.quizId && c.closed && <span className="pill" data-g="retest-locked">마감함 · 잠김</span>}{/* 마감한 판은 못 고친다(검사-⑤) — 안 눌리는 단추를 그리지 않는다(원장님 9/18 「눌리지도않음」) */}
       {c.quizId && <Link prefetch={false} className="btn sm" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업 👉</Link>}
       {c.kind === "score" && <Link prefetch={false} className="btn sm" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적 👉</Link>}
       {c.exam && c.material && <Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${c.exam.id}`} onClick={(x) => x.stopPropagation()}>📄 자료 👉</Link>}
     </div>
+    {taking === c.id && <div data-g="retest-take" onClick={(x) => x.stopPropagation()} style={{ marginTop: 6 }} className="wv">
+      <label className="fl" style={{ margin: 0 }}>틀린 개수</label>
+      <input type="number" min="0" max={c.total ?? undefined} value={wrong} aria-label="틀린 개수" data-g="retest-wrong" onChange={(e) => setWrong(e.target.value)} style={{ width: 80 }} />
+      {c.total != null && <span className="note" style={{ margin: 0 }}>/ {c.total}</span>}
+      <button className="btn pri sm" type="button" disabled={pending || wrong === ""} data-act="retest-save"
+        onClick={() => run(() => retestTakeAct(c.sheetId, c.quizId, Number(wrong)), (r) => (r?.state === "passed" ? "넘김 ✓" : r?.state === "failed" ? "못 넘김 · 재시험이 다시 섭니다" : "적음 ✓"), () => { setTaking(null); setWrong(""); })}>저장</button>
+      <button className="btn sm gho" type="button" data-act="retest-cancel" onClick={() => { setTaking(null); setWrong(""); }}>취소</button>
+    </div>}
     {editing === c.id && <div data-g="card-edit-form" onClick={(x) => x.stopPropagation()} style={{ marginTop: 6 }}>
       <QuickMemo inline edit={c} students={b.students ?? []} kinds={kinds} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
     </div>}{/* (어80) 넣기 양식이 그대로 **고치기** 양식이다(원칙-1) · 그 자리에서 편다(대전제-22) */}
@@ -205,8 +224,7 @@ export default function Board({ d }) {
     <div className="two" style={{ marginTop: 12 }}>
       <div className="card" style={{ margin: 0 }} data-g="flow">
         <div className="ctitle"><span className="cemo">📦</span>자료 단계{selCard?.material ? ` · ${selCard.material.type} · ${selCard.material.title}` : ""}</div>
-        {selCard?.material ? <div className="mflow">{flowOf(selCard.material).map((s, i) => <span key={s.step} style={{ display: "contents" }}>{i > 0 && <span className="mar">→</span>}<div className={"mf" + (s.state === "done" ? " done" : s.state === "now" ? " now" : "")} data-step={s.step} data-state={s.state}>{s.name}<i>{s.state === "done" ? "✓" : s.text ?? ""}</i></div></span>)}</div>
-          : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 여기 섭니다</p>}
+        {selCard?.material ? <Flow card={selCard} /> : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 여기 섭니다</p>}
       </div>
       <div className="card" style={{ margin: 0, borderColor: behind.length ? "var(--miss)" : undefined }} data-g="behind">
         <div className="ctitle"><span className="cemo">🔥</span>{behind.length ? `${behind[0].title}` : "못 따라가는 시험 없음"}</div>
@@ -241,6 +259,7 @@ export default function Board({ d }) {
             {dCard.note && <div className="lf"><span className="ln">✎</span><div><b style={{ whiteSpace: "pre-wrap", fontWeight: 400 }}>{dCard.note}</b><small>메모</small></div></div>}
             {dCard.why && <div className="lf"><span className="ln">🧾</span><div><b style={{ fontWeight: 400 }}>{dCard.why}</b><small>왜 생겼나</small></div></div>}
           </div>
+          {dCard.material && <div style={{ marginTop: 8 }} data-g="detail-flow"><span className="fl" style={{ margin: "0 0 4px" }}>{FACE.files} {dCard.material.type} · {dCard.material.title}</span><Flow card={dCard} /></div>}
           {dCard.files?.length > 0 && <div className="wv" data-g="detail-files" style={{ gap: 6, marginTop: 8 }}>
             {dCard.files.map((f) => (isImage(f.mime)
               ? <Photo key={f.id} id={f.id} name={f.name} size={110} />

@@ -90,7 +90,7 @@ if (doUp) { console.log("\n■ 자리 세우기(DB · PostgREST · 인증 흉내
 if (doBuild) { console.log("\n■ 앱 빌드");
   run("next build", "npx next build --webpack > /var/tmp/gate-build.log 2>&1 || (tail -30 /var/tmp/gate-build.log; false)"); }
 if ((doBuild || !appUp) && doWalk) { console.log("\n■ 앱 띄우기");
-  execSync(`pkill -9 -f "[n]ext-server" 2>/dev/null; true`);
+  execSync(`pkill -9 -f "[n]ext-server" 2>/dev/null; pkill -9 -f "[n]ext start" 2>/dev/null; pkill -9 -f "[n]pm exec next" 2>/dev/null; true`);   // (어89b) 부모까지 — 안 그러면 되살아나 포트를 다툰다
   execSync(`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55442 NEXT_PUBLIC_SUPABASE_ANON_KEY=$(node scripts/e2e/token.mjs anon) SUPABASE_SERVICE_ROLE_KEY=$(node scripts/e2e/token.mjs service_role) nohup npx next start -p 3300 > /var/tmp/gate-next.log 2>&1 &`, { shell: "/bin/bash" });
   execSync(`for i in $(seq 1 60); do curl -sf -o /dev/null ${APP}/ && break; sleep 2; done`, { shell: "/bin/bash" }); }
 if (doWalk) {

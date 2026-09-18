@@ -57,8 +57,10 @@ console.log("\n■ (어88) 업무 05 — 눌리는 것만 눌리게 · 끌 수 �
      /const openCard = \(c\) => \(e\) => \{ if \(e\.target\.closest\("button,a,input,select,textarea,label"\)\) return;/.test(board));
   ok("카드를 누르면 **세부 내용**이 열린다(분류 · 마감 · 첨부 · 왜 생겼나 · 메모) · 고치기는 같은 양식 한 벌",
      /data-g="card-detail"/.test(board) && /data-g="detail-props"/.test(board) && /<QuickMemo inline edit=\{dCard\}/.test(board));
-  ok("**자료 카드는 모달을 안 연다** — 누르면 아래 📦 흐름이 서는 것이 그 카드의 세부 내용이다(모달이 덮으면 못 본다)",
-     /if \(c\.todoId && !c\.material\) setDetail\(c\.id\);/.test(board));
+  ok("**모든 카드가** 모달을 연다(원장님 2026-09-18 「이거 그냥 다 모달 가능하게해줘」)",
+     /setSel\(c\.id\); setDetail\(c\.id\); \};/.test(board));
+  ok("자료 카드는 모달 **안에서** 📦 단계 흐름을 본다(아래까지 안 내려간다) · 흐름은 한 벌(Flow · 두 벌로 안 그린다 · 원칙-1)",
+     /const Flow = \(\{ card \}\) =>/.test(board) && /data-g="detail-flow"/.test(board) && /<Flow card=\{selCard\} \/>/.test(board));
   ok("첨부 **사진은 썸네일**로 보인다(app/_shell/photo.js 한 벌 — 07·20·아이·학부모가 쓰는 그것) · 사진 아닌 것만 이름 링크",
      /isImage\(f\.mime\)/.test(board) && /<Photo /.test(board));
   ok("업무를 넣을 때 **종류를 고른다**(퀵 메모 · 05 · 12 일정) · 상단 띠는 표를 안 읽는다(속도-4 — 화면이 내려준 것 · 없으면 씨앗)",
@@ -76,5 +78,23 @@ console.log("\n■ (어88) 업무 05 — 눌리는 것만 눌리게 · 끌 수 �
      /t\.kind_name \?\? kindName\(t\.kind\)/.test(due));
   ok("대시보드 ⏰ 업무 줄도 **그 자리에서** 끝낸다(원장님 「모달로 바로바로 처리」가 아이 줄에만 지켜져 있었다) · 05 와 같은 손",
      /data-act="due-todo-done"/.test(due) && /doneAct/.test(due)); }
+
+/* (어89) 원장님 2026-09-18 「재시험지 만들면 할일이뭐야 · 재시함지는 왜 완료가 없어?」 —
+   🔁 재시험 카드만 「✓ 끝냄」이 없어 종이만 찍고 영영 서 있었다(끝내는 자리가 01 에만 있었다). */
+console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄이 따로");
+{ const plan = readFileSync("lib/todo-plan.js", "utf8"), acts = readFileSync("app/schedule/todo/actions.js", "utf8");
+  ok("재시험 카드가 **판 열쇠**를 들고 다닌다(0183 sheet_id) — 그 아이 그날 일지에 적어야 한다",
+     /sheetId: q\.sheet_id \?\? null/.test(plan));
+  ok("카드에 「✓ 끝냄」이 있다(다른 카드와 같다 · 종이 ✓ 는 중간 표시일 뿐)",
+     /data-act="retest-done"/.test(board) && /✓ 끝냄<\/button>\}/.test(board));
+  ok("끝낼 때 **틀린 개수만** 그 자리에서 묻는다(대전제-22 · 페이지를 안 떠난다)",
+     /data-g="retest-take"/.test(board) && /data-g="retest-wrong"/.test(board) && /data-act="retest-save"/.test(board));
+  ok("쓰는 손은 **01 과 같은 것**(lib/quiz takeQuiz) · 새 손 0(원칙-1) — 넘김·못 넘김 판단도 같다",
+     /import \{ takeQuiz \} from "@\/lib\/quiz"/.test(acts) && /takeQuiz\(sb, sheetId, quizId, \{ wrong \}\)/.test(acts) && !/from\("quiz"\)\.update/.test(acts));
+  ok("**마감한 판이면 「✓ 끝냄」을 안 그린다** · 「마감함 · 잠김」이라 말한다(검사-⑤ assertOpen · 안 눌리는 단추 0 · 원장님 9/18 「눌리지도않음」)",
+     /!c\.closed && <button className="btn sm pri"[\s\S]{0,200}data-act="retest-done"/.test(board) && /data-g="retest-locked"/.test(board)
+     && /closed: Boolean\(q\.closed\)/.test(readFileSync("lib/todo-plan.js", "utf8")));
+  ok("결과를 말한다 — 넘김 ✓ / 못 넘김이면 재시험이 다시 선다(대전제-0)",
+     /넘김 ✓/.test(board) && /못 넘김 · 재시험이 다시 섭니다/.test(board)); }
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

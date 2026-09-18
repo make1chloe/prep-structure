@@ -4,6 +4,7 @@ import { staff } from "@/lib/session";
 import { editTodo } from "@/lib/schedule";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";
+import { takeQuiz } from "@/lib/quiz";   // (어89) 재시험 끝냄 — 01 과 같은 손(원칙-1)
 import { finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored , restoreTodo, addKind, editKind, dropKind, restoreKind, moveKindOrder, moveKind } from "@/lib/todo";
 const wrap = (fn) => act(fn, "업무 05");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
@@ -30,3 +31,7 @@ export async function printAllAct(materialIds) { return wrap(async () => { const
 export async function scoredAct(materialId, studentId, on) { return wrap(async () => { const { sb } = await staff(); return setScored(sb, String(materialId), String(studentId), Boolean(on)); }); }   // ✅ 채점 아이마다((가)-⑧)
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
 export async function manyAct(ids, op, value = null) { return wrap(async () => { const { sb } = await staff(); return todoMany(sb, ids, op, value); }); }   // (어28)-③ 고른 업무에 한 번에(done · undo · due · drop)
+/** (어89) 재시험 「✓ 끝냄」 — 원장님 2026-09-18 「재시함지는 왜 완료가 없어?」.
+ *  05 에서 그 자리에서 틀린 개수만 적는다. 쓰는 손은 **01 오늘 수업과 같은 것**(lib/quiz takeQuiz · 새 손 0 · 원칙-1)이라
+ *  결과가 그 아이 그날 수업 일지에 제대로 남고, 넘기면 passed · 못 넘기면 다음 재시험이 또 선다(그 판단도 01 과 같다). */
+export async function retestTakeAct(sheetId, quizId, wrong) { return wrap(async () => { const { sb } = await staff(); return await takeQuiz(sb, sheetId, quizId, { wrong }); }); }

@@ -6,7 +6,9 @@ APP_PORT=${E2E_APP_PORT:-3300}; API_PORT=55442
 bash scripts/e2e/fetch.sh || exit 1
 bash scripts/e2e/up.sh || exit 1
 echo; echo "== 앱 띄우기 =="
-pkill -9 -f "next-server" 2>/dev/null; pkill -9 -f "next start -p $APP_PORT" 2>/dev/null; sleep 1
+# ⚠️ (어89b) **부모까지** 죽인다 — `npx next start` 는 npm exec → sh -c next → next-server 삼단이라
+#    next-server 만 죽이면 부모가 되살려 포트를 다툰다(2026-09-18: 게이트가 매번 다른 자리에서 시간 초과로 죽었다).
+pkill -9 -f "next-server" 2>/dev/null; pkill -9 -f "next start" 2>/dev/null; pkill -9 -f "npm exec next" 2>/dev/null; sleep 1
 ANON="$(node scripts/e2e/token.mjs anon)"
 export NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON" NEXT_TELEMETRY_DISABLED=1
 export SUPABASE_SERVICE_ROLE_KEY="$(node scripts/e2e/token.mjs service_role)"   # 서버 자신 — 아이의 등원이 판을 세울 때(lib/arrival.js) 쓴다
