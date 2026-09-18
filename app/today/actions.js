@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { done as doneAt, wrap } from "@/lib/act";
 import { guard, staff } from "@/lib/session";
-import { ensureSheet, saveComment, closeSheet, closeMany as closeManySheets } from "@/lib/day";
+import { ensureSheet, saveComment, closeSheet, closeMany as closeManySheets, today } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
@@ -24,7 +24,7 @@ const done = doneAt("/today", "오늘 수업 01");
 const wrap2 = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 배정 읽기");   // (어56) 읽기만 하는 손은 화면을 다시 안 그린다
 const quiet = (fn) => async (...a) => wrap(() => fn(...a), "오늘 수업 01 진도 체크");   // (어49) 진도 체크는 누를 때마다 화면을 다시 안 그린다 · 모달이 먼저 바꾸고 닫을 때 한 번 읽는다(원장님 9/16 「버튼이 제대로 작동하지않음」)   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 
-export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
+export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date, { preload: String(date) <= (await today(sb)) }); return { sheetId: s.id }; });   // (어83) 앞날 판은 지난 숙제를 안 끌어온다(오늘 검사 줄이 비고 저장이 튕긴다)
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value, { stampArrival: true }); });   // (어48) 누르면 도착 시각도 남는다(아이가 찍었으면 그대로)
 export const setAttendReason = done(async (sheetId, reason) => { const { sb } = await staff(); await attendReasonWrite(sb, sheetId, reason || null); });   // (어44) 지각·결석 까닭 · 다시 누르면 뗀다(null)
 export const attendMany = done(async (list, date, value) => { const { sb } = await staff(); return attendManyWrite(sb, list, String(date), value, { stampArrival: true }); });   // (어28)-② 고른 아이들 출결 한 번에(판이 없으면 세운다)

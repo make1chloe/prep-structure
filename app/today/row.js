@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { bookNextRound, bookMove, itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, givePool, giveApply, ccSkipAct, setAttend, setAttendReason, check, rest, restUndo, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, stampAt, clearStampAt, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView, reject as rejectAct } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, countText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, countText, firstTask, taskDone, ATTEND, ATTEND_NONE, ATTEND_REASON, REASON_ON, fromLast, bookLine, splitChecks } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import ProgressModal from "../_shell/progressmodal.js";   // (어41) 진도 체크 모달 한 벌(대시보드와 같은 부품) · 손은 수업 일지 기준
@@ -51,14 +51,18 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const fail = (r) => { if (r && !r.ok) setErr(r.msg); return r?.ok; };
   const errRef = useRef(null); useEffect(() => { if (err) errRef.current?.scrollIntoView?.({ block: "center" }); }, [err]);   // (어38) 실패 글은 판 맨 위에 서서 폰에선 안 보였다(원장님 9/15 「이거 버튼 안 먹힘」) · 뜨면 그리로 굴린다
   // 출결 — 낙관적
-  const [attend, setAttendLocal] = useState(sheet?.attend ?? (student.plan?.absent ? "absent" : student.plan?.late ? "late" : "present"));
+  const [attend, setAttendLocal] = useState(sheet?.attend ?? ATTEND_NONE);   // (어83) 아직 안 찍었으면 **아무 칩도 안 눌린다**(0180 · 원장님 2026-09-18 「체크가 안된상태를 기본으로」).
+  /* ⚠️ 전에는 결석·지각 **예정**이면 그 칩을 미리 눌러 보였다 — 예정은 계획이지 기록이 아니라 화면이 거짓말을 한 것이다(대전제-0).
+     예정은 줄 오른쪽 알약(「결석 예정 · 보강 안 잡힘」 · 「지각 예정 30분」)이 말한다 · 실제로 그리 되면 그날 눌러 적는다 */
   const [reason, setReasonLocal] = useState(sheet?.attend_reason ?? null);   // (어44) 지각·결석 까닭 · 낙관적 · 다시 누르면 뗀다
   const pickReason = (k) => { if (closed || !sheet?.id) return; const prev = reason, next = reason === k ? null : k; setReasonLocal(next); setErr("");
     start(async () => { const r = await setAttendReason(sheet.id, next); if (!fail(r)) setReasonLocal(prev); }); };
   const [plan, setPlan] = useState(false);
   const [barHost, setBarHost] = useState(null);   // 판 끝 저장줄(목업 01·03) — ✉️ 카드가 단추를 여기로 내보낸다(portal). 판의 직접 자식이라 sticky 가 판 안에서 화면 아래에 붙는다(폰-6 · PC 는 오른쪽 열 안)
-  const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr(""); if (!REASON_ON.includes(v)) setReasonLocal(null);
-    start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
+  /* (어83) 같은 칩을 다시 누르면 **취소**된다(원장님 2026-09-18 「실수로 찍었을때 취소하려는것」) — 값은 「아직」(none)으로 돌아가고 까닭도 뗀다 */
+  const pickAttend = (v) => { if (closed) return; const prev = attend, next = attend === v ? ATTEND_NONE : v;
+    setAttendLocal(next); setErr(""); if (!REASON_ON.includes(next)) setReasonLocal(null);
+    start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, next); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
   const sh = shutCards(sheet, { stay: student.stay, closed });
   // (어21) 3단 — 가운데 업무 목록 · 오른쪽 그 업무 하나. 아이를 열면 흐름에서 처음 안 끝난 업무(firstTask)가 열리고, 그 뒤엔 누른 것만 바뀐다(예측 가능 — 원장님 9/14 「창이 이동해서 화면이 예측불가능해지는게 더 불편」)
@@ -104,7 +108,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
       {open && (
         <div className="panel">
           {err && <div ref={errRef} className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
-          {!sheet && <div className="card"><p className="note">수업 일지 없음 · 출결을 누르면 섭니다</p></div>}
+          {!sheet && <div className="card"><p className="note">수업 일지 없음 · 출결을 누르면 섭니다</p></div>}{/* (어83) 오늘·앞날은 저절로 선다 — 여기 오는 것은 지난날이나 결석 예정인 아이다 */}
           {sheet && <nav className="tasks" data-g="tasks" aria-label="업무">{heads.map((h) => <button key={h.id} type="button" className={"tk" + (h.done ? " done" : "")} data-g="task" data-task={h.id} data-done={h.done ? "1" : "0"} aria-pressed={cur === h.id} onClick={() => setSel(h.id)}><span className="n">{h.done ? "✓" : (h.no ?? h.emo)}</span><b>{h.name}</b><span className="spacer" /><span className="tb" data-g="task-badge">{h.badge}</span></button>)}</nav>}
           {sheet && <div className="tbodies">{bodies}</div>}
           {sheet && <div className="torder"><CardOrder screen="today" cards={cards.map((c) => ({ id: c.id, name: c.name }))} /></div>}

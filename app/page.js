@@ -8,6 +8,7 @@ import { CELLS } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { dashboard } from "@/lib/dash";
 import { dateLabel, classLabel, whenText, md } from "@/lib/dash-plan";
+import { FACE } from "@/lib/emoji";   // 그림은 표에서 온다(대전제-25)
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND as QKIND } from "@/lib/quiz-plan";
 import { redirect } from "next/navigation";
@@ -16,6 +17,7 @@ import { orderCards, foldedOf } from "@/lib/pref-plan";
 import Fold from "./_shell/fold.js";
 import CardOrder from "./_shell/cardorder.js";
 import Answer from "./_shell/answer.js";
+import DueCard from "./duecard.js";   // (어84) ⏰ 마감 필요 — 맨 위 · 두 파트(아이 · 업무) · 줄을 누르면 모달
 import DashGaps from "./dashgaps.js";   // (어41) 빈 배정 · 메모로만 · 진도 체크 띠 · 칩과 모달(원장님 9/15)
 import { ClassMakeup } from "./schedule/panel.js";   // (어41) 보강일은 그 자리에서(12 와 같은 부품)   // (처) 💬 남기실 말 「답하기」
 import { KINDS as RKINDS } from "@/lib/request";
@@ -44,6 +46,9 @@ export default async function Home() {
   const fdd = foldedOf(d.pref);   // 접은 카드 — 사람마다(확정-⑮ · (어2))
   const fold = (id) => ({ fold: <Fold screen="dash" id={id} folded={fdd.has(id)} />, folded: fdd.has(id) });
   const cards = orderCards([
+    { id: 'due', name: '마감 필요', node: <Card emo={FACE.due} title="마감 필요" id="due" {...fold("due")}>
+        <DueCard due={d.due} date={date} />
+      </Card> },
     { id: 'today', name: '오늘 수업', node: <Card emo="📚" title="오늘 수업" id="today" {...fold("today")}>
         {!d.people.classes.length && <Row icon="·" b="오늘 수업 없음" small="오늘 도는 반이 없습니다" />}
         {d.people.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <Row key={c.id ?? "makeup"} icon="·" b={classLabel(c)} small={`${c.students.length}명${c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}`}><Link prefetch={false} className="btn sm" href="/today">열기</Link></Row>; })}

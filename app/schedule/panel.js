@@ -7,8 +7,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Sure, { useSure } from "../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import ExamForm from "../_shell/examform.js";   /* 시험 넣는 칸 한 벌 — 12 · 12b · 06b 가 같은 것을 쓴다(원칙-1) */
-import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, englishOnAct, cancelExamAct, classMakeupAct, cancelClassMakeupAct, makeupAct, absenceAct, confirmMonthAct } from "./actions.js";
+import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, englishOnAct, cancelExamAct, classMakeupAct, makeupManyAct, cancelClassMakeupAct, makeupAct, absenceAct, absenceManyAct, confirmMonthAct } from "./actions.js";
 import { dayTitle, classText } from "@/lib/schedule-plan";
+import WhoPick from "../_shell/whopick.js";   // (어83) 학교 단추 · 반 단추 · 학생 목록 — 결석 예정과 보강이 같은 부품(원칙-1)
+const emptyAbs = (date) => ({ ids: [], from: date, to: "", range: false, reason: "" });
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 function useRun() {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -17,15 +19,21 @@ function useRun() {
 }
 const Note = ({ err, msg }) => <>{err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}{msg && <p className="note" data-g="msg" style={{ margin: "4px 0 0", color: "var(--on-ok)" }}>{msg}</p>}</>;
 /** 반 보강일 잡기(8회 채우기) — 회차가 모자란 반 카드 아래(반이 정해져 있다) · 일정 최상단 「↻ 보강」(반을 고른다 · (어52)). 한 부품 · 손도 글도 한 벌(원칙-1) */
-export function ClassMakeup({ classId = null, ym, short = 0, classes = null, always = false }) {
-  const { run, pending, err, msg } = useRun(); const [open, setOpen] = useState(false); const [cid, setCid] = useState(""); const [on, setOn] = useState(`${ym}-`); const [at, setAt] = useState("");
-  const id = classId ?? cid, shown = always || open;
+export function ClassMakeup({ classId = null, ym, short = 0, classes = null, students = null, always = false }) {
+  const { run, pending, err, msg } = useRun(); const [open, setOpen] = useState(false); const [on, setOn] = useState(`${ym}-`); const [at, setAt] = useState("");
+  /* (어83) 원장님 2026-09-18 「보강도 반이 아니라 학생별로 잡아야해」 — 고르개가 있으면 아이 목록으로 잡고,
+     없으면(반 카드 밑 · 8회 못 채운 반) 그 반 전체로 잡는다. 저장되는 것은 어느 쪽이든 아이마다 한 줄이다 */
+  const [ids, setIds] = useState([]);
+  const canPick = Array.isArray(students) && students.length > 0;
+  const shown = always || open;
+  const ok = canPick ? ids.length > 0 : Boolean(classId);
   return <div style={{ marginTop: always ? 0 : 4 }}>
     {!always && <button className="btn sm" type="button" data-act="class-makeup-open" onClick={() => setOpen(!open)}>📅 보강일 잡기</button>}
-    {shown && <div className="wv" style={{ marginTop: always ? 0 : 4 }} data-g="class-makeup">
-      {classes && <select value={cid} onChange={(e) => setCid(e.target.value)} aria-label="반" style={{ width: "auto" }}><option value="">반 고르기</option>{classes.map((c) => <option key={c.id} value={c.id}>{classText(c)}</option>)}</select>}
-      <input type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
-      <button className="btn pri sm" type="button" disabled={pending || !id} data-act="class-makeup-save" onClick={() => run(() => classMakeupAct({ classId: id, onDate: on, atTime: at || null }), (r) => `반 보강일을 잡았습니다. ${r.made}명(이미 있던 ${r.had}명)${short ? ` · ${short}회 중 1회` : ""}`, () => { setOpen(false); setOn(`${ym}-`); setAt(""); })}>잡기</button></div>}
+    {shown && <div style={{ marginTop: always ? 0 : 4 }} data-g="class-makeup">
+      {canPick && <WhoPick students={students} classes={classes ?? []} value={ids} onChange={setIds} label="누구 보강" />}
+      <div className="wv" style={{ marginTop: canPick ? 4 : 0 }}>
+        <input type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
+        <button className="btn pri sm" type="button" disabled={pending || !ok} data-act="class-makeup-save" onClick={() => run(() => (canPick ? makeupManyAct({ studentIds: ids, onDate: on, atTime: at || null }) : classMakeupAct({ classId, onDate: on, atTime: at || null })), (r) => `보강일을 잡았습니다. ${r.made}명(이미 있던 ${r.had}명)${short ? ` · ${short}회 중 1회` : ""}`, () => { setOpen(false); setOn(`${ym}-`); setAt(""); setIds([]); })}>잡기</button></div></div>}
     <Note err={err} msg={msg} />
   </div>;
 }
@@ -34,8 +42,7 @@ export const ADD_KINDS = Object.freeze([["exam", "📝 시험", "open-exam"], ["
 export function AddTop({ d }) {
   const { run, pending, err, msg } = useRun();
   const [form, setForm] = useState(null);
-  const [hol, setHol] = useState({ classId: "", reason: "" }); const [todo, setTodo] = useState({ title: "", dueTime: "" }); const [abs, setAbs] = useState({ studentId: "", reason: "" });
-  const nameOf = (id) => (d.students ?? []).find((s) => s.id === id)?.name ?? "";
+  const [hol, setHol] = useState({ classId: "", reason: "" }); const [todo, setTodo] = useState({ title: "", dueTime: "" }); const [abs, setAbs] = useState(() => emptyAbs(d.sel));
   return <div className="card" style={{ marginBottom: 8 }} data-g="add-top">
     <div className="wv">
       <span className="fl" style={{ margin: 0 }}>+ 일정</span>
@@ -51,11 +58,18 @@ export function AddTop({ d }) {
     {form === "todo" && <div className="wv" style={{ marginTop: 8 }} data-g="todo-form"><span className="tag">📋 {d.sel}</span>
       <input value={todo.title} onChange={(e) => setTodo({ ...todo, title: e.target.value })} placeholder="업무 (예: 11월 수납 안내)" aria-label="업무" name="title" style={{ flex: "1 1 200px" }} /><input type="time" value={todo.dueTime} onChange={(e) => setTodo({ ...todo, dueTime: e.target.value })} aria-label="시각" style={{ width: "auto" }} />
       <button className="btn pri sm" type="button" disabled={pending} data-act="todo-save" onClick={() => run(() => todoAct({ title: todo.title, dueOn: d.sel, dueTime: todo.dueTime || null }), "업무를 넣었습니다", () => { setForm(null); setTodo({ title: "", dueTime: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="todo-close" onClick={() => setForm(null)}>닫기</button></div>}
-    {form === "mk" && <div style={{ marginTop: 8 }} data-g="makeup-top"><ClassMakeup ym={d.ym} classes={d.classes} always /></div>}
-    {form === "abs" && <div className="wv" style={{ marginTop: 8 }} data-g="absence-form"><span className="tag">✕ {d.sel}</span>
-      <select value={abs.studentId} onChange={(e) => setAbs({ ...abs, studentId: e.target.value })} aria-label="아이" data-g="absence-student" style={{ width: "auto" }}><option value="">아이 고르기</option>{(d.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-      <input value={abs.reason} onChange={(e) => setAbs({ ...abs, reason: e.target.value })} placeholder="사유 (예: 가족 일정)" aria-label="사유" name="absence-reason" style={{ flex: "1 1 200px" }} />
-      <button className="btn pri sm" type="button" disabled={pending || !abs.studentId} data-act="absence-save" onClick={() => run(() => absenceAct({ studentId: abs.studentId, date: d.sel, reason: abs.reason }), `✕ 결석 예정 · ${nameOf(abs.studentId)} · ${dayTitle(d.sel)}`, () => { setForm(null); setAbs({ studentId: "", reason: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="absence-close" onClick={() => setForm(null)}>닫기</button></div>}
+    {form === "mk" && <div style={{ marginTop: 8 }} data-g="makeup-top"><ClassMakeup ym={d.ym} classes={d.classes} students={d.students ?? []} always /></div>}
+    {form === "abs" && <div style={{ marginTop: 8 }} data-g="absence-form">{/* (어83) 아이 하나 고르개 → 여럿 · 날짜도 고른다(원장님 2026-09-18) */}
+      <div className="wv"><span className="fl" style={{ margin: 0 }}>언제</span>
+        <input type="date" value={abs.from} onChange={(e) => setAbs({ ...abs, from: e.target.value })} aria-label="결석 시작일" style={{ width: "auto" }} />
+        <label className="ckl"><input type="checkbox" className="ck" data-g="absence-range" checked={abs.range} onChange={(e) => setAbs({ ...abs, range: e.target.checked, to: e.target.checked ? abs.to || abs.from : "" })} />여러 날</label>
+        {abs.range && <input type="date" value={abs.to} onChange={(e) => setAbs({ ...abs, to: e.target.value })} aria-label="결석 종료일" style={{ width: "auto" }} />}
+        <span className="note" style={{ margin: 0 }}>그 아이 수업일만</span></div>
+      <WhoPick students={d.students ?? []} classes={d.classes ?? []} value={abs.ids} onChange={(ids) => setAbs({ ...abs, ids })} />
+      <div className="wv" style={{ marginTop: 4 }}>
+        <input value={abs.reason} onChange={(e) => setAbs({ ...abs, reason: e.target.value })} placeholder="사유 (예: 가족 일정)" aria-label="사유" name="absence-reason" style={{ flex: "1 1 200px" }} />
+        <button className="btn pri sm" type="button" disabled={pending || !abs.ids.length || !abs.from} data-act="absence-save" onClick={() => run(() => absenceManyAct({ studentIds: abs.ids, from: abs.from, to: abs.range ? abs.to : null, reason: abs.reason }), (r) => `✕ 결석 예정 ${r.made}일 · ${r.students}명${r.skipped ? ` · 수업일이 없어 건너뛴 아이 ${r.skipped}` : ""}`, () => { setForm(null); setAbs(emptyAbs(d.sel)); })}>저장</button>
+        <button className="btn sm gho" type="button" data-act="absence-close" onClick={() => setForm(null)}>닫기</button></div></div>}
     <Note err={err} msg={msg} />
   </div>;
 }

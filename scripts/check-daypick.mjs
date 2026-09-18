@@ -17,8 +17,8 @@ ok("고르개는 go() 로 움직인다. 띠가 켜진다(router.push 는 going.j
 ok("오늘은 맨 주소(/today)로 · 즐겨찾기가 늘 오늘을 연다", /d === today \? "\/today"/.test(pick));
 
 console.log("■ 조용히 흔들릴 자리 셋 · 막아 둔다");
-ok("**다른 날은 판을 저절로 안 세운다** · 열어보기만 해도 숙제가 깔리면 셈이 흔들린다(출결을 누르면 그때 선다)",
-  /roster\(sb, date, null, \{ open: date === todayStr \}\)/.test(page) && /\{ open = true \} = \{\}/.test(day) && /if \(open && missing\.length\)/.test(day));
+ok("(어83) **오늘·앞날은 판이 저절로 서고 지난날은 안 선다** · 앞날 판은 **빈 판**이다(지난 숙제를 안 끌어오고 루틴도 안 깐다 — 끌어오면 오늘 검사 줄이 비고 저장이 통째로 튕기며(day_item_one_per_slot), 미리 깔면 진도가 움직일 때 낡은 줄이 남는다 · 「앞날 숙제는 배정하지 않는다」)",
+  /roster\(sb, date, null, \{ open: date >= todayStr, preload: date <= todayStr \}\)/.test(page) && /\{ open = true, preload = true \} = \{\}/.test(day) && /if \(open && missing\.length\)/.test(day) && /if \(!preload\) return/.test(day));
 ok("**앞으로 올 날은 못 마감한다** · 화면(단추 잠금)과 **손**(closeSheet) 둘 다. 화면만 잠그면 손이 안 잠긴다",
   /disabled=\{future\}/.test(row) && /export async function assertNotFuture/.test(day) && /await assertNotFuture\(sb, sheetId\)/.test(day)
   && /closeSheet[\s\S]{0,200}assertNotFuture/.test(day));

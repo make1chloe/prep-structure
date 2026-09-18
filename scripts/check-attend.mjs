@@ -33,5 +33,43 @@ if (!/ATTEND\.some/.test(att)) bad.push("lib/attend.js 가 값을 안 거른다.
   if (!/day_sheet!inner\([^)]*attend[^)]*\)/.test(둘째)) bad.push("lib/day.js unchecked: 검사 줄 조회가 attend 를 안 읽는다. 결석한 날을 가릴 수 없다");
   if (!/\.neq\(\s*"day_sheet\.attend"\s*,\s*"absent"\s*\)/.test(둘째)) bad.push("lib/day.js unchecked: 결석한 날의 검사 줄을 안 뺀다. 안 온 날이 지난 숙제를 삼켜 다음 수업에 검사가 0이 된다"); }
 if (!writesAttend(strip("// x\nawait db(sb).from(\"day_sheet\").update({ attend: v }).eq(\"id\", id)"))) { console.log("⚠️ 검사 자신이 고장났다"); process.exit(1); }
+/* ── (어83) 출결을 안 찍어도 수업 일지가 선다 · 기본은 「아직」 · 다시 누르면 취소
+   원장님 2026-09-18: 「출석지각결석 표시 다시 누르면 선택 안한 상태로, 취소가능하게 해줘」
+                      「애초에 출석처리를 안하면 검사가 불가능하게 되어있어서 그거때문에 그래 …
+                        예정된 수업에서도 검사및 학습배정까지 … 미리 해놓고 출결만 당일에 찍고 싶은거임」 */
+{ const sql = readFileSync("supabase/migrations/0180_attend_none.sql", "utf8");
+  if (!/check \(attend in \([^)]*'none'[^)]*\)\)/.test(sql)) bad.push("0180: attend CHECK 에 'none'(아직 안 찍음)이 없다. 취소할 값이 없어진다");
+  if (!/alter column attend set default 'none'/.test(sql)) bad.push("0180: 기본값이 'none' 이 아니다. 판이 서는 순간 「왔다」가 되어 미리 세울 수 없다(원장님 9/18)");
+  if (/update v2\.day_sheet set attend/i.test(sql)) bad.push("0180: 이미 있는 줄의 출결을 고친다. 지난 기록을 조용히 바꾸면 안 된다(대전제-0)");
+  const plan = strip(readFileSync("lib/day-plan.js", "utf8"));
+  if (!/ATTEND_NONE = "none"/.test(plan)) bad.push("lib/day-plan.js: ATTEND_NONE 이 없다. 「아직」을 화면·셈이 제각기 글자로 적게 된다(원칙-1)");
+  if (/\["none",/.test(plan.match(/export const ATTEND = [^;]*/)?.[0] ?? "")) bad.push("lib/day-plan.js: ATTEND 목록에 none 이 들었다. 「아직」은 단추가 아니라 상태다");
+  if (!/value !== ATTEND_NONE/.test(att)) bad.push("lib/attend.js: attendanceWrite 가 'none' 을 안 받는다. 취소가 값 검사에 걸린다");
+  const row = strip(readFileSync("app/today/row.js", "utf8"));
+  if (!/next = attend === v \? ATTEND_NONE : v/.test(row)) bad.push("app/today/row.js: 같은 칩을 다시 눌러도 취소가 안 된다(원장님 9/18 「실수로 찍었을때 취소」)");
+  if (!/useState\(sheet\?\.attend \?\? ATTEND_NONE\)/.test(row)) bad.push("app/today/row.js: 아직 안 찍은 줄의 칩이 눌려 보인다 — 기본은 아무것도 안 눌림이고 **예정으로도 미리 안 누른다**(예정은 기록이 아니다 · 대전제-0)");
+  const sp = strip(readFileSync("lib/student-plan.js", "utf8"));
+  if (!/attendPicked\(a\.attend\)/.test(sp) || !/attendPicked\(x\.attend\)/.test(sp)) bad.push("lib/student-plan.js: 출결 셈이 「아직」을 하루로 센다");
+  const page = strip(readFileSync("app/today/page.js", "utf8"));
+  if (!/open: date >= todayStr/.test(page)) bad.push("app/today/page.js: 오늘 말고는 수업 일지를 안 세운다. 예정된 수업에 미리 검사·배정을 못 한다(원장님 9/18)");
+  if (!/preload: date <= todayStr/.test(page)) bad.push("app/today/page.js: **앞날 판을 미리 채운다.** 지난 숙제가 딸려 와 오늘 검사 줄이 비고(day_item_one_per_slot) 앞날 줄이 낡는다(「앞날 숙제는 배정하지 않는다」 · check-residue)");
+  { const day = strip(readFileSync("lib/day.js", "utf8"));
+    if (!/async function openSheets\(sb, pairs, date, \{ preload = true \} = \{\}\)/.test(day)) bad.push("lib/day.js openSheets: preload 를 안 받는다. 앞날 판이 저절로 채워진다");
+    if (!/if \(!preload\) return \(made\.data \?\? \[\]\)\.map/.test(day)) bad.push("lib/day.js openSheets: preload 가 false 여도 속을 채운다(지난 숙제 · 루틴). 앞날 판은 **빈 판**이어야 한다"); }
+  const sch = strip(readFileSync("lib/schedule.js", "utf8"));
+  if (!/export async function makeupDayFor/.test(sch)) bad.push("lib/schedule.js: 보강을 아이 목록으로 잡는 손(makeupDayFor)이 없다");
+  if (!/return makeupDayFor\(sb, \{ studentIds: members\.map/.test(sch)) bad.push("lib/schedule.js: 반 보강이 makeupDayFor 를 안 쓴다. 손이 두 벌이면 어긋난다(원칙-1)");
+  if (!/export async function addAbsenceMany/.test(sch)) bad.push("lib/schedule.js: 결석 예정을 여럿·기간으로 넣는 손(addAbsenceMany)이 없다");
+  const many = sch.match(/export async function addAbsenceMany[\s\S]*?\n\}/)?.[0] ?? "";
+  if (!/rpc\("student_days"/.test(many)) bad.push("lib/schedule.js addAbsenceMany: 그 아이 수업일을 안 보고 날마다 넣는다. 주말·휴강에 결석이 찍힌다");
+  const panel = strip(readFileSync("app/schedule/panel.js", "utf8"));
+  if (!/<WhoPick /.test(panel) || (panel.match(/<WhoPick /g) ?? []).length < 2) bad.push("app/schedule/panel.js: 결석 예정과 보강이 같은 고르개(WhoPick)를 안 쓴다(원칙-1)");
+  if (!/absence-range/.test(panel)) bad.push("app/schedule/panel.js: 결석 예정에 기간(시작일~종료일)이 없다(원장님 9/18)");
+  const who = strip(readFileSync("app/_shell/whopick.js", "utf8"));
+  for (const [k, w] of [["who-school", "학교 단추"], ["who-class", "반 단추"], ["who-row", "학생 목록 체크박스"]])
+    if (!new RegExp(k).test(who)) bad.push(`app/_shell/whopick.js: ${w}(${k})가 없다(원장님 9/18 「학교별(버튼), 반별(버튼), 학생별(목록)」)`);
+  const err = readFileSync("lib/sqlError.js", "utf8");
+  if (!/day_sheet_attend_check: \["0180"/.test(err)) bad.push("lib/sqlError.js: 0180 을 아직 안 넣으셨을 때 무엇을 하실지 말해 주지 않는다(대전제-27)"); }
+
 if (bad.length) { console.log("check-attend ✗\n  " + bad.join("\n  ")); process.exit(1); }
-console.log("check-attend ✓ 출결을 쓰는 길은 attendanceWrite 하나 · 마감을 본다 · 값을 거른다 · (어44) 까닭은 attendReasonWrite 하나 · 넷 · 「지각(진료)」 글 한 벌 · 01 칩");
+console.log("check-attend ✓ 출결을 쓰는 길은 attendanceWrite 하나 · 마감을 본다 · 값을 거른다 · (어44) 까닭 넷 · (어83) 기본은 「아직」(0180) · 다시 누르면 취소 · 오늘·앞날은 판이 저절로 선다 · 결석 예정·보강이 같은 고르개");

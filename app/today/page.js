@@ -24,7 +24,7 @@ export default async function Today({ searchParams }) {
   let date, r, band, cfg, todayStr, pref, prepMap;
   try { todayStr = await today(sb);
     date = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : todayStr;
-    [r, band, cfg, pref, prepMap] = await Promise.all([roster(sb, date, null, { open: date === todayStr }), warnBand(sb, todayStr), todayCfg(sb), prefOf(sb, me.id, "today"), todayPrep(sb, date)]); }   // 반·아이 → 판(**오늘만** 없으면 세운다 — 다른 날은 단추로) ∥ 월초 정리 띠는 늘 오늘 것
+    [r, band, cfg, pref, prepMap] = await Promise.all([roster(sb, date, null, { open: date >= todayStr, preload: date <= todayStr }), warnBand(sb, todayStr), todayCfg(sb), prefOf(sb, me.id, "today"), todayPrep(sb, date)]); }   // 반·아이 → 판(**오늘과 앞날**은 없으면 세운다 — (어83) 판이 곧 출석이 아니게 되어(0180 기본값 none) 미리 세워도 거짓말이 아니다 · 지난날은 안 세운다) ∥ 월초 정리 띠는 늘 오늘 것
   catch (e) {   // 화면이 스스로 말한다(대전제-0) — 운영 빌드는 오류 글을 감추고 「This page couldn't load」만 보인다(원장님 9/5 폰 캡처). 표·함수가 아직 없는 DB 면 여기서 그 이름이 보인다
     console.error(`[화면] 오늘 수업 못 엶:`, e); return frame(<Oops what="오늘 수업" e={e} />);
   }

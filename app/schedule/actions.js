@@ -3,7 +3,7 @@
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";
-import { addHoliday, undoHoliday, addTodo, doneTodo, addExam, setEnglishOn, cancelExam, classMakeupDay, cancelClassMakeupDay, setMakeup, addAbsence, setSiteUrl, addExamWord, confirmMonth } from "@/lib/schedule";
+import { addHoliday, undoHoliday, addTodo, doneTodo, addExam, setEnglishOn, cancelExam, classMakeupDay, makeupDayFor, cancelClassMakeupDay, setMakeup, addAbsence, addAbsenceMany, setSiteUrl, addExamWord, confirmMonth } from "@/lib/schedule";
 import { serviceClient } from "@/lib/supabase";
 import { importExams, searchSchools, setSchoolCode } from "@/lib/neis";
 const wrap = (fn) => act(fn, "일정 12");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
@@ -17,6 +17,8 @@ export async function cancelExamAct(id) { return wrap(async () => { const { sb }
 export async function classMakeupAct(f) { return wrap(async () => { const { sb } = await staff(); return classMakeupDay(sb, { classId: f.classId, onDate: f.onDate, atTime: f.atTime || null, reason: f.reason, date: await today(sb) }); }); }
 export async function cancelClassMakeupAct(ids) { return wrap(async () => { const { sb } = await staff(); return { n: await cancelClassMakeupDay(sb, { ids }) }; }); }
 export async function makeupAct(f) { return wrap(async () => { const { sb, user } = await staff(); return setMakeup(sb, { studentId: f.studentId, ofDate: f.ofDate, onDate: f.onDate || null, atTime: f.atTime || null, reason: f.reason ?? null, waived: Boolean(f.waived) }, user.id); }); }
+export async function makeupManyAct(f) { return wrap(async () => { const { sb } = await staff(); return makeupDayFor(sb, { studentIds: f.studentIds, onDate: f.onDate, atTime: f.atTime || null, reason: f.reason }); }); }   // (어83) 보강을 고른 아이들에게(학교·반 단추는 고르개일 뿐 · 저장되는 것은 아이 목록)
+export async function absenceManyAct(f) { return wrap(async () => { const { sb, user } = await staff(); return addAbsenceMany(sb, { studentIds: f.studentIds, from: f.from, to: f.to || null, reason: f.reason ?? null }, user.id); }); }   // (어83) 결석 예정을 고른 아이들에게 · 하루 또는 기간(그 아이 수업일만)
 export async function absenceAct(f) { return wrap(async () => { const { sb, user } = await staff(); return addAbsence(sb, { studentId: f.studentId, date: f.date, reason: f.reason ?? null }, user.id); }); }   // (어52) 최상단 「결석 예정」 · 02c 와 같은 손
 export async function siteUrlAct(schoolId, url) { return wrap(async () => { const { sb } = await staff(); await setSiteUrl(sb, schoolId, url); return {}; }); }
 export async function examWordAct(word) { return wrap(async () => { const { sb } = await staff(); return { added: await addExamWord(sb, word) }; }); }

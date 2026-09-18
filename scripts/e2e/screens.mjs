@@ -54,6 +54,14 @@ console.log("■ 누른 즉시 표시(다) · 지금 탭이 파랗다 · 누르�
 const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).map(tabName).join(",");
 const goingOn = async () => p.locator("[data-g=going]").getAttribute("data-on");
 ok("대시보드(/)에서 「대시보드」 탭만 파랗다(aria-current)", (await curTab()) === "대시보드", await curTab());
+console.log("■ (어84) ⏰ 마감 필요 — 맨 위 · 두 파트(원장님 2026-09-18) · 속은 today 걷기가 잰다");
+/* ⚠️ 여기서는 **01 을 안 연다.** 01 을 열면 오늘 판이 서고(lib/day.js roster) 뒤에 오는 아이 화면 걷기의
+   「아직 안 열렸어요」가 깨진다 — 걷기가 서로의 상태를 건드리면 안 된다(2026-09-18 실측).
+   목록에 실제로 줄이 서는지와 모달은 today 걷기 끝에서 잰다(그때는 01 을 이미 열어 판이 서 있다) */
+{ const card = p.locator("[data-card=due]");
+  ok("맨 위 카드가 「⏰ 마감 필요」다(오늘 수업보다 앞)", (await card.count()) === 1 && (await p.locator("main [data-card]").first().getAttribute("data-card")) === "due", (await p.locator("main [data-card]").first().getAttribute("data-card")) ?? "카드 없음");
+  ok("「아직 못 셉니다」가 아니다 — 0181 이 들어가 실제로 센다(판이 아직 안 섰으면 「오늘 마감할 것이 없습니다」)", (await card.locator("[data-g=due-none]").count()) === 0, (await card.textContent()).replace(/\s+/g, " ").slice(0, 120)); }
+
 { const isSend = (u) => u.pathname === "/send"; const slow = async (route) => { await new Promise((r) => setTimeout(r, 1200)); await route.continue(); };   // 서버 답을 1.2초 붙들어 「답 전」을 만든다
   await p.route(isSend, slow);
   await p.locator("header.appbar nav.tabs a", { hasText: "발송" }).click();

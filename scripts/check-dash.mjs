@@ -46,5 +46,28 @@ ok("메모로만 부르기 · 3회 연속이면 부른다(글 「3회 연속 메
 { const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1"); const dg = strip(readFileSync("app/dashgaps.js", "utf8")), pg = strip(readFileSync("app/page.js", "utf8"));   // 폰-5 주석은 먼저 지운다
   ok("(어41) 빈 배정 · 메모로만 · 진도 체크 띠는 app/dashgaps.js 한 조각 · 이름(개수) 칩(gap-chip · call-chip) · 아이 모달(gap-modal) · 진도 체크는 _shell 모달(아이·오늘 손) · 교재 배정 모달", /data-g=\{g\}/.test(dg) && /"gap-chip"/.test(dg) && /"call-chip"/.test(dg) && /data-g="gap-modal"/.test(dg) && /from "\.\/_shell\/progressmodal\.js"/.test(dg) && /progress-actions\.js/.test(dg) && /from "\.\/_shell\/assignmodal\.js"/.test(dg) && /<DashGaps /.test(pg));
   ok("(어41) 대시보드에 일하러 보내는 「진도 체크 👉」 0 · 보강일은 그 자리(ClassMakeup) · 줄마다 문장 대신 태그", !/진도 체크 👉/.test(pg) && !/진도 체크 👉/.test(dg) && /<ClassMakeup /.test(pg) && !/\.gapr/.test(pg)); }
+/* ── (어84) ⏰ 마감 필요 — 원장님 2026-09-18 「대시보드에 최상단에 새로운 목록 … 이름은 마감 필요 …
+   모달로 바로바로 처리할 수 있게 목록화해놔」 · 「b로 하되 서로 구별되게 두파트로 나눠서 제시 페이지여백없게」 */
+{ const pg = readFileSync("app/page.js", "utf8"), card = readFileSync("app/duecard.js", "utf8"),
+        mdl = readFileSync("app/_shell/duemodal.js", "utf8"), plan = readFileSync("lib/dash-plan.js", "utf8"),
+        sql = readFileSync("supabase/migrations/0181_dash_due.sql", "utf8"), css = readFileSync("app/globals.css", "utf8");
+  ok("(어84) 카드가 **맨 위**에 있다 · 이름은 「마감 필요」(원장님이 끌어서 옮기실 수 있다)",
+     /\{ id: 'due', name: '마감 필요'/.test(pg) && pg.indexOf("id: 'due'") < pg.indexOf("id: 'today'") && /<DueCard /.test(pg));
+  ok("(어84) **두 파트**로 갈린다 — 🧑 아이 · 📋 업무(원장님 「서로 구별되게 두파트로」)",
+     /data-g="due-students"/.test(card) && /data-g="due-todos"/.test(card) && /🧑 아이/.test(card) && /📋 업무/.test(card));
+  ok("(어84) 줄은 여백 없이 붙는다(.duel · .duer — 원장님 「페이지여백없게」) · 줄 자체가 눌린다",
+     /\.duel\{/.test(css) && /\.duer\{/.test(css) && /padding:3px 4px/.test(css) && /data-g="due-row"/.test(card));
+  ok("(어84) **무엇이 남았나는 lib/dash-plan 한 곳**이 정한다 — 화면이 제각기 세지 않는다(원칙-1)",
+     /export function dueOf/.test(plan) && /export const dueRows/.test(plan) && /dueRows\(due\)/.test(card) && !/\.attend === "none"/.test(card));
+  ok("(어84) **마감이 그날의 끝** — 마감한 판은 출결·검사를 남은 걸음으로 안 센다(눌러도 못 고치는 것을 띄우면 목록이 영영 안 빈다) · 발송만 남는다", /if \(r\.closed\) return r\.sent \? \[\] : \["send"\];/.test(plan));
+  ok("(어84) 모달이 **손을 새로 안 만든다** — 출결·마감은 01 이 쓰던 그 손(setAttend · closeMany)",
+     /from "\.\.\/today\/actions\.js"/.test(mdl) && /setAttend\(row\.sheet_id, next\)/.test(mdl) && /closeMany\(\[row\.sheet_id\]\)/.test(mdl));
+  ok("(어84) 검사는 판이 커서 01 로 보낸다(모달에 나무를 또 그리지 않는다 · 원칙-1)", /data-act="due-check"/.test(mdl) && !/ItemTree|tree\.js/.test(mdl));
+  ok("(어84) 새 조회를 안 만든다 — dash_ops 한 조회에 얹었다(속도-1 · 대시보드 조회 상한 20)",
+     /returns table \([^)]*due jsonb\)/.test(sql) && /'students',/.test(sql) && /'todos',/.test(sql) && !/from\("day_sheet"\)/.test(readFileSync("lib/dash.js", "utf8")));
+  ok("(어84) **오늘 판만** 본다(지난 판을 올리면 목록이 영영 안 비어 쓸모가 없어진다)", /where d\.date = p_on/.test(sql));
+  ok("(어84) 0181 을 아직 안 넣으셨으면 카드가 스스로 무엇을 하실지 말한다(대전제-27)", /data-g="due-none"/.test(card) && /0181\.sql/.test(card));
+  ok("(어84) 오늘 마감할 것이 없으면 그렇게 말한다(빈 카드로 두지 않는다 · 대전제-0)", /data-g="due-clear"/.test(card)); }
+
 console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

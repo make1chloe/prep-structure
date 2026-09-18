@@ -222,6 +222,22 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .chk button[aria-pressed="true"][data-v="x"]{background:var(--miss);border-color:transparent;color:var(--surface)}
 /* (어76) 반려 — 검사 넷째 손. 완료·미흡·미완료와 **다른 색**이라야 한 눈에 갈린다(원장님 2026-09-17 「완료 미흡은 각각 색깔 바꿔줘」와 같은 결) */
 .chk button[aria-pressed="true"][data-v="r"]{background:var(--navy);border-color:transparent;color:var(--surface)}
+/* (어83) 「누구에게」 고르개 — 원장님 2026-09-18 「학교별(버튼), 반별(버튼), 학생별(목록)에서 체크박스 선택가능하게」.
+   결석 예정·보강이 같은 부품을 쓴다(원칙-1). 목록은 이름이 짧아 여러 열로 흐르게 두고, 길어지면 제 자리에서 구른다(판이 안 늘어난다) */
+.wpk{border:1px solid var(--hair);border-radius:10px;padding:8px;background:var(--sunk)}
+.wpl{display:flex;flex-wrap:wrap;gap:2px 10px;max-height:168px;overflow-y:auto}
+.wpl .ckl{min-height:var(--h-sm);flex:0 0 auto}
+/* (어84) ⏰ 마감 필요 — 원장님 2026-09-18 「두파트로 나눠서 제시 페이지여백없게」.
+   두 파트(🧑 아이 · 📋 업무)는 작은 머리로 가르고, 줄은 **여백 없이** 한 줄씩 붙인다(테두리 한 겹만).
+   줄 자체가 단추라 폰에서도 어디를 눌러야 할지 헷갈리지 않는다(대전제-22) */
+.duehead{display:flex;align-items:center;gap:6px;padding:2px 0 3px;border-bottom:1px solid var(--hair);font-size:var(--fs-2);color:var(--mid)}
+.duehead b{font-size:var(--fs-3)}
+.duel{display:flex;flex-direction:column}
+.duer{display:flex;align-items:center;gap:4px;width:100%;min-height:var(--h-sm);padding:3px 4px;border:0;border-bottom:1px dashed var(--hair);background:none;color:inherit;text-align:left;font:inherit;text-decoration:none}
+.duer:last-child{border-bottom:0}
+.duer:hover{background:var(--sunk)}
+.duer b{font-weight:600;font-size:var(--fs-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.duer .tag{font-style:normal}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .tag{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;background:var(--sunk);border:1px solid var(--hair);color:var(--mid);font-family:var(--sans)}
 .tag.on{background:var(--ok-fill);color:var(--on-ok);border-color:transparent}

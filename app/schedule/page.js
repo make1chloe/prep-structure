@@ -20,7 +20,7 @@ export default async function Schedule({ searchParams }) {
     const date = await today(sb);
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date);
     const sel = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : ym === ymOf(date) ? date : `${ym}-01`;
-    const [board, students] = await Promise.all([scheduleBoard(sb, ym, date), studentPicks(sb)]);   // 한 파도(속도-1) — 「+ 결석 예정」이 아이를 고른다((어52))
+    const [board, students] = await Promise.all([scheduleBoard(sb, ym, date), studentPicks(sb, date)]);   // 한 파도(속도-1) — 「+ 결석 예정」이 아이를 고른다((어52))
     d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board, students };
   } catch (e) { { console.error("[화면] 일정 못 엶:", e); return frame(<Oops what="일정" e={e} />); } }
   const b = d.board, target = Number(b.rules?.["schedule.sessions_per_month"] ?? 8);
