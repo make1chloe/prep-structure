@@ -91,6 +91,19 @@ const 빠진붙임 = 안들어간.filter((f) => num(f) < 9000).filter((f) => {
 ok("안 들어간 01xx 마다 붙여넣기 파일(docs/sql-paste/NNNN.sql)이 있고 **본문을 그대로** 담고 있다",
   빠진붙임.length === 0, 빠진붙임.join(" · "));
 
+/** ⑦ (어80) 새 **표** — 칸과 같은 일이 표에도 있다. 표가 없는 DB 에서 그것을 읽으면 그 조회가 오류를 내는데,
+ *  받는 쪽이 그 오류를 안 가리면 화면이 통째로 안 열린다((어78) 과 같은 꼴). 그러니 ① 읽는 파일이 「없으면 넘어간다」를 갖추고
+ *  ② TBL_PASTE(lib/sqlError.js)에 올라 있어야 한다 — 걸렸을 때 화면이 **무엇을 하실지** 말한다(대전제-0). */
+const 새표 = [];
+for (const f of 안들어간) for (const m of read(`supabase/migrations/${f}`).matchAll(/create table(?:\s+if not exists)?\s+v2\.(\w+)/gi)) 새표.push({ table: m[1], file: f });
+const 표탈 = [];
+for (const { table } of 새표) {
+  for (const { p, s } of srcs) if (new RegExp(`from\\("${table}"\\)`).test(s) && !/could not find the table|does not exist/i.test(s)) 표탈.push(`${p} · ${table} 를 읽는데 「없으면 넘어간다」가 없다`);
+  if (!new RegExp(`\\b${table}:\\s*\\[`).test(colPaste)) 표탈.push(`${table} → TBL_PASTE(lib/sqlError.js)에 없다`);
+}
+ok(`안 들어간 마이그레이션이 만드는 새 표 ${새표.length}개는 ① 없으면 넘어가는 자리에서만 읽고 ② TBL_PASTE 에 올라 있다`,
+  표탈.length === 0, 표탈.join("\n        "));
+
 /** ⑥ 숫자를 잊지 않게 */
 ok(`들어간데까지(0${들어간데까지})가 실제 있는 번호다 — 원장님이 「넣었다」 하시면 이 숫자만 올린다`,
   migs.some((f) => num(f) === 들어간데까지));

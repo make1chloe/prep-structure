@@ -50,8 +50,8 @@ console.log("\n■ 붙여넣기 · 첨부 — 올리는 길은 그대로 한 곳
 ok("붙여넣기는 **문서에 귀를 단다**(칸을 누르고 있지 않아도 Ctrl+V 가 붙는다) · 부품이 떠 있는 동안만",
   /document\.addEventListener\("paste"/.test(up) && /removeEventListener\("paste"/.test(up) && /clipboardData\?\.files/.test(up));
 ok("붙여넣은 것은 고른 것에 **덧붙는다**(먼저 고른 파일을 안 지운다)", /setFiles\(\(old\) => \[\.\.\.old, \.\.\.fs\]\)/.test(up));
-ok("퀵 메모는 **업무를 세운 뒤** 그 줄에 붙인다(붙을 자리가 있어야 붙는다) · 올리는 길은 /api/files 하나",
-  /sendRef\.current\.send\(r\.id\)/.test(qm) && /fetch\("\/api\/files"/.test(up) && !/fetch\(/.test(strip(qm)));
+ok("퀵 메모는 **업무를 세운(고친) 뒤** 그 줄에 붙인다(붙을 자리가 있어야 붙는다) · 올리는 길은 /api/files 하나",
+  /const id = edit \? edit\.todoId : r\.id/.test(qm) && /sendRef\.current\.send\(id\)/.test(qm) && /fetch\("\/api\/files"/.test(up) && !/fetch\(/.test(strip(qm)));
 ok("서버도 다시 본다 — 업무에 붙이는 것은 학원 사람뿐(붙이는 자리 정책 + 길 둘 다)",
   /if \(todo && !isStaff\(me\.role\)\) return say\(403/.test(api) && /if \(todo && !\/\^\[0-9a-f-\]\{36\}\$\/\.test\(todo\)\)/.test(api));
 ok("붙이기는 **유일 짝의 칸 이름을 안 부른다**(넣어 보고 「이미 있다」면 넘어간다) — 이름을 외우면 붙는 자리가 하나 늘 때마다 앱이 먼저 깨진다((어78) 사고)",
@@ -64,7 +64,7 @@ ok("띠에서는 **표를 한 줄도 안 읽는다**(속도-4 · 모든 화면�
   !/db\(|\.from\(|\.rpc\(/.test(strip(qm)) && /students = null/.test(qm) && /<QuickMemo inline students=\{b\.students/.test(b05));
 ok("그림은 ACT 한 곳에서(📌) · 단추 이름은 「퀵 메모」", /quick: "📌"/.test(emoji) && /\{ACT\.quick\}/.test(qm) && /icon\("퀵 메모"\)/.test(qm));
 ok("한 줄 적고 **Enter 면 끝**(날짜·아이·첨부는 「자세히」를 펴야 나온다)",
-  /e\.key === "Enter"/.test(qm) && /const \[more, setMore\] = useState\(false\)/.test(qm));
+  /e\.key === "Enter"/.test(qm) && /const \[more, setMore\] = useState\(Boolean\(edit\)\)/.test(qm)   /* (어80) 넣기는 접힌 채 · **고치기는 펴진 채**(이미 적힌 것을 보여야 고친다) */);
 ok("05 는 맨 위에 **이미 펴진 한 줄**(원장님 「현재는 1클릭필요함」) · 옛 「📋 메모」 양식은 없앴다(두 벌 금지)",
   /<QuickMemo inline/.test(b05) && !/new-note/.test(b05) && !/data-act="note-save"/.test(b05));
 ok("뜬 창이 아니라 상단 띠의 한 줄로 편다(목업이 원본 · globals 는 옮긴 것)",

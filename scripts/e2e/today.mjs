@@ -1420,6 +1420,29 @@ await qm.locator("[data-g=quick-title]").fill("zz_마감 없는 메모"); await 
 ok("(어78) 마감 없이 넣어도 업무에 선다 · 「마감 없음」으로 보인다(오늘로 몰래 안 넣는다 · 대전제-0)",
   (await colCount("note")) === "3" && (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).textContent()).includes("마감 없음"),
   (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120));
+// (어80) 원장님 2026-09-18 「칸반보드에 입력한 세부내용자체도 추가수정삭제가 안됨」 · 「전체선택버튼이 없음」
+{ const note = td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).first();
+  ok("(어80) 칸마다 **그 칸만 집는 「전체」**가 있다(판 머리의 「전체」와 둘)",
+    (await td.locator("[data-g=col][data-kind=note] .nb-colh input[data-g=pick-group]").count()) === 1 && (await td.locator("input[data-g=pick-all]").count()) === 1);
+  await note.locator("button[data-act=card-edit]").click(); await p.waitForTimeout(400);
+  const form = note.locator("[data-g=card-edit-form]");
+  ok("(어80) ✎ 를 누르면 **그 자리에서** 넣기와 같은 양식이 펴진다 · 적힌 것이 채워져 있다(대전제-22 · 원칙-1)",
+    (await form.count()) === 1 && (await form.locator("[data-g=quick-title]").inputValue()) === "zz_마감 없는 메모" && (await form.locator("[data-act=quick-cancel]").count()) === 1,
+    await form.locator("[data-g=quick-title]").inputValue().catch(() => "칸 없음"));
+  await form.locator("[data-g=quick-title]").fill("zz_고친 메모"); await form.locator("[data-act=quick-save]").click(); await p.waitForTimeout(1500);
+  ok("(어80) 고치면 그 줄이 바뀐다 · 줄이 하나 더 생기지 않는다(고치기지 넣기가 아니다)",
+    (await colCount("note")) === "3" && (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_고친 메모" }).count()) === 1 && (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).count()) === 0,
+    `메모 ${await colCount("note")}`);
+  const fixed = td.locator("[data-g=card][data-kind=note]", { hasText: "zz_고친 메모" }).first();
+  await fixed.locator("button[data-act=drop]").click(); await p.waitForTimeout(1500);
+  await td.locator("[data-g=hidden] button[data-act=show-dropped]").click(); await p.waitForTimeout(400);   // 뺀 것은 **숨긴 그룹**에 접혀 있다 — 펴고 본다
+  ok("(어80) 빼면 칸에서 빠지고 **뺀 것**으로 내려간다(지우지 않는다 · 대전제-6)",
+    (await colCount("note")) === "2" && (await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).count()) === 1,
+    `메모 ${await colCount("note")} · 뺀 것 ${await td.locator("[data-g=card][data-state=dropped]").count()}`);
+  await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).first().locator("button[data-act=restore]").click(); await p.waitForTimeout(1500);
+  ok("(어80) **복구**하면 제 칸으로 돌아온다(빼기의 짝이 있어야 대전제-6 이 산다)",
+    (await colCount("note")) === "3" && (await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).count()) === 0,
+    `메모 ${await colCount("note")}`); }
 // (어78) **어느 화면에서나** — 대시보드에서 상단 띠 📌 로 적고, 05 로 돌아오면 그 줄이 서 있다(원장님 「가장 중요한 기능」 셋 가운데 둘)
 {
   await p.goto(`${APP}/`); await p.waitForLoadState("networkidle").catch(() => {});
@@ -1436,6 +1459,41 @@ ok("(어78) 마감 없이 넣어도 업무에 선다 · 「마감 없음」으�
   ok("(어78) 05 업무에 그 줄이 서 있다 — 퀵 메모와 05 가 **같은 손**(noteAct)을 쓴다(원칙-1)",
     (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_어디서나 메모" }).count()) === 1);
 }
+// (어80)-B 분류 **자체**를 더하고 · 옮기고 · 내린다 — 원장님 2026-09-18 「업무 칸반보드에 분류자체를 추가/수정/삭제가 되게해줘」 · 「세부내용의 일괄처리 · 분류 옮기기가능하게」
+{ const cols0 = await td.locator("[data-g=col]").count(), note0 = await colCount("note");
+  ok("(어80)-B 앱이 내는 분류 열 칸 · 🏛️ 학교 행사는 **일정 쪽**이라 업무 판에 안 선다(원장님 「업무-메모에 학사일정이 다 들어가있는데 이건 원하지않아」)",
+    cols0 === 10 && (await td.locator("[data-g=col][data-kind=school_event]").count()) === 0, `칸 ${cols0}`);
+  await td.locator("[data-act=kind-open-new]").click(); await p.waitForTimeout(400);
+  const kf = td.locator("[data-g=kind-form][data-kind=new]");
+  await kf.locator("input[aria-label='분류 이름']").fill("zz_학원 행사");
+  await kf.locator("[data-g=kind-cls] button[data-cls=nb-green]").click();
+  await kf.locator("[data-act=kind-add]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  const newCol = td.locator("[data-g=col]", { hasText: "zz_학원 행사" }).first();
+  ok("(어80)-B 분류를 만들면 칸이 하나 늘고 **빈 채로** 선다(그리로 옮길 수 있어야 하니 0이어도 보인다)",
+    (await td.locator("[data-g=col]").count()) === cols0 + 1 && (await newCol.locator("[data-g=col-count]").textContent()) === "0",
+    `칸 ${await td.locator("[data-g=col]").count()}`);
+  const newKind = await newCol.getAttribute("data-kind");
+  await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_어디서나 메모" }).first().locator("input[data-g=pick]").check(); await p.waitForTimeout(300);
+  await td.locator("select[aria-label='옮길 분류']").selectOption(newKind);
+  await td.locator("[data-act=move-kind]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  ok("(어80)-B 고른 업무를 한 번에 그 분류로 옮긴다 · 메모 칸은 하나 줄고 새 칸이 1",
+    (await colCount("note")) === String(Number(note0) - 1) && (await td.locator(`[data-g=col][data-kind=${newKind}] [data-g=col-count]`).textContent()) === "1",
+    `메모 ${await colCount("note")} · 화면이 한 말: ${(await td.locator("p[role=alert]").allTextContents()).join(" | ") || "오류 없음"}`);
+  await td.locator(`[data-g=col][data-kind=${newKind}] button[data-act=kind-edit]`).click(); await p.waitForTimeout(400);
+  await td.locator(`[data-g=kind-form][data-kind=${newKind}] [data-act=kind-drop]`).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  ok("(어80)-B 분류를 삭제해도 그 칸에 업무가 남아 있으면 칸이 남고 「삭제됨」으로 보인다(지우지 않는다 · 화면이 거짓말하지 않는다 · 대전제-6·0)",
+    (await td.locator(`[data-g=col][data-kind=${newKind}] [data-g=col-off]`).count()) === 1,
+    `칸 ${await td.locator("[data-g=col]").count()}`);
+  await td.locator(`[data-g=col][data-kind=${newKind}] button[data-act=kind-edit]`).click(); await p.waitForTimeout(400);
+  await td.locator(`[data-g=kind-form][data-kind=${newKind}] [data-act=kind-restore]`).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  ok("(어80)-B **복구**가 삭제의 짝이다 · 앱이 만드는 분류(📋 메모)에는 삭제 단추가 아예 없다",
+    (await td.locator(`[data-g=col][data-kind=${newKind}] [data-g=col-off]`).count()) === 0
+    && (await (async () => { await td.locator("[data-g=col][data-kind=note] button[data-act=kind-edit]").click(); await p.waitForTimeout(400);
+      const n = await td.locator("[data-g=kind-form][data-kind=note] [data-act=kind-drop]").count(); await td.locator("[data-g=kind-form][data-kind=note] [data-act=kind-cancel]").click(); return n === 0; })()));
+  await td.locator(`[data-g=col][data-kind=${newKind}] [data-g=card]`).first().locator("input[data-g=pick]").check(); await p.waitForTimeout(300);
+  await td.locator("select[aria-label='옮길 분류']").selectOption("note");
+  await td.locator("[data-act=move-kind]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  ok("(어80)-B 도로 옮기면 메모 칸이 제 수로 돌아온다(옮기기는 한쪽 길이 아니다)", (await colCount("note")) === note0, `메모 ${await colCount("note")}`); }
 await td.locator("button[data-act=new-open]").click(); await td.locator("button[data-act=new-repeat]").click();
 await td.locator("[data-g=new-repeat] input[aria-label='반복 이름']").fill("zz_수납 안내 보내기"); await td.locator("[data-g=new-repeat] input[aria-label=며칠]").fill(String(Number(todayText.slice(8, 10)))); await td.locator("button[data-act=repeat-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("반복(매달 오늘 날짜 · 3일 전부터) → 「오늘 걸리는 것 1건」 · 반복 칸 1 · 왜 「매달 N일 · 저절로」 · 규칙 꼬리표", (await td.locator("[data-g=msg]").textContent()).includes("오늘 걸리는 것 1건") && (await colCount("repeat")) === "1" && (await td.locator("[data-g=card][data-kind=repeat]").textContent()).includes(" · 저절로"), (await td.locator("[data-g=msg]").textContent()));

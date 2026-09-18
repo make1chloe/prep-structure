@@ -24,7 +24,12 @@ ok(`표-4·원칙-5 세어 나오는 이름의 칸은 넣는 값 ${COUNT_COLS.si
 // 표-6 고르는 값은 DB 에도 건다(check) — 아직 안 건 것 15 는 래칫(값 목록이 코드에 없는 것)
 const UNCHECKED = new Set(["auto_rule.kind", "book_alias.source", "books.level", "consult.way", "day_ran.kind", "exam_question.kind", "item_alias.source", "material_type.source", "msg_template.kind", "parent_student.rel", "progress_edit.scope", "quiz.way", "score_wrong.kind", "student_alias.source", "warning_action.kind"]);   // 0131 이 열한 칸을 걸었다(새 줄부터) — 남은 15 는 값 목록이 코드에 없거나 자유 글(rel·way·source)
 const unchecked = await col(`select c.table_name||'.'||c.column_name from information_schema.columns c where c.table_schema='v2' and c.column_name in ('state','kind','slot','stage','role','status','how','scope','place','source','way','level','area','mode','sink','to_role','rel','attend','result') and c.data_type in ('text','character varying')
-  and not exists (select 1 from information_schema.constraint_column_usage u join information_schema.table_constraints t on t.constraint_name=u.constraint_name and t.constraint_type='CHECK' where u.table_schema='v2' and u.table_name=c.table_name and u.column_name=c.column_name) order by 1`);
+  and not exists (select 1 from information_schema.constraint_column_usage u join information_schema.table_constraints t on t.constraint_name=u.constraint_name and t.constraint_type='CHECK' where u.table_schema='v2' and u.table_name=c.table_name and u.column_name=c.column_name)
+  -- (어80) 값 목록이 **표로 옮겨 간 칸**은 참조(외래키)가 곧 check 다 — 오히려 더 세다(없는 값을 못 넣고, 이름을 고쳐도 따라간다).
+  --        값 목록 표 자신의 열쇠 칸(todo_kind.kind)도 「그 표가 곧 목록」이라 걸 것이 없다.
+  and not exists (select 1 from pg_constraint fk join pg_class rel on rel.oid=fk.conrelid join pg_namespace ns on ns.oid=rel.relnamespace
+                   where ns.nspname='v2' and rel.relname=c.table_name and fk.contype in ('f','p')
+                     and c.column_name = any (select a.attname from pg_attribute a where a.attrelid=fk.conrelid and a.attnum = any(fk.conkey))) order by 1`);
 ok(`표-6 고르는 값 칸에 check 가 있다. 아직 없는 ${UNCHECKED.size}은 래칫(새로 만드는 표는 걸어야 한다)`, fresh(unchecked, UNCHECKED).length === 0, "새로 생긴 것: " + fresh(unchecked, UNCHECKED).join(", "));
 // 표-7 날짜 기본값은 학원의 오늘 하나
 const dateDef = await col(`select table_name||'.'||column_name||' = '||column_default from information_schema.columns where table_schema='v2' and data_type='date' and column_default is not null and column_default !~ 'v2\\.today\\(\\)'`);

@@ -9,25 +9,29 @@
  *  ⚠️ 사진은 **저장한 뒤에** 붙는다(붙을 줄이 있어야 붙는다) — 저장 단추가 Upload 의 send 를 부른다. 올리는 길은 그대로 한 곳(대전제-7). */
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { noteAct } from "../schedule/todo/actions.js";
+import { noteAct, editNoteAct } from "../schedule/todo/actions.js";
 import Upload from "./upload.js";
 import { ACT } from "@/lib/emoji";
 import { icon } from "./icon.js";
 const EMPTY = { title: "", dueOn: "", startOn: "", dueTime: "", studentId: "" };
-export default function QuickMemo({ students = null, inline = false, onSaved = null }) {
+/** (어80) `edit` 를 주면 **같은 양식이 고치기**가 된다 — 넣기와 고치기를 두 벌로 그리지 않는다(원칙-1 · 대전제-19) */
+const formOf = (c) => (c ? { title: c.title ?? "", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentId: c.studentId ?? "" } : EMPTY);
+export default function QuickMemo({ students = null, inline = false, edit = null, onSaved = null, onCancel = null }) {
   const router = useRouter(); const [open, setOpen] = useState(inline);
-  const [f, setF] = useState(EMPTY); const [more, setMore] = useState(false);
+  const [f, setF] = useState(() => formOf(edit)); const [more, setMore] = useState(Boolean(edit));
   const [err, setErr] = useState(""); const [msg, setMsg] = useState(""); const [pending, start] = useTransition();
   const box = useRef(null), sendRef = useRef(null);
   useEffect(() => { if (open && box.current) box.current.focus(); }, [open]);
   const up = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = () => start(async () => {
     setErr(""); setMsg("");
-    const r = await noteAct(f); if (!r.ok) { setErr(r.msg); return; }
+    const r = edit ? await editNoteAct(edit.todoId, f) : await noteAct(f); if (!r.ok) { setErr(r.msg); return; }
+    const id = edit ? edit.todoId : r.id;
     const files = sendRef.current?.count ?? 0;
-    if (files) await sendRef.current.send(r.id);           // 세운 줄에 붙인다(사진 · PDF)
-    setF(EMPTY); setMore(false); setMsg(files ? `업무에 넣었어요 · 파일 ${files}개` : "업무에 넣었어요");
-    onSaved?.(r.id); router.refresh();                      // 05 에 있으면 그 자리에서 줄이 선다
+    if (files) await sendRef.current.send(id);             // 세운 줄에 붙인다(사진 · PDF)
+    if (!edit) { setF(EMPTY); setMore(false); }
+    setMsg(edit ? "수정했어요" : files ? `업무에 넣었어요 · 파일 ${files}개` : "업무에 넣었어요");
+    onSaved?.(id); router.refresh();                        // 05 에 있으면 그 자리에서 줄이 선다
     if (!inline) setTimeout(() => setMsg(""), 4000);
   });
   const bar = (
@@ -35,8 +39,9 @@ export default function QuickMemo({ students = null, inline = false, onSaved = n
       <input ref={box} type="text" value={f.title} placeholder="무엇을" aria-label="퀵 메모" data-g="quick-title" style={{ flex: "1 1 200px" }}
         onChange={up("title")} onKeyDown={(e) => { if (e.key === "Enter" && f.title.trim() && !pending) save(); }} />
       <button type="button" className={"btn sm" + (more ? " pri" : "")} data-act="quick-more" aria-pressed={more} onClick={() => setMore(!more)}>자세히</button>
-      <button type="button" className="btn pri sm" data-act="quick-save" disabled={pending || !f.title.trim()} onClick={save}>{pending ? "넣는 중…" : "넣기"}</button>
-      {!inline && <button type="button" className="btn sm gho" data-act="quick-close" onClick={() => { setOpen(false); setMsg(""); }}>닫기</button>}
+      <button type="button" className="btn pri sm" data-act="quick-save" disabled={pending || !f.title.trim()} onClick={save}>{pending ? (edit ? "수정 중…" : "넣는 중…") : edit ? "수정" : "넣기"}</button>
+      {edit && <button type="button" className="btn sm gho" data-act="quick-cancel" onClick={() => onCancel?.()}>취소</button>}
+      {!inline && !edit && <button type="button" className="btn sm gho" data-act="quick-close" onClick={() => { setOpen(false); setMsg(""); }}>닫기</button>}
     </div>
   );
   const body = (
