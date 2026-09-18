@@ -1,5 +1,5 @@
 -- 0148 (너)(2026-09-09 — 원장님 「강사조교는 다 봐도 되고 학생학부모는 따로 권한두기」): 학교별 표 06c 를 아이·학부모 화면에도.
---   · 강사·조교는 지금처럼 일정 권한이면 본다(칸 안 늘림) · 학생·학부모는 「누가 무엇을 보나」의 새 칸(me.grid · parent.grid — lib/perm.js · 값은 0088 v2.role_access · 안 정함이면 막힘)
+--   · 강사·조교는 지금처럼 일정 권한이면 본다(칸 안 늘림) · 학생·학부모는 「권한 설정」의 새 칸(me.grid · parent.grid — lib/perm.js · 값은 0088 v2.role_access · 안 정함이면 막힘)
 --   · 무엇을 보이나는 표마다 「아이·학부모 공개」 스위치(grid.share · 기본 끔 — 「학교별 특이사항」 같은 내부 표가 안 샌다) · 학교 줄 표만 · 그 아이 학교 줄만
 --   · 아이 쪽 한 벌 grid_mine(p_student): 본인 · 그 아이의 학부모(my_students) · 학원 사람만. grid_board 는 share 를 싣는다(마지막 정의 0131 을 다시 냄 — cells_at(0-3 대조) 그대로 · 처음엔 0126 을 베껴 cells_at 을 잃었고 check-rules-db 가 잡았다 → check-redefine)
 --   · 멱등: add column if not exists · create or replace

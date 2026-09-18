@@ -13,7 +13,7 @@ import { usePick, PickBox, PickGroup, PickBar } from "../../_shell/pick.js";   /
 import { md } from "@/lib/dash-plan";
 const kid = (s) => markText(s, "kid");
 const Word = ({ s, big = false }) => <span className={"rst " + s + (big ? " big" : "")} data-g="word" data-status={s}>{s === "done" ? "✓ " : s === "doing" ? "▶ " : ""}{kid(s)}</span>;
-export default function Board({ d, canFlag = true }) {   // canFlag — 「누가 무엇을 보나」의 me.flags(「표시」). 끄면 ❗ 를 못 단다(자꾸 잘못 누르는 아이 · 목업 08 의 진도 체크 끄기와 같은 결)
+export default function Board({ d, canFlag = true }) {   // canFlag — 「권한 설정」의 me.flags(「표시」). 끄면 ❗ 를 못 단다(자꾸 잘못 누르는 아이 · 목업 08 의 진도 체크 끄기와 같은 결)
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, round = b.sb?.round ?? 1;
   const [open, setOpen] = useState({}); const [flag, setFlag] = useState(null); const [ff, setFf] = useState({ unitId: "", kind: "not_done", said: "" });

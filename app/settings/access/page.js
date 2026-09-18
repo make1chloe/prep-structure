@@ -1,4 +1,4 @@
-/** 「누가 무엇을 보나」 — 원장님이 켜고 끄신다(원장님 9/3). 기본값은 코드에 없다: 안 정한 칸은 막혀 있고 여기서 정하신다.
+/** 「권한 설정」 — 원장님이 켜고 끄신다(원장님 9/3). 기본값은 코드에 없다: 안 정한 칸은 막혀 있고 여기서 정하신다.
  *  키 목록은 lib/perm.js 한 벌. 옛 앱에서 정하신 32칸이 그대로 옮겨 와 있다 */
 import { guard } from "@/lib/session";
 import { ROLES, ROLE_NAME } from "@/lib/roles";
@@ -15,7 +15,7 @@ export default async function Access() {
   return (
     <main className="frame" style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
       <div className="card">
-        <div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div>
+        <div className="ctitle"><span className="cemo">🔐</span>권한 설정</div>
         <p className="note">안 정함 = 막힘 · 원장님은 늘 다 봅니다</p>
         {groups.map((g) => (
           <div key={g} className="tblwrap" style={{ marginTop: 12 }}>

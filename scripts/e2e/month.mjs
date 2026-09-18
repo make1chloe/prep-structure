@@ -125,7 +125,7 @@ const 화면들 = [
   ["/schedule/exams/prep", "04 내신 자료"], ["/schedule/grid", "06c 학교별 표"], ["/schedule/todo", "05 업무"],
   ["/schedule/import", "12b 가져오기"], ["/scores", "16 성적"], ["/books", "15 교재"], ["/books/videos", "19 영상"],
   ["/ops", "13 수강료"], ["/ops/students", "14 학생"], ["/ops/files", "20 자료실"], ["/ops/inquiry", "18 신규 상담"],
-  ["/settings", "21 설정"], ["/settings/access", "21b 누가 무엇을 보나"], ["/settings/progress", "21c 진도 체크"], ["/settings/routine", "11 루틴"],
+  ["/settings", "21 설정"], ["/settings/access", "21b 권한 설정"], ["/settings/progress", "21c 진도 체크"], ["/settings/routine", "11 루틴"],
 ];
 for (const [url, 이름] of 화면들) await 재기(url, 이름);
 

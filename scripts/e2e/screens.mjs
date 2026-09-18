@@ -73,8 +73,9 @@ console.log("■ (어84) ⏰ 마감 필요 — 맨 위 · 두 파트(원장님 2
   await p.goto(APP + "/schedule/classes"); await p.waitForLoadState("networkidle").catch(() => {});
   ok("아래 화면(/schedule/classes)에서는 「일정」 탭이 파랗다(currentTab · 가장 긴 앞머리)", (await curTab()) === "일정", await curTab());
   await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {}); }
-const leftBefore = (await p.locator("main .card .ctitle b").first().textContent()).trim();
-ok("안 정한 권한 칸 수가 뜬다(32칸 중)", /^\d+$/.test(leftBefore), leftBefore);
+const leftPill = () => p.locator('main a.pill[href="/settings/access"] b');   // (어86) 대시보드는 알약 하나 — 카드였던 것을 걷었다(원장님 9/18 「이건 왜 대시보드로 왔지」)
+const leftBefore = (await leftPill().first().textContent()).trim();
+ok("안 정한 권한 칸이 있으면 대시보드에 알약으로 뜬다(카드가 아니다 · (어86))", /^\d+$/.test(leftBefore), leftBefore);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 발송 10 · 아침: 늦게 가는 아이 없음 · 마감한 판 0 · 나간 것 0 · 리허설 스위치");
@@ -137,7 +138,7 @@ await rm.locator("[data-g=book] [data-g=ut]").click(); await p.waitForTimeout(15
 ok("단원평가 본다 → 「대단원마다」 세그먼트가 열린다 → 끄면 닫힌다(오늘 수업 일지엔 영향 없음)", utOn === "대단원마다" && (await rm.locator("[data-g=book] [data-g=ut-seg]").count()) === 0, utOn);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-routine-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
-console.log("■ 누가 무엇을 보나 · 선생님에게 대시보드를 켠다");
+console.log("■ 권한 설정 · 선생님에게 대시보드를 켠다");
 await p.goto(APP + "/settings/access");
 ok("표가 뜬다", (await p.locator("table").count()) >= 1);
 const cell = p.locator("form.seg[aria-label='선생님 대시보드']");   // (어64) 역할 이름은 lib/roles.js ROLE_NAME 한 곳에서 온다(원장님 9/16 「이름만 강사말고 선생님이라고 해줘」)
@@ -146,8 +147,12 @@ await cell.locator("button[value='1']").click(); await p.waitForLoadState("netwo
 await p.goto(APP + "/settings/access");
 ok("켬이 눌린 채로 남는다", (await cell.locator("button[value='1']").getAttribute("aria-pressed")) === "true");
 await p.goto(APP + "/");
-const leftAfter = (await p.locator("main .card .ctitle b").first().textContent()).trim();
+const leftAfter = (await leftPill().first().textContent()).trim();
 ok("안 정한 칸이 하나 줄었다", Number(leftAfter) === Number(leftBefore) - 1, `${leftBefore} → ${leftAfter}`);
+{ await p.goto(APP + "/settings"); const t = (await p.locator('main .card:has(a[href="/settings/access"]) .ctitle').first().textContent()).trim();
+  ok("설정 카드가 남은 칸을 말한다(대시보드에서 옮겨 온 자리 · (어86))", /권한 설정/.test(t) && /안 정한 칸/.test(t), t);
+  ok("이름이 명사다 — 「누가 무엇을 보나」 0(원장님 9/18 명사화)", !/누가 무엇을 보나/.test(await p.content()));
+  await p.goto(APP + "/"); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.goto(APP + "/settings/access"); await p.screenshot({ path: `.tmp/e2e-access-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ (어64) 직원 계정 · 원장이 선생님·조교를 낸다(원장님 2026-09-16 「근데 선생님조교어디서추가해」)");
@@ -213,7 +218,7 @@ await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"
 await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/password"), { timeout: 15000 }).catch(() => {}), p.click("form.card button[type=submit]")]);
 ok("(어71) 바꾸면 **정말 넘어간다** · 표시가 내려간 것을 다시 읽고 간다(원장님 2026-09-17 「여기서 화면이 안넘어감」)", !new URL(p.url()).pathname.startsWith("/password"), p.url());
 { const t = await p.locator("header.appbar nav.tabs a").allTextContents();
-  ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 누가 무엇을 보나 한 곳이 정한다)", t.map(tabName).join(",") === "대시보드", t.join(",")); }
+  ok("낸 선생님도 켠 만큼만 본다(대시보드 하나 · 🔐 권한 설정 한 곳이 정한다)", t.map(tabName).join(",") === "대시보드", t.join(",")); }
 await p.goto(APP + "/password"); await p.waitForLoadState("networkidle").catch(() => {});
 ok("(어71) 바꾼 뒤 비밀번호 화면으로 되돌아가도 갇히지 않는다 — 제 화면으로 보낸다", new URL(p.url()).pathname === "/", p.url());
 await p.goto(APP + "/settings/staff"); await p.waitForLoadState("networkidle").catch(() => {});

@@ -1,4 +1,4 @@
-/** 권한 검사 — 「누가 무엇을 보나」는 lib/perm.js 한 벌 + v2.role_access 의 값. 기본값은 코드에 없다.
+/** 권한 검사 — 「권한 설정」는 lib/perm.js 한 벌 + v2.role_access 의 값. 기본값은 코드에 없다.
  *    1. 키(page.* ops.* me.* parent.*) 글자가 lib/perm.js 밖에 없다 · 화면이 키를 지어내지 않는다
  *    2. 칸 수 = 34 (원장님이 2026-09-03 에 정하신 32칸 + 2026-09-09 「학생학부모는 따로 권한두기」의 학교별 표 둘(me.grid · parent.grid) — 이름이 바뀌면 그 답이 사라진다)
  *    3. DB 의 v2.can 은 줄이 없으면 거짓(fail closed) · principal 은 role_access 에 못 들어간다

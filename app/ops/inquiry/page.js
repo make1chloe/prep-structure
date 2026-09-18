@@ -13,7 +13,7 @@ export default async function Inquiry() {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">☎️</span>신규 상담은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);
   let d;
-  try { const date = await today(sb); const board = await inquiryBoard(sb, date); if (decide(me.role, board.access ?? [], OPS.inquiry) !== true) return frame(<div className="card" data-card="inquiry-closed"><div className="ctitle"><span className="cemo">☎️</span>신규 상담</div><p className="note">신규 상담이 안 열려 있습니다. 설정 「누가 무엇을 보나」</p></div>); d = { date, board }; }
+  try { const date = await today(sb); const board = await inquiryBoard(sb, date); if (decide(me.role, board.access ?? [], OPS.inquiry) !== true) return frame(<div className="card" data-card="inquiry-closed"><div className="ctitle"><span className="cemo">☎️</span>신규 상담</div><p className="note">신규 상담이 안 열려 있습니다. 설정 「권한 설정」</p></div>); d = { date, board }; }
   catch (e) { { console.error("[화면] 신규 상담 못 엶:", e); return frame(<Oops what="신규 상담" e={e} />); } }
   return frame(<Board d={d} />);
 }

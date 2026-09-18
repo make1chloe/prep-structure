@@ -25,4 +25,15 @@ ok(`화면 글에 남은 사전 말 ≤ ${MAX}(지금 ${total} · 내려만 간�
 const KID = files.filter((f) => /^(app\/me\/|app\/parent\/)/.test(f) || f === "app/_shell/asband.js" || f === "lib/mine-plan.js");
 const kidBad = KID.filter((f) => toks(f).some((t) => /학부모/.test(t)));
 ok(`아이·학부모 화면 ${KID.length}파일의 글에 「학부모」 0 · 「부모님」으로 쓴다(원장 화면은 그대로)`, kidBad.length === 0, kidBad.join(", "));
+
+/* (어86) **이름은 명사로** — 원장님 2026-09-18 「이런 말 쓰지말고 명사화하라고 한거 아직 안한거지?」
+   「누가 무엇을 보나」를 사전에 안 올려 둬서 위의 사전 검사가 셀 수조차 없었다. 그래서 **꼴 자체**를 잡는다.
+   카드 제목(ctitle)·메뉴 이름은 의문문·서술문이 될 수 없다 — 명사(구)여야 한다.
+   ⚠️ 빈 자리 안내문(「…은 학원 사람의 화면입니다」)은 **이름이 아니라 글**이라 여기서 안 본다(ctitle 만 본다). */
+const TITLE = /ctitle">(?:<span className="cemo">[^<]*<\/span>)?([^<{]+)/g;
+const 서술형 = /(나|까|는가|가요|나요|ㄹ까|를까|은가)\s*(·|$)/;
+const nameBad = [];
+for (const f of files) { const src = readFileSync(f, "utf8"); let m;
+  while ((m = TITLE.exec(src))) { const t = m[1].trim(); if (t && 서술형.test(t)) nameBad.push(`${f}: ${t}`); } }
+ok(`카드 제목이 **명사**다 · 의문문·서술문 0(「누가 무엇을 보나」 ✗ → 「권한 설정」 ○)`, nameBad.length === 0, nameBad.slice(0, 5).join(" · "));
 console.log(`\n■ 말 사전 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

@@ -1,6 +1,6 @@
 /** (어64) 직원 계정 검사 — 원장님 2026-09-16 「원장말고 다른 테스트 계정도 추가해줘 역할 선생님 권한 - 설정페이지에서 열람페이지 조절가능하게」 · 「근데 선생님조교어디서추가해」.
  *  지키는 것 일곱: ① 손은 lib/staff.js 하나 ② 원장 역할은 못 준다 ③ 지우지 않는다(대전제-6) ④ 아이디 꼴이 표(0171)와 글자까지 같다
- *  ⑤ 그 아이디로 로그인이 된다(toLoginEmail 을 실제로 불러 본다) ⑥ 원장만 연다 ⑦ 볼 것은 여기서 안 정한다(🔐 누가 무엇을 보나 한 곳 · 원칙-1). */
+ *  ⑤ 그 아이디로 로그인이 된다(toLoginEmail 을 실제로 불러 본다) ⑥ 원장만 연다 ⑦ 볼 것은 여기서 안 정한다(🔐 권한 설정 한 곳 · 원칙-1). */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { STAFF_ID, toLoginEmail, INTERNAL_DOMAIN, ROLES } from "../lib/roles.js";
@@ -64,8 +64,8 @@ ok("설정 화면에 가는 길이 있다(원장에게만 보인다)", /href="\/
 // ⑦ 볼 것은 여기서 안 정한다(원칙-1)
 const board = text("app/settings/staff/board.js");
 const perm = [page, acts, board].filter((s) => /role_access|lib\/perm|setAccess/.test(s)).length;
-ok("직원 계정 화면은 볼 것을 안 정한다(🔐 누가 무엇을 보나 한 곳 · 원칙-1)", perm === 0);
-ok("옆 화면(🔐 누가 무엇을 보나)으로 가는 길이 있다", /href="\/settings\/access"/.test(page));
+ok("직원 계정 화면은 볼 것을 안 정한다(🔐 권한 설정 한 곳 · 원칙-1)", perm === 0);
+ok("옆 화면(🔐 권한 설정)으로 가는 길이 있다", /href="\/settings\/access"/.test(page));
 ok("역할 세그는 누르면 먼저 바뀌고 실패면 되돌린다(속도-3)", /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: k \}\)\)/.test(board) && /setRoleOf\(\(o\) => \(\{ \.\.\.o, \[p\.id\]: prev \}\)\)/.test(board));
 ok("첫 비밀번호는 발급 뒤 화면에 뜬다(원장님이 그 자리에서 불러 주신다 · 대전제-22)", /staff-made/.test(board) && /made\.password/.test(board));
 
