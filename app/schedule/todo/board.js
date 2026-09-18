@@ -194,8 +194,8 @@ export default function Board({ d }) {
           {/* (어90b) 원장님 2026-09-18 「업무 칸반 서로 이동이 안돼 가로 순서변경」 — 칸 순서 손 ◀▶ 이
               **✏️ 수정 양식을 열어야만** 나와서 못 찾으셨다. 칸 머리로 꺼낸다(누르는 자리에 둔다 · 대전제-22). */}
           {kinds && <span className="ord" data-g="kind-order" style={{ marginLeft: 4 }}>
-            <button className="btn sm gho icb" type="button" disabled={pending || i === 0} data-act="kind-up" {...icon(`${col.name} 앞으로`)} onClick={() => run(() => kindOrderAct(col.kind, -1), "앞으로 ✓")}>◀</button>
-            <button className="btn sm gho icb" type="button" disabled={pending || i === cols.length - 1} data-act="kind-down" {...icon(`${col.name} 뒤로`)} onClick={() => run(() => kindOrderAct(col.kind, 1), "뒤로 ✓")}>▶</button>
+            <button type="button" disabled={pending || i === 0} data-act="kind-up" {...icon(`${col.name} 앞으로`)} onClick={() => run(() => kindOrderAct(col.kind, -1), "앞으로 ✓")}>◀</button>
+            <button type="button" disabled={pending || i === cols.length - 1} data-act="kind-down" {...icon(`${col.name} 뒤로`)} onClick={() => run(() => kindOrderAct(col.kind, 1), "뒤로 ✓")}>▶</button>
           </span>}
           {kinds && <button className="btn sm gho icb" type="button" disabled={pending} data-act="kind-edit" aria-pressed={kindOpen === col.kind} {...icon("분류 수정")} onClick={() => openKind(col)}>{ACT.edit}</button>}</div>
         {kindOpen === col.kind && kindForm(col)}
