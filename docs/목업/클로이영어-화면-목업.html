@@ -512,8 +512,15 @@ button.btn.lockb::after{content:"";position:absolute;left:0;bottom:0;height:3px;
 /* (어77) 아이·학부모 상단 단추 셋(🔄 새로고침 · 🔔 알림 설정 · ❓ 사용 가이드) — 원장님 「최대한 스크롤늘리지 않는 방향으로」.
    아이·학부모에겐 탭이 없어 이 자리가 비어 있다 · 좁게 세워 폰에서도 **첫 줄 안**에 들어간다(줄이 안 는다) */
 .appbar .mebar{display:flex;align-items:center;gap:4px}
+/* (어78) 📌 퀵 메모 — 원장님 2026-09-17 「어느 페이지에서나 갑자기 … 할 일을 추가」. 뜬 창이 아니라 **상단 띠의 한 줄**로 펴진다
+   (뜬 창은 화면을 가리고 닫는 손이 하나 더 는다) · 닫으면 자리도 같이 사라져 스크롤이 안 는다 */
+.appbar .quickbox{order:3;flex-basis:100%;margin-top:6px;padding:8px;border:1px solid var(--hair);border-radius:8px;background:var(--surface)}
+.appbar .quickbox .wv{margin:0}
 .appbar .mebar .btn{min-width:32px;padding:2px 6px;font-size:var(--fs-5);line-height:1}
 @media(max-width:760px){.appbar .mebar{gap:2px}.appbar .mebar .btn{min-width:26px;padding:2px 3px}.appbar:has(.mebar){column-gap:8px}.appbar:has(.mebar) .pill{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+/* (어78) 📌 이 하나 늘자 폰 첫 줄이 넘쳐 **로그아웃이 아래로 밀렸다**(걷기 (거)(려) 가 잡았다 · 상단 띠 155px).
+   첫 줄은 「이름 · 칩 … 📌 · 로그아웃」 한 줄이어야 한다 — 사이를 좁히고 이름·칩이 줄어들게 한다 */
+@media(max-width:760px){.appbar:has([data-act=quick-open]){column-gap:8px}.appbar:has([data-act=quick-open]) .brand,.appbar:has([data-act=quick-open]) .pill{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.appbar [data-act=quick-open]{min-width:26px;padding:2px 3px}}
 .donehead{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:8px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--sunk);font-size:var(--fs-2);color:var(--mid);flex-wrap:wrap}
 .donehead b{color:var(--ink)}
 .donehead .ar{transition:transform .15s;color:var(--faint)}

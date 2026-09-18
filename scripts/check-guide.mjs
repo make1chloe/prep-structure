@@ -43,8 +43,8 @@ ok("APP_CC 는 한 곳에서 나오고(lib/item-plan) 화면·설정이 그것�
 ok("🃏 클래스카드 주소는 lib/cc-plan CC_URL 한 곳 · 확장(extension)의 CC 와 같다(둘이 어긋나면 여기서 잡는다)",
   /export const CC_URL = "([^"]+)"/.test(ccPlan) && /const CC = "([^"]+)"/.test(ext)
   && /export const CC_URL = "([^"]+)"/.exec(ccPlan)[1] === /const CC = "([^"]+)"/.exec(ext)[1]);
-ok("07 이 읽는 두 조회가 by_app 을 싣는다(판이 선 날 · 아직 안 선 날 둘 다 · 한쪽만 실으면 줄마다 다르게 보인다)",
-  (day.match(/learn_items\(name,by_app\)/g) ?? []).length === 2);
+ok("07 이 읽는 두 조회가 항목 표를 통째로 싣는다(learn_items(*) · 판이 선 날 · 아직 안 선 날 둘 다) — **칸 이름을 박지 않는다**((어78) 사고: 칸을 더한 SQL 이 실 DB 에 들기 전에 앱이 올라가 오늘 화면이 죽었다)",
+  (strip(day).match(/learn_items\(\*\)/g) ?? []).length === 2 && !/learn_items\(name/.test(day));
 ok("SubmitLine 은 완료 뒤에 뜬다 — 다만 반려받았거나 이미 낸 것이 있으면 그 전에도 뜬다(다시 내는 길)",
   /const step = nextStep\(item\)/.test(cards) && /step === "photo" \|\| Boolean\(rj\) \|\| mine\.length > 0/.test(cards) && /if \(!id \|\| \(!send && step !== "cc"\)\) return null/.test(cards));
 ok("클래스카드 줄은 🃏 단추 하나(새 창) · 교재 줄은 사진·음성 · 둘을 한 자리에서 가른다",
@@ -94,8 +94,8 @@ ok("가이드는 DB 를 안 읽는다(조회 0 · 속도)", !/db\(sb\)|\.from\(|
 console.log("\n■ 원장님이 켜신다 — 설정 › 루틴 항목마다");
 ok("항목 양식에 🃏 클래스카드 칩(켜고 끈다) · 켠 값이 손까지 이어진다",
   /data-act="item-cc"/.test(rboard) && /byApp: f\.byApp \|\| null/.test(ract) && /by_app: byApp \|\| null/.test(rlib));
-ok("더하기·수정 둘 다 by_app 을 적는다(한쪽만 적으면 수정할 때 꺼진다)",
-  (rlib.match(/by_app: byApp \|\| null/g) ?? []).length === 2 && /byApp = null \}\) \{/.test(rlib));
+ok("더하기·수정 **둘 다** 적는다(한쪽만 적으면 수정할 때 꺼진다) · 다만 **한 문장에 같이 싣지 않는다**(setItemApp 한 벌 · (어78) 사고 · 대전제-27)",
+  (rlib.match(/await setItemApp\(/g) ?? []).length === 2 && /async function setItemApp/.test(rlib) && /byApp = null \}\) \{/.test(rlib));
 
 console.log("\n■ 걷기가 눈으로 본다");
 ok("걷기 씨앗에 클래스카드 항목이 하나 있다(by_app = cc)", /'zz_클카 문장훈련'.*'cc'/.test(seed));

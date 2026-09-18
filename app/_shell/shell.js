@@ -4,9 +4,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { menuFor } from "@/lib/menu";
-import { ROLE_NAME, ROLES } from "@/lib/roles";
+import { ROLE_NAME, ROLES, isStaff } from "@/lib/roles";
 import Tabs from "./tabs.js";
 import MeBar from "./mebar.js";
+import QuickMemo from "./quickmemo.js";   // (어78) 📌 어느 화면에서나 한 줄 적어 업무로
 import Going from "./going.js";
 export default function Shell({ me, rows, children }) {
   const items = me ? menuFor(me.role, rows) : [];
@@ -17,6 +18,7 @@ export default function Shell({ me, rows, children }) {
         <Link prefetch={false} className="brand" href="/">클로이영어</Link>
         {me && <span className="pill">{me.name}{mine ? "" : ` · ${ROLE_NAME[me.role] ?? "역할 없음"}`}</span>}{/* (어77) 아이·학부모 화면엔 역할이 하나뿐이라 이름만 — 그 자리에 단추 셋이 선다(폰 상단 띠가 한 줄로 남게) */}
         {items.length > 0 && <Tabs items={items} />}
+        {me && isStaff(me.role) && <QuickMemo />}{/* (어78) 📌 퀵 메모 — 학원 사람만 · 표를 안 읽는다(속도-4) */}
         {mine && <MeBar home={me.role === ROLES.PARENT ? "/parent" : "/me"} />}{/* (어77) 아이·학부모는 탭이 없어 이 자리가 비어 있다 — 🔄 새로고침 · 🔔 알림 설정 · ❓ 사용 가이드 */}
         <span style={{ flex: 1 }} />
         {me && <form action="/logout" method="post"><button className="btn sm" type="submit">로그아웃</button></form>}

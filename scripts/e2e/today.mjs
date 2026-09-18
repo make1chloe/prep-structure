@@ -1408,9 +1408,34 @@ const q05a = requestsSince(at05), rows05 = await td.locator("[data-g=table] [dat
 at05 = mark(); await td.locator("button[data-act=view-board]").click(); await p.waitForTimeout(1200);
 const q05b = requestsSince(at05);
 ok(`⊞표 ↔ ▦보드 · 보기를 바꿔도 서버 조회 0건(표 ${q05a} · 보드 ${q05b}, 속도-1 예외 · 9/5 ㉖) · 표의 줄 수 = 하는 업무 ${openBefore}`, q05a === 0 && q05b === 0 && rows05 === openBefore && (await td.locator("[data-g=board]").count()) === 1, `${q05a}/${q05b} · 줄 ${rows05}`);
-await td.locator("button[data-act=new-open]").click(); await td.locator("button[data-act=new-note]").click();
-await td.locator("[data-g=new-note] input[aria-label='업무']").fill("zz_메모 업무"); await td.locator("[data-g=new-note] input[aria-label=날짜]").fill(plus(-1)); await td.locator("button[data-act=note-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("새로 만들기 → 메모(어제 마감) → 메모 2 · 🔥 마감 지남 ≥ 4 · 카드가 nb-hot", (await colCount("note")) === "2" && Number((await td.locator("[data-g=overdue]").textContent()).replace(/\D/g, "")) >= 4 && (await td.locator("[data-g=card][data-kind=note].nb-hot").count()) === 1);
+// (어78) 📌 퀵 메모 — 05 상단 한 줄(클릭 0 · 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」)
+const qm = td.locator("[data-g=quickmemo][data-where=page]");
+ok("(어78) 05 맨 위에 퀵 메모 한 줄이 이미 떠 있다(「새로 만들기」를 안 눌러도) · 옛 「📋 메모」 양식은 없다",
+  (await qm.locator("[data-g=quick-title]").count()) === 1 && (await td.locator("[data-act=new-note]").count()) === 0);
+await qm.locator("[data-g=quick-title]").fill("zz_메모 업무"); await qm.locator("[data-act=quick-more]").click();
+await qm.locator("input[aria-label=마감]").fill(plus(-1)); await qm.locator("[data-act=quick-save]").click(); await p.waitForSelector("[data-g=quick-msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("퀵 메모(어제 마감) → 메모 2 · 🔥 마감 지남 ≥ 4 · 카드가 nb-hot", (await colCount("note")) === "2" && Number((await td.locator("[data-g=overdue]").textContent()).replace(/\D/g, "")) >= 4 && (await td.locator("[data-g=card][data-kind=note].nb-hot").count()) === 1);
+// (어78) 마감을 안 적어도 들어간다(원장님 「필요하면 마감 날짜도」 — 떠오른 것부터 적는 자리라 날짜를 안 묻는다)
+await qm.locator("[data-g=quick-title]").fill("zz_마감 없는 메모"); await qm.locator("[data-act=quick-save]").click(); await p.waitForSelector("[data-g=quick-msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("(어78) 마감 없이 넣어도 업무에 선다 · 「마감 없음」으로 보인다(오늘로 몰래 안 넣는다 · 대전제-0)",
+  (await colCount("note")) === "3" && (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).textContent()).includes("마감 없음"),
+  (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_마감 없는 메모" }).textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 120));
+// (어78) **어느 화면에서나** — 대시보드에서 상단 띠 📌 로 적고, 05 로 돌아오면 그 줄이 서 있다(원장님 「가장 중요한 기능」 셋 가운데 둘)
+{
+  await p.goto(`${APP}/`); await p.waitForLoadState("networkidle").catch(() => {});
+  const bar = p.locator("header.appbar");
+  ok("(어78) 📌 퀵 메모 단추는 학원 사람 화면 어디에나 있다(대시보드에서도) · 누르기 전엔 칸이 없다",
+    (await bar.locator("[data-act=quick-open]").count()) === 1 && (await bar.locator("[data-g=quickmemo]").count()) === 0);
+  await bar.locator("[data-act=quick-open]").click();
+  const qb = bar.locator("[data-g=quickmemo][data-where=bar]");
+  await qb.locator("[data-g=quick-title]").fill("zz_어디서나 메모"); await qb.locator("[data-act=quick-save]").click();
+  await p.waitForSelector("[data-g=quick-msg]", { timeout: 15000 }); await p.waitForTimeout(800);
+  ok("(어78) 대시보드에서 적은 메모가 들어갔다(표를 안 읽는 띠라 아이 고르개는 없다 · 속도-4)",
+    (await qb.locator("[data-g=quick-msg]").textContent()).includes("업무에 넣었어요") && (await qb.locator("select[aria-label=아이]").count()) === 0);
+  await p.goto(`${APP}/schedule/todo`); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어78) 05 업무에 그 줄이 서 있다 — 퀵 메모와 05 가 **같은 손**(noteAct)을 쓴다(원칙-1)",
+    (await td.locator("[data-g=card][data-kind=note]", { hasText: "zz_어디서나 메모" }).count()) === 1);
+}
 await td.locator("button[data-act=new-open]").click(); await td.locator("button[data-act=new-repeat]").click();
 await td.locator("[data-g=new-repeat] input[aria-label='반복 이름']").fill("zz_수납 안내 보내기"); await td.locator("[data-g=new-repeat] input[aria-label=며칠]").fill(String(Number(todayText.slice(8, 10)))); await td.locator("button[data-act=repeat-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("반복(매달 오늘 날짜 · 3일 전부터) → 「오늘 걸리는 것 1건」 · 반복 칸 1 · 왜 「매달 N일 · 저절로」 · 규칙 꼬리표", (await td.locator("[data-g=msg]").textContent()).includes("오늘 걸리는 것 1건") && (await colCount("repeat")) === "1" && (await td.locator("[data-g=card][data-kind=repeat]").textContent()).includes(" · 저절로"), (await td.locator("[data-g=msg]").textContent()));

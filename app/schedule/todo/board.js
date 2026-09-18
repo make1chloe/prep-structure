@@ -4,9 +4,10 @@
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import { useMemo, useState, useTransition } from "react";
+import QuickMemo from "../../_shell/quickmemo.js";   // (어78) 📌 퀵 메모 한 벌 — 상단 띠와 05 가 같은 부품(원칙-1)
 import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
 import { useRouter } from "next/navigation";
-import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
+import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
 import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -14,7 +15,7 @@ export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date;
   const [view, setView] = useState("board"); const [school, setSchool] = useState("all"); const [show, setShow] = useState({}); const [sel, setSel] = useState(null); const [nw, setNw] = useState(null); const [printing, setPrinting] = useState(false); const [behindOpen, setBehindOpen] = useState(null);
-  const [ut, setUt] = useState({ studentId: "", topicId: "", qCount: "25" }); const [note, setNote] = useState({ title: "", dueOn: today, dueTime: "", studentId: "" }); const [rp, setRp] = useState({ name: "", every: "month", day: "25", weekday: "1", lead: String(b.rules?.["todo.repeat_lead"] ?? 3), days: "7", left: "5" });
+  const [ut, setUt] = useState({ studentId: "", topicId: "", qCount: "25" }); const [rp, setRp] = useState({ name: "", every: "month", day: "25", weekday: "1", lead: String(b.rules?.["todo.repeat_lead"] ?? 3), days: "7", left: "5" });
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const all = useMemo(() => cardsOf(b), [b]);                       // 한 번 센다 — 보기·거르개·차례는 이 목록을 다르게 그릴 뿐(재조회 0)
   const [only, setOnly] = useState(d.only ?? []);   // 04 「단계 👉」 — 그 자료만((가)-④) · 「전체 보기 ✕」로 푼다
@@ -27,7 +28,8 @@ export default function Board({ d }) {
   const schoolPick = (v) => setSchool(v);
   const Card = ({ c }) => <div className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} onClick={() => setSel(c.id)} aria-pressed={sel === c.id}>
     {c.todoId ? <PickBox pick={pk} id={c.id} label={`${c.title} 고르기`} /> : null}<span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
-    <div className={"nb-prop" + (isOverdue(c, today) ? " nb-over" : "")}><span className="nb-pi">📅</span><span className="nb-pv" data-g="due">{dueLine(c, today)}</span></div>
+    <div className={"nb-prop" + (isOverdue(c, today) ? " nb-over" : "")}><span className="nb-pi">📅</span><span className="nb-pv" data-g="due">{c.startOn ? `${monthDay(c.startOn)} 부터 · ` : ""}{dueLine(c, today)}</span></div>
+    {c.files?.length > 0 && <div className="nb-prop"><span className="nb-pi">📎</span><span className="nb-pv" data-g="card-files">{c.files.map((f) => <a key={f.id} className="tag" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" style={{ marginRight: 4 }}>{f.name}</a>)}</span></div>}{/* (어78) 붙인 것이 안 보이면 화면이 거짓말한다(대전제-0) */}
     {(c.school || c.n != null) && <div className="nb-prop"><span className="nb-pi">🏛️</span><span className="nb-pv">{c.school && <span className={"nb-pill " + (c.level === "high" ? "nb-blue" : c.level === "middle" ? "nb-green" : "")}>{schoolTag(c)}</span>}{c.n != null && <span className="nb-pill">{c.kind === "print" ? `${c.pages}장 · ` : ""}{c.n}명</span>}</span></div>}
     {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.map((s) => { const tid = stepTodoOf(all, c.material?.id, s.step); return <button key={s.step} type="button" className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"} disabled={pending || !tid} style={{ border: 0, background: "none", padding: 0, font: "inherit", cursor: tid ? "pointer" : "default" }} onClick={(x) => { x.stopPropagation(); if (!tid) return; run(() => (s.done ? undoAct(tid) : doneAct(tid)), s.done ? `${s.name} 취소 · 카드가 제 칸으로 돌아갑니다` : `${s.name} ✓ · 카드가 다음 칸으로 갑니다`); }}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</button>; })}</span></div>}
     {c.kind === "solve" && <div className="nb-prop"><span className="nb-pi">✍️</span><span className="nb-pv" data-g="submit">제출 {c.submitted ?? 0}/{c.n}{c.waiting?.length ? ` · 아직: ${c.waiting.join(", ")}` : " · 다 냈습니다"}</span></div>}
@@ -70,6 +72,7 @@ export default function Board({ d }) {
       <button type="button" className="btn sm gho" disabled={pending || !pickedCards.length} data-act="drop-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "drop"), (r) => `${r.n}개 내렸습니다(지우지 않습니다)`, pk.clear)}>내림 {pickedCards.length}</button>
     </PickBar>
     <div className="wv" style={{ margin: "0 0 8px" }}><span className="spacer" /><Sibs here="/schedule/todo" /></div>
+    <div className="card" data-g="quick-card" style={{ marginBottom: 8 }}><QuickMemo inline students={b.students ?? []} /></div>{/* (어78) 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」 — 상단 띠 📌 와 **같은 부품**이다(원칙-1) */}
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -82,7 +85,6 @@ export default function Board({ d }) {
       <span className="fl" style={{ margin: 0 }}>새로 만들기</span>
       <button className="btn sm" type="button" data-act="new-material" onClick={() => setNw("material")}>📄 자료</button>
       <button className="btn sm" type="button" data-act="new-unit-test" onClick={() => setNw("unit_test")}>✍️ 단원평가 출제</button>
-      <button className="btn sm" type="button" data-act="new-note" onClick={() => setNw("note")}>📋 메모</button>
       <button className="btn sm" type="button" data-act="new-repeat" onClick={() => setNw("repeat")}>⏰ 반복</button>
       <span className="spacer" /><button className="btn sm" type="button" onClick={() => setNw(null)}>닫기</button></div></div>}
     {nw === "material" && <div className="card" data-g="new-material" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📄</span>자료 · 시험 고르기</div>
@@ -92,11 +94,6 @@ export default function Board({ d }) {
         <select value={ut.topicId} aria-label="문법 분류" onChange={(x) => setUt({ ...ut, topicId: x.target.value })} style={{ width: "auto" }}><option value="">문법 분류</option>{(b.topics ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
         <input type="text" inputMode="numeric" className="scr" value={ut.qCount} aria-label="문항 수" onChange={(x) => setUt({ ...ut, qCount: x.target.value.replace(/\D/g, "") })} />
         <button className="btn pri sm" type="button" disabled={pending || !ut.studentId || !ut.topicId} data-act="unit-test-save" onClick={() => run(() => unitTestAct({ studentId: ut.studentId, topicId: ut.topicId, qCount: Number(ut.qCount) || 25 }), "낼 것으로 섰습니다. 출제하면 「출제 완료」를 누르세요", () => { setNw(null); setUt({ studentId: "", topicId: "", qCount: "25" }); })}>저장</button></div></div>}
-    {nw === "note" && <div className="card" data-g="new-note" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📋</span>메모</div>
-      <div className="wv"><input type="text" value={note.title} placeholder="무엇을" aria-label="업무" onChange={(x) => setNote({ ...note, title: x.target.value })} style={{ flex: "1 1 200px" }} />
-        <input type="date" className="dt" value={note.dueOn} aria-label="날짜" onChange={(x) => setNote({ ...note, dueOn: x.target.value })} style={{ width: "auto" }} /><input type="time" value={note.dueTime} aria-label="시각" onChange={(x) => setNote({ ...note, dueTime: x.target.value })} style={{ width: "auto" }} />
-        <select value={note.studentId} aria-label="아이" onChange={(x) => setNote({ ...note, studentId: x.target.value })} style={{ width: "auto" }}><option value="">아이 없음</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-        <button className="btn pri sm" type="button" disabled={pending || !note.title.trim() || !note.dueOn} data-act="note-save" onClick={() => run(() => noteAct(note), "메모를 넣었습니다", () => { setNw(null); setNote({ title: "", dueOn: today, dueTime: "", studentId: "" }); })}>저장</button></div></div>}
     {nw === "repeat" && <div className="card" data-g="new-repeat" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">⏰</span>반복</div>
       <div className="wv"><input type="text" value={rp.name} placeholder="수납 안내 보내기" aria-label="반복 이름" onChange={(x) => setRp({ ...rp, name: x.target.value })} style={{ flex: "1 1 200px" }} />
         <div className="seg sm" data-g="every"><button type="button" aria-pressed={rp.every === "month"} onClick={() => setRp({ ...rp, every: "month" })}>매달</button><button type="button" aria-pressed={rp.every === "week"} onClick={() => setRp({ ...rp, every: "week" })}>매주</button>{REPEAT_EVENTS.map(([k, name]) => <button key={k} type="button" aria-pressed={rp.every === k} onClick={() => setRp({ ...rp, every: k })}>{name}</button>)}</div>

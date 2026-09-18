@@ -156,16 +156,12 @@ if (!(await p.locator("[data-g=row], [data-g=card]").count())) 적기("빈화면
 await 누름(p.locator("[data-act=view-board]"), "05", "▦ 보드");
 await 찍기("할일-보드");
 await 누름(p.locator("[data-act=view-table]"), "05", "⊞ 표");
-// 새 업무(글)
-if (await 누름(p.locator("[data-act=new-open]"), "05", "+ 새 업무")) {
-  const nm = p.locator("[data-g=new-menu]");
-  if (await nm.locator("[data-act=new-note]").count()) {
-    await 누름(nm.locator("[data-act=new-note]"), "05", "글로 적기");
-    const inp = p.locator("[data-g=new-note] input, input[aria-label='업무']").first();
-    if (await inp.count()) { await inp.fill("기말 대비 오답노트 양식 인쇄해서 반별로 나눠 두기");
-      await 누름(p.locator("[data-act=note-save]"), "05", "저장"); }
-    else 적기("막힘", "05", "「글로 적기」를 눌렀는데 적을 칸이 안 떴습니다");
-  } else 적기("길없음", "05", "+ 새 업무 에 「글로 적기」가 없습니다");
+// 새 업무(글) — (어78) 맨 위 퀵 메모 한 줄. 누를 것 없이 바로 적는다
+{
+  const inp = p.locator("[data-g=quickmemo] [data-g=quick-title]").first();
+  if (await inp.count()) { await inp.fill("기말 대비 오답노트 양식 인쇄해서 반별로 나눠 두기");
+    await 누름(p.locator("[data-act=quick-save]"), "05", "넣기"); }
+  else 적기("길없음", "05", "05 맨 위에 퀵 메모 칸이 없습니다");
 }
 // 단원평가 내기
 if (await p.locator("[data-act=new-unit-test]").count()) {

@@ -8,7 +8,7 @@ import { ruleMap } from "@/lib/rule";
 import { myStudent } from "@/lib/arrival";
 import { myChildren } from "@/lib/parent";
 import { checkFile, extOf, pathFor } from "@/lib/files-plan";
-import { recordFile, attachFile, storagePut } from "@/lib/files";
+import { recordFile, attachFile, attachTodo, storagePut } from "@/lib/files";
 export const dynamic = "force-dynamic";
 const say = (code, msg) => Response.json({ ok: false, msg }, { status: code });
 export async function POST(req) {
@@ -17,7 +17,7 @@ export async function POST(req) {
   let fd; try { fd = await req.formData(); } catch { return say(400, "파일이 없습니다(multipart)"); }
   const file = fd.get("file"); if (!file || typeof file === "string") return say(400, "파일이 없습니다");
   const mime = String(fd.get("mime") || file.type || ""), name = String(file.name || "파일"), bytes = file.size, note = String(fd.get("note") ?? "").slice(0, 200) || null, shrunk = String(fd.get("shrunk")) === "1";
-  const want = String(fd.get("student") ?? "").trim() || null, item = String(fd.get("item") ?? "").trim() || null;
+  const want = String(fd.get("student") ?? "").trim() || null, item = String(fd.get("item") ?? "").trim() || null, todo = String(fd.get("todo") ?? "").trim() || null;   // (어78) 📌 퀵 메모·업무 줄에 붙이기
   const [date, rules] = await Promise.all([today(sb), ruleMap(sb, ["file."])]);
   const why = checkFile({ name, mime, bytes }, { maxMb: Number(rules["file.max_mb"] ?? 4), audioMaxMb: Number(rules["file.audio_max_mb"] ?? 20) }); if (why) return say(400, why);   // (어76) 음성은 제 문턱
   let studentId = null;
@@ -28,11 +28,15 @@ export async function POST(req) {
   else if (me.role === ROLES.PARENT) { const kids = await myChildren(sb); const k = kids.find((x) => x.id === want) ?? (kids.length === 1 ? kids[0] : null); if (!k) return say(400, kids.length > 1 ? "누구 학교 것인지 고르세요" : "이어진 아이가 없습니다"); studentId = k.id; if (item) return say(403, "학부모는 숙제에 붙이지 못합니다"); }
   else return say(403, "올릴 수 없는 계정입니다");
   if (item && !/^[0-9a-f-]{36}$/.test(item)) return say(400, "숙제 줄이 아닙니다");
+  // (어78) 업무 줄에 붙이는 것은 학원 사람뿐이다 — 붙이는 자리(file_link staff_todo_link · 0178)가 다시 본다(여기만 믿지 않는다)
+  if (todo && !isStaff(me.role)) return say(403, "업무에 붙이지 못합니다");
+  if (todo && !/^[0-9a-f-]{36}$/.test(todo)) return say(400, "업무 줄이 아닙니다");
   const path = pathFor(date, crypto.randomUUID(), extOf(name, mime));
   try {
     await storagePut(serviceClient(), path, Buffer.from(await file.arrayBuffer()), mime);
     const id = await recordFile(sb, { profileId: user.id, studentId, origName: name, mime, bytes, path, shrunk, note });
     if (item) await attachFile(sb, id, item);
+    if (todo) await attachTodo(sb, id, todo);
     return Response.json({ ok: true, id, path });
   } catch (e) { return say(500, String(e?.message ?? e)); }
 }
