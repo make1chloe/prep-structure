@@ -7,17 +7,22 @@
  *     날짜·아이·첨부는 「자세히」를 펴야 나온다 — 접힌 채가 기본이라 한 줄 적고 Enter 면 끝이다.
  *  ⚠️ 상단 띠에서는 **표를 안 읽는다**(속도-4) — 그래서 아이 고르개는 이미 명단을 읽은 05 에서만 준다(students).
  *  ⚠️ 사진은 **저장한 뒤에** 붙는다(붙을 줄이 있어야 붙는다) — 저장 단추가 Upload 의 send 를 부른다. 올리는 길은 그대로 한 곳(대전제-7). */
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { noteAct, editNoteAct } from "../schedule/todo/actions.js";
 import Upload from "./upload.js";
 import { ACT } from "@/lib/emoji";
+import { kindList } from "@/lib/todo-plan";
 import { icon } from "./icon.js";
-const EMPTY = { title: "", dueOn: "", startOn: "", dueTime: "", studentId: "" };
+const EMPTY = { title: "", kind: "note", dueOn: "", startOn: "", dueTime: "", studentId: "" };
 /** (어80) `edit` 를 주면 **같은 양식이 고치기**가 된다 — 넣기와 고치기를 두 벌로 그리지 않는다(원칙-1 · 대전제-19) */
-const formOf = (c) => (c ? { title: c.title ?? "", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentId: c.studentId ?? "" } : EMPTY);
-export default function QuickMemo({ students = null, inline = false, edit = null, onSaved = null, onCancel = null }) {
+const formOf = (c) => (c ? { title: c.title ?? "", kind: c.kind ?? "note", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentId: c.studentId ?? "" } : EMPTY);
+/** (어88) `kinds` — 업무 종류 고르개(원장님 2026-09-18 「근데 업무종류를 고르는건 가능하게해야함」).
+ *  ⚠️ **상단 띠 📌 는 어느 화면에서나 뜨므로 표를 읽지 않는다**(속도-4) — 화면이 읽은 것을 내려주고, 안 주면 씨앗(KINDS)으로 그린다.
+ *  씨앗에는 원장님이 새로 만드신 분류가 없으니, 05 에서는 반드시 내려준다(05 는 이미 읽은 값이라 조회 0). */
+export default function QuickMemo({ students = null, kinds = null, inline = false, edit = null, onSaved = null, onCancel = null }) {
   const router = useRouter(); const [open, setOpen] = useState(inline);
+  const kindOpts = useMemo(() => kindList(kinds).filter((k) => k.state === "active" && k.showOn !== "schedule"), [kinds]);
   const [f, setF] = useState(() => formOf(edit)); const [more, setMore] = useState(Boolean(edit));
   const [err, setErr] = useState(""); const [msg, setMsg] = useState(""); const [pending, start] = useTransition();
   const box = useRef(null), sendRef = useRef(null);
@@ -48,6 +53,7 @@ export default function QuickMemo({ students = null, inline = false, edit = null
     <>
       {bar}
       {more && <div className="wv" data-g="quick-more" style={{ marginTop: 6 }}>
+        <label className="fl" style={{ margin: 0 }}>종류</label><select value={f.kind} aria-label="업무 종류" data-g="quick-kind" onChange={up("kind")} style={{ width: "auto" }}>{kindOpts.map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>
         <label className="fl" style={{ margin: 0 }}>시작일</label><input type="date" className="dt" value={f.startOn} aria-label="시작일" onChange={up("startOn")} style={{ width: "auto" }} />
         <label className="fl" style={{ margin: 0 }}>마감</label><input type="date" className="dt" value={f.dueOn} aria-label="마감" onChange={up("dueOn")} style={{ width: "auto" }} />
         <input type="time" value={f.dueTime} aria-label="시각" onChange={up("dueTime")} style={{ width: "auto" }} />

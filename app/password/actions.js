@@ -26,7 +26,7 @@ async function change(sb, me, pw) {
   const { error } = await sb.auth.updateUser({ password: pw });
   if (error) return back("바꾸지 못했습니다: " + error.message);
   const { error: e1 } = await db(sb).rpc("password_changed");   // 결과를 본다 — supabase 는 오류를 던지지 않고 돌려준다(안 보면 조용히 지나간다)
-  if (e1) return back("비밀번호는 바뀜 · 「처음 비밀번호」 표시를 못 내림: " + saidBy(e1.message));
+  if (e1) return back("비밀번호는 바뀜 · 「처음 비밀번호」 표시를 못 삭제함: " + saidBy(e1.message));
   if (!me?.id) return homeFor(me?.role);
   const { data, error: e2 } = await db(sb).from("profiles").select("must_change_pw").eq("id", me.id).maybeSingle();
   if (e2) return back("비밀번호는 바뀜 · 내려갔는지 확인 못 함: " + saidBy(e2.message));

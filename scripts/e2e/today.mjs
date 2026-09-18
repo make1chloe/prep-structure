@@ -229,7 +229,7 @@ ok("학원 줄이 하나 섰다", (await row.locator(".half", { hasText: "기타
   ok("(어26) ✎ 로 줄 글을 고친다(대전제-19 · 원장님 9/15 「모든 항목을 추가/수정/삭제가 가능한게 기본」)", (await cls.locator(".li b").first().textContent()) === "의미 단위 구두테스트 · PSS 1-5");
   await li().locator("button[data-act=item-edit]").click(); await li().locator("input[aria-label='줄 수정']").fill("의미 단위 구두테스트 · PSS 1-4"); await li().locator("input[aria-label='줄 수정']").press("Enter"); await p.waitForTimeout(900);
   await li().locator("button[data-act=item-del]").click(); await p.waitForTimeout(900);
-  ok("(어26) ✕ 로 빼면 줄이 사라지고 「뺀 줄 1」+ 복구(지우지 않는다 · off)", (await cls.locator(".li").count()) === 0 && (await cls.locator("[data-g=off-lines]").textContent()).includes("뺀 줄 1") && (await cls.locator("[data-g=off-lines] button[data-act=item-restore]").count()) === 1);
+  ok("(어26) ✕ 로 빼면 줄이 사라지고 「삭제한 줄 1」+ 복구(지우지 않는다 · off)", (await cls.locator(".li").count()) === 0 && (await cls.locator("[data-g=off-lines]").textContent()).includes("삭제한 줄 1") && (await cls.locator("[data-g=off-lines] button[data-act=item-restore]").count()) === 1);
   await cls.locator("[data-g=off-lines] button[data-act=item-restore]").click(); await p.waitForTimeout(900);
   ok("(어26) 복구 → 줄이 돌아오고 「뺀 줄」이 사라진다", (await cls.locator(".li").count()) === 1 && (await cls.locator("[data-g=off-lines]").count()) === 0 && (await cls.locator(".li b").first().textContent()) === "의미 단위 구두테스트 · PSS 1-4"); }
 await row.locator(".half", { hasText: "기타 · 학원" }).locator(".li button[data-act=item-move]").click(); await p.waitForTimeout(800);   /* (어55) 글 단추 → 🏠 아이콘+툴팁 · 좁은 칸에서 옆 단추가 눌리던 것 */
@@ -952,10 +952,10 @@ await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).locator("but
 ok(`끝내기(4단계-5) → 「끝냈습니다. ${todayText}까지」(오늘 이은 것은 오늘까지 · 내일부터 안 쓴다 · 줄은 남는다) · 교재 칸에 「${todayText}까지」`, (await rm2.locator("[data-g=msg]").textContent()).includes(`${todayText}까지`) && (await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).locator("[data-g=book-span]").textContent()).includes(`${todayText}까지`), await rm2.locator("[data-g=msg]").textContent());
 console.log("■ 루틴 11 · 항목 자체 삭제((가)-⑨ · 남긴 것 11): ✎ → 「항목 삭제」 → 그 항목을 쓰는 줄이 모든 영역·아이에서 빠진다 · + 항목에 같은 이름이면 되살아난다");
 const gArea = rm2.locator("[data-g=area][data-area='문법']"); const nLines = await gArea.locator("[data-g=line]").count(); const firstName = (await gArea.locator("[data-g=line]").first().locator("b").first().textContent()).trim();
-await gArea.locator("[data-g=line]").first().locator("button[data-act=edit]").click(); await gArea.locator("[data-g=item-form] button[data-act=item-retire]").click(); await gArea.locator("[data-g=item-form] [data-g=sure] button[data-act=sure-yes]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.startsWith("항목을 내렸습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
-ok(`「${firstName}」 항목 삭제 → 「항목을 내렸습니다 …」 · 문법 줄 ${nLines} → ${nLines - 1}(항목째라 삭제한 것 목록에도 안 선다)`, (await gArea.locator("[data-g=line]").count()) === nLines - 1 && !(await gArea.locator("[data-g=line] b").allTextContents()).map((t) => t.trim()).includes(firstName), (await gArea.locator("[data-g=line] b").allTextContents()).join(","));
-await gArea.locator("button[data-act=add-area]").click(); await rm2.locator("[data-g=item-form] input[name=name]").fill(firstName); await rm2.locator("[data-g=item-form] button[data-act=item-save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.startsWith("내렸던 줄을 복구했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
-ok(`+ 문법 항목에 같은 이름 「${firstName}」 → 「내렸던 줄을 복구했습니다」 · 문법 줄 ${nLines}(줄은 새로 안 만든다)`, (await gArea.locator("[data-g=line]").count()) === nLines && (await gArea.locator("[data-g=line] b").allTextContents()).map((t) => t.trim()).includes(firstName), (await gArea.locator("[data-g=line] b").allTextContents()).join(","));
+await gArea.locator("[data-g=line]").first().locator("button[data-act=edit]").click(); await gArea.locator("[data-g=item-form] button[data-act=item-retire]").click(); await gArea.locator("[data-g=item-form] [data-g=sure] button[data-act=sure-yes]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.startsWith("항목 삭제 ✓"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok(`「${firstName}」 항목 삭제 → 「항목 삭제 ✓ …」 · 문법 줄 ${nLines} → ${nLines - 1}(항목째라 삭제한 것 목록에도 안 선다)`, (await gArea.locator("[data-g=line]").count()) === nLines - 1 && !(await gArea.locator("[data-g=line] b").allTextContents()).map((t) => t.trim()).includes(firstName), (await gArea.locator("[data-g=line] b").allTextContents()).join(","));
+await gArea.locator("button[data-act=add-area]").click(); await rm2.locator("[data-g=item-form] input[name=name]").fill(firstName); await rm2.locator("[data-g=item-form] button[data-act=item-save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.startsWith("삭제한 줄을 복구했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok(`+ 문법 항목에 같은 이름 「${firstName}」 → 「삭제한 줄을 복구했습니다」 · 문법 줄 ${nLines}(줄은 새로 안 만든다)`, (await gArea.locator("[data-g=line]").count()) === nLines && (await gArea.locator("[data-g=line] b").allTextContents()).map((t) => t.trim()).includes(firstName), (await gArea.locator("[data-g=line] b").allTextContents()).join(","));
 console.log("■ 루틴 11 · 🔤 시험 카드 자리 세그는 **없다**((어12) · 원장님 2026-09-13 「차라리 무조건 단어를 숙제검사 마지막에 넣어」) · 오늘 01 에서 🔤 는 숙제 검사 카드 안 맨 끝");
 ok("아이 머리에 「시작하자마자 / 다 끝내고」 세그가 없다(자리는 설정이 아니라 기본값 · 대전제-14)", (await rm2.locator("[data-g=quiz-pos]").count()) === 0);
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -1050,8 +1050,8 @@ await newC.locator("input[aria-label=금액]").fill("150000"); await newC.locato
 ok(`반 단가 150,000 / 달 · ${ymNext}-01부터(fee_rule.class_id · 13 과 같은 표) → 아직 이 달엔 없음`, (await newC.locator("[data-g=fee-edit]").textContent()).includes("단가 없음") || (await newC.locator("[data-g=fee-edit]").textContent()).includes("150,000원 / 달"), (await newC.locator("[data-g=fee-edit] b").textContent()));
 await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] input[aria-label='이 날부터']").fill(`${ymNext}-01`); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] [data-g=weekdays] button", { hasText: wd5 }).click(); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] button[data-act=schedule-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok(`다음 달 1일부터 요일 하나 더(${wd3}·${wd5}) → 「M/1부터 ${wdPair} 16:00~17:30」 알약(일~토 차례) · 지금 줄은 그대로(옛 회차는 옛 시간표)`, (await newC.locator("[data-g=next-schedule]").textContent()).includes(`${wdPair} 16:00~17:30`) && (await newC.locator("[data-g=line]").textContent()).includes(`${wd3} 16:00~17:30`), await newC.locator("[data-g=next-schedule]").textContent().catch(() => "알약 없음"));
-await newC.locator("[data-g=member] button[data-act=member-remove]").click(); await p.waitForFunction(() => /명단에서 뺐습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("빼기 → 명단 0(오늘부터 안 나온다. 줄은 어제까지로 남는다)", (await newC.locator("[data-g=member]").count()) === 0 && (await newC.locator("[data-g=line]").textContent()).endsWith("0명"));
+await newC.locator("[data-g=member] button[data-act=member-remove]").click(); await p.waitForFunction(() => /명단에서 제외/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("명단 제외 → 명단 0(오늘부터 안 나온다. 줄은 어제까지로 남는다)", (await newC.locator("[data-g=member]").count()) === 0 && (await newC.locator("[data-g=line]").textContent()).endsWith("0명"));
 await newC.locator("button[data-act=close-class]").click(); await newC.locator("[data-g=sure] button[data-act=sure-yes]").click(); await p.waitForFunction(() => /반을 닫았습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 await cb.locator("button[data-act=show-closed]").click(); await p.waitForTimeout(200);
 ok(`반 닫기 → 반 ${liveBefore} · 닫은 반에 「zz_새 반」(지우지 않는다. 시간표·명단·단가 줄을 어제까지로 · 다음 달부터인 단가 줄은 시작일 하루로 · fee_rule 제약)`, Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, "")) === liveBefore && (await cb.locator("[data-g=closed-class]").allTextContents()).some((t) => t.startsWith("zz_새 반")) && (await cb.locator("[data-g=class-row]").filter({ hasText: "zz_새 반" }).count()) === 0);
@@ -1482,13 +1482,32 @@ ok("(어78) 마감 없이 넣어도 업무에 선다 · 「마감 없음」으�
   const fixed = td.locator("[data-g=card][data-kind=note]", { hasText: "zz_고친 메모" }).first();
   await fixed.locator("button[data-act=drop]").click(); await p.waitForTimeout(1500);
   await td.locator("[data-g=hidden] button[data-act=show-dropped]").click(); await p.waitForTimeout(400);   // 뺀 것은 **숨긴 그룹**에 접혀 있다 — 펴고 본다
-  ok("(어80) 빼면 칸에서 빠지고 **뺀 것**으로 내려간다(지우지 않는다 · 대전제-6)",
+  ok("(어80)(어88) 삭제하면 칸에서 빠지고 **삭제한 것**으로 내려간다(지우지 않는다 · 대전제-6)",
     (await colCount("note")) === "2" && (await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).count()) === 1,
-    `메모 ${await colCount("note")} · 뺀 것 ${await td.locator("[data-g=card][data-state=dropped]").count()}`);
+    `메모 ${await colCount("note")} · 삭제한 것 ${await td.locator("[data-g=card][data-state=dropped]").count()}`);
   await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).first().locator("button[data-act=restore]").click(); await p.waitForTimeout(1500);
-  ok("(어80) **복구**하면 제 칸으로 돌아온다(빼기의 짝이 있어야 대전제-6 이 산다)",
+  ok("(어80) **복구**하면 제 칸으로 돌아온다(삭제의 짝이 있어야 대전제-6 이 산다)",
     (await colCount("note")) === "3" && (await td.locator("[data-g=card][data-state=dropped]", { hasText: "zz_고친 메모" }).count()) === 0,
-    `메모 ${await colCount("note")}`); }
+    `메모 ${await colCount("note")}`);
+  /* (어88) 원장님 2026-09-18 여섯을 **실제로 눌러 본다** */
+  ok("(어88) 보기줄에 안 눌리는 딱지가 없다(「묶기: 업무 종류 · 고정」 — span 인데 눌린 단추 색이었다)",
+    (await td.locator("[data-g=viewbar] .nb-tool").count()) === 0 && !/묶기: 업무 종류/.test(await p.content()));
+  { const card = td.locator('[data-g=card][data-kind=note]', { hasText: "zz_고친 메모" }).first();
+    await card.click(); await p.waitForTimeout(500);
+    ok("(어88) 카드를 누르면 **세부 내용**이 열린다(원장님 「눌러서 세부내용확인 불가능」)",
+      (await p.locator("[data-g=card-detail]").count()) === 1 && (await p.locator("[data-g=detail-props]").count()) === 1);
+    ok("(어88) 세부 내용 안에서 **고칠 수 있다**(같은 양식 한 벌)", (await p.locator("[data-g=card-detail] [data-g=quick-title]").count()) === 1);
+    await p.locator("[data-g=card-detail] .mdlh button").click(); await p.waitForTimeout(300);
+    ok("(어88) 카드 안 단추를 누르면 세부 내용이 **안 열린다**(여는 쪽 한 곳이 거른다)",
+      await (async () => { const b = card.locator("button[data-act=card-edit]"); if (!(await b.count())) return true;
+        await b.click(); await p.waitForTimeout(400); const no = (await p.locator("[data-g=card-detail]").count()) === 0;
+        await card.locator("button[data-act=quick-cancel]").click().catch(() => {}); return no; })());
+    ok("(어88) 카드에 **끌기 손잡이**가 있다(pointer 이벤트 · 폰에서도 된다)", (await card.locator("[data-g=card-grip]").count()) === 1); }
+  ok("(어88) 업무를 넣을 때 **종류를 고른다**(퀵 메모 「자세히」 안)",
+    await (async () => { await td.locator("[data-g=quick-card] button[data-act=quick-more]").click(); await p.waitForTimeout(300);
+      const n = await td.locator("[data-g=quick-card] [data-g=quick-kind] option").count();
+      await td.locator("[data-g=quick-card] button[data-act=quick-more]").click(); return n >= 5; })());
+}
 // (어78) **어느 화면에서나** — 대시보드에서 상단 띠 📌 로 적고, 05 로 돌아오면 그 줄이 서 있다(원장님 「가장 중요한 기능」 셋 가운데 둘)
 {
   await p.goto(`${APP}/`); await p.waitForLoadState("networkidle").catch(() => {});
@@ -1727,7 +1746,7 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await p.waitForFunction(() => { const s = document.querySelector("select[aria-label='zz_시험_중학교 단원']"); return s && !s.disabled; }, null, { timeout: 15000 });
 ok("단원 하나를 고르면 손 떼자마자 저장(교재는 단원에서 나온다) · 다시 열어도 그 단원 · 보드 카드 글도 「CHAPTER 1 › 1-2 …」", (await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent()).includes("1-2"), await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent());
 await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("단원 칸 ✕ → 내림(값은 남는다. 대전제-6) · 머리칸 6(뒤 걷기는 비고 칸이 마지막)", (await gr.locator("[data-g=msg]").textContent()).includes("단원 칸을 내렸습니다") && (await gr.locator("[data-g=col]").count()) === 6, await gr.locator("[data-g=msg]").textContent());
+ok("단원 칸 ✕ → 삭제(값은 남는다. 대전제-6) · 머리칸 6(뒤 걷기는 비고 칸이 마지막)", (await gr.locator("[data-g=msg]").textContent()).includes("단원 칸 삭제 ✓") && (await gr.locator("[data-g=col]").count()) === 6, await gr.locator("[data-g=msg]").textContent());
 console.log("■ 학교별 표 06c · 「한 학교만 크게」 ▣((가)-⑦): 표에 그 줄만 남고 아래에 카드(칸마다 한 줄 · 수정)가 편다");
 await grow.locator("button[data-act=row-focus]").click(); await p.waitForTimeout(300);
 ok("▣ → 표는 그 줄만(data-focus 1) · 카드 「zz_시험_중학교 · 한 줄만 크게」 · 칸마다 한 줄(6) · 「← 전체 1줄」", (await gr.locator("[data-g=table][data-focus='1']").count()) === 1 && (await gr.locator("[data-g=row]").count()) === 1 && (await gr.locator("[data-g=focus]").count()) === 1 && (await gr.locator("[data-g=focus] .lf").count()) === 6 && (await gr.locator("[data-g=focus] button[data-act=row-unfocus]").textContent()).includes("전체 1줄"), (await gr.locator("[data-g=focus] .ctitle").textContent()));
@@ -1746,7 +1765,7 @@ await gr.locator("[data-g=bcard] button[data-act=card-right]").click(); await p.
 at06 = mark(); await gr.locator("button[data-act=view-table]").click(); await p.waitForTimeout(1200);
 ok(`카드 ▶ → 「→ 인쇄」 · 인쇄 칸 1 · 만들기 0 · 표로 돌아오면(조회 ${requestsSince(at06)}건) 진행 상황 셀이 「인쇄」 · 같은 값 한 벌`, (await gr.locator("[data-g=msg]").textContent()).includes("→ 인쇄") && requestsSince(at06) === 0 && (await grow.locator("select[aria-label='zz_시험_중학교 진행 상황']").inputValue()) === "인쇄", (await gr.locator("[data-g=msg]").textContent()));
 await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("비고 칸 ✕ → 「내렸습니다(지우지 않았습니다)」 · 머리칸 5", (await gr.locator("[data-g=msg]").textContent()).includes("비고 칸을 내렸습니다") && (await gr.locator("[data-g=col]").count()) === 5);
+ok("비고 칸 ✕ → 「삭제 ✓ · 복구할 수 있습니다」 · 머리칸 5", (await gr.locator("[data-g=msg]").textContent()).includes("비고 칸 삭제 ✓") && (await gr.locator("[data-g=col]").count()) === 5);
 // 5단계-⑥ — 체크 목록 칸: 항목 더하기 → ✕ 빼기 → 비었다(removeItem) · 칸은 다시 내려 머리칸 5
 await gr.locator("button[data-act=col-open]").click(); await gr.locator("[data-g=col-form] input[aria-label='칸 이름']").fill("체크"); await gr.locator("[data-g=col-form] select[aria-label='칸 종류']").selectOption("checklist"); await gr.locator("button[data-act=col-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 const chk06 = () => grow.locator("[data-g=cell]").last();
@@ -1756,9 +1775,9 @@ ok("체크 목록 칸 「체크」 → 항목 「단어」 더하기 → (어58)
   await cb.click(); const quickOn = await cb.isChecked();
   await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("⑥ 체크하면 **서버를 기다리지 않고** 그 자리에서 켜진다(낙관적 · 속도-3) · 새로고침해도 켜져 있다(저장은 뒤에서)", quickOn && (await chk06().locator("[data-g=chk-item] input[type=checkbox]").isChecked()), `누른 즉시 ${quickOn}`); }
-await chk06().locator("button[data-act=chk-remove]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("단어 · 뺐습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("✕ 빼기 → 「단어 · 뺐습니다」 · 항목 0 · 「＋」 로 더한다", (await chk06().locator("[data-g=chk-item]").count()) === 0 && (await chk06().locator("button[data-g=chk-open]").textContent()) === "＋", (await chk06().textContent()).replace(/\s+/g, " ").slice(0, 120));
-await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("체크 칸을 내렸습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+await chk06().locator("button[data-act=chk-remove]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("단어 · 삭제 ✓"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("✕ 삭제 → 「단어 · 삭제 ✓」 · 항목 0 · 「＋」 로 더한다", (await chk06().locator("[data-g=chk-item]").count()) === 0 && (await chk06().locator("button[data-g=chk-open]").textContent()) === "＋", (await chk06().textContent()).replace(/\s+/g, " ").slice(0, 120));
+await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("체크 칸 삭제 ✓"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 console.log("■ (어58) 06c 엉킨 것 여덟 — 원장님 2026-09-16 「칸반보드 구현이 엉킨것 같아 … 탭으로 칸반 전환이가능해졌는데, 칸 내용이 똑같으면 탭을 전환할필요가없잖아」");
 ok("①② 탭이 곧 표 이름(누르면 다른 표) · 제목으로 또 안 쓴다(✎ 하나) · 보기는 작은 토글 셋(⊞ 표 · ▦ 보드 · 📅 달력) · 큰 탭 줄(nb-viewbar)은 없앴다", (await gr.locator("[data-g=view] button").allTextContents()).join(" · ") === "⊞ 표 · ▦ 보드 · 📅 달력" && (await gr.locator("[data-g=grid-bar] b").count()) === 0 && (await gr.locator("[data-g=grid-label]").getAttribute("data-label")) === "학교별 교재" && (await gr.locator(".nb-viewbar").count()) === 0, (await gr.locator("[data-g=grid-bar]").textContent()).replace(/\s+/g, " "));
 ok("④ 학생별로 더하는 띠(🎯 따로 챙길 아이들)가 표 아래로 내려갔다(원장님 「학생별로 추가하는 부분 칸반 맨 밑으로 내려」) · ⑦ 군더더기 셈(「학교 1곳 · 칸 6개」 · 「표 1종 · 줄 1 · 칸 3」)은 없다", (await p.evaluate(() => { const t = document.querySelector("[data-g=tabs]"), w = document.querySelector("[data-g=watch]"); return Boolean(t && w) && Boolean(t.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING); })) && (await gr.locator("[data-g=grid-count]").count()) === 0 && (await gr.locator("[data-g=bar-count]").count()) === 0);
@@ -1817,7 +1836,7 @@ await gr.locator(".shtab").filter({ hasText: "학교별 교재" }).first().click
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-grid-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 await gr.locator("button[data-act=grid-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("표 삭제 → 내림(되살릴 수 있다) · 탭에 「삭제한 표 1」", (await gr.locator("[data-g=msg]").textContent()).includes("내렸습니다") && (await gr.locator("button[data-act=show-retired]").textContent()).replace(/\s+/g, " ").trim() === "삭제한 표 1", (await gr.locator("button[data-act=show-retired]").textContent()));
+ok("표 삭제 → 내림(되살릴 수 있다) · 탭에 「삭제한 표 1」", (await gr.locator("[data-g=msg]").textContent()).includes("삭제 ✓") && (await gr.locator("button[data-act=show-retired]").textContent()).replace(/\s+/g, " ").trim() === "삭제한 표 1", (await gr.locator("button[data-act=show-retired]").textContent()));
 await gr.locator("button[data-act=show-retired]").click(); await gr.locator("[data-g=retired-row] button[data-act=revive]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("복구 → 표 알약이 돌아온다(줄 1 · 값 그대로)", (await gr.locator("[data-g=tabs] .shtab[data-act=tab]").count()) === 1 && (await gr.locator("[data-g=row]").count()) === 1 && (await grow.locator("select[aria-label='zz_시험_중학교 진행 상황']").inputValue()) === "인쇄");
 // 5단계-⑥ — 표 차례: 빈 표를 하나 더 세우고 그 표에서 ◀ → 알약 차례가 「빈 표 · 학교별 교재」 · 첫 표에선 ◀ 잠김
@@ -2378,7 +2397,7 @@ console.log("■ (어28)-③ 시험 06b · 업무 05 · 자료실 20 · 영상 1
 { await p.goto(`${APP}/schedule/todo`); await p.waitForLoadState("networkidle").catch(() => {}); const td3 = p.locator("main");
   const card = td3.locator("[data-g=board] [data-g=card][data-id^='t:']:not([data-state=done])").first(); const title3 = (await card.locator(".nb-title").textContent()).trim(); const id3 = await card.getAttribute("data-id");   // 같은 이름의 끝낸 카드(반복)가 있을 수 있어 id 로 잇는다
   await card.locator("[data-g=pick]").check(); await p.waitForTimeout(200);
-  ok("05 업무 줄 카드에 네모(자료 단계 카드엔 없다) · 고르면 띠 「고른 1개」 · ✓ 완료 1 · ↩ 되돌리기 0 · 📅 미루기 · 내림 1", (await td3.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 1개" && (await td3.locator("[data-g=pickbar] button[data-act=done-picked]").textContent()) === "✓ 완료 1" && (await td3.locator("[data-g=pickbar] button[data-act=undo-picked]").textContent()) === "↩ 되돌리기 0" && (await td3.locator("[data-g=pickbar] button[data-act=drop-picked]").textContent()) === "내림 1", title3);
+  ok("05 업무 줄 카드에 네모(자료 단계 카드엔 없다) · 고르면 띠 「고른 1개」 · ✓ 완료 1 · ↩ 되돌리기 0 · 📅 미루기 · 삭제 1", (await td3.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 1개" && (await td3.locator("[data-g=pickbar] button[data-act=done-picked]").textContent()) === "✓ 완료 1" && (await td3.locator("[data-g=pickbar] button[data-act=undo-picked]").textContent()) === "↩ 되돌리기 0" && (await td3.locator("[data-g=pickbar] button[data-act=drop-picked]").textContent()) === "삭제 1", title3);
   await td3.locator("[data-g=pickbar] button[data-act=done-picked]").click(); await p.waitForFunction(() => !document.querySelector("main [data-g=pickbar]"), null, { timeout: 20000 }); await p.waitForTimeout(1200);
   if ((await td3.locator("button[data-act=show-done]").getAttribute("aria-pressed")) !== "true") { await td3.locator("button[data-act=show-done]").click(); await p.waitForTimeout(200); }   // ✓ 끝냄 그룹은 펴야 카드가 그려진다
   const doneCard = td3.locator(`[data-g=hidden] [data-g=card][data-id='${id3}'][data-state=done]`);
@@ -2442,11 +2461,11 @@ console.log("■ (어28)-④ 단원 15 · 루틴 11 · 학교 06b/12b · 성적 
   const nc4 = cb4.locator("[data-g=class-row]").filter({ hasText: "zz_고른 반" }); await nc4.locator("button[data-act=open]").click(); await p.waitForTimeout(300);
   const opt = (await nc4.locator("select[data-g=member-pick] option").allTextContents()).find((t) => t.startsWith("zz_시험_학생둘")); await nc4.locator("select[data-g=member-pick]").selectOption({ label: opt }); await nc4.locator("button[data-act=member-add]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
   await nc4.locator("[data-g=member] [data-g=pick]").check(); await p.waitForTimeout(200);
-  ok("반 · 명단 아이에 네모 → 띠 「고른 1줄」 · 명단 빼기 1 · 반 닫기 0(잠김)", (await cb4.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 1줄" && (await cb4.locator("[data-g=pickbar] button[data-act=remove-picked]").textContent()) === "명단 빼기 1" && (await cb4.locator("[data-g=pickbar] button[data-act=close-picked]").isDisabled()), await cb4.locator("[data-g=pickbar]").textContent().catch(() => "띠 없음"));
+  ok("반 · 명단 아이에 네모 → 띠 「고른 1줄」 · 명단 제외 1 · 반 닫기 0(잠김)", (await cb4.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 1줄" && (await cb4.locator("[data-g=pickbar] button[data-act=remove-picked]").textContent()) === "명단 제외 1" && (await cb4.locator("[data-g=pickbar] button[data-act=close-picked]").isDisabled()), await cb4.locator("[data-g=pickbar]").textContent().catch(() => "띠 없음"));
   await cb4.locator("[data-g=pickbar] button[data-act=remove-picked]").click(); await p.waitForFunction(() => !document.querySelector("main [data-g=pickbar]"), null, { timeout: 20000 }); await p.waitForTimeout(1200);
-  ok("명단 빼기 → 0명(오늘부터 · 줄은 어제까지로 남는다)", (await nc4.locator("[data-g=member]").count()) === 0);
+  ok("명단 제외 → 0명(오늘부터 · 줄은 어제까지로 남는다)", (await nc4.locator("[data-g=member]").count()) === 0);
   await nc4.locator("[data-g=pick]").first().check(); await p.waitForTimeout(200);
-  ok("반 줄 네모 → 반 닫기 1 · 명단 빼기 0(잠김) · 머리 「전체」", (await cb4.locator("[data-g=pickbar] button[data-act=close-picked]").textContent()) === "반 닫기 1" && (await cb4.locator("[data-g=pickbar] button[data-act=remove-picked]").isDisabled()) && (await cb4.locator("[data-g=head] [data-g=pick-all]").count()) === 1);
+  ok("반 줄 네모 → 반 닫기 1 · 명단 제외 0(잠김) · 머리 「전체」", (await cb4.locator("[data-g=pickbar] button[data-act=close-picked]").textContent()) === "반 닫기 1" && (await cb4.locator("[data-g=pickbar] button[data-act=remove-picked]").isDisabled()) && (await cb4.locator("[data-g=head] [data-g=pick-all]").count()) === 1);
   await cb4.locator("[data-g=pickbar] button[data-act=close-picked]").click(); await cb4.locator("[data-g=pickbar] [data-g=sure] button[data-act=sure-yes]").click(); await p.waitForFunction((n) => document.querySelectorAll("main [data-g=class-row]").length === n, live0, { timeout: 20000 }); await p.waitForTimeout(300);
   ok(`반 닫기(묻고) → 반 ${live0}(닫은 반으로 · 지우지 않는다)`, (await cb4.locator("[data-g=class-row]").count()) === live0 && (await cb4.locator("[data-g=closed-count]").textContent()).includes("닫은 반")); }
 { await p.goto(`${APP}/ops/inquiry`); await p.waitForLoadState("networkidle").catch(() => {}); const iq4 = p.locator("main"); const card4 = () => iq4.locator("[data-g=card]").filter({ hasText: "zz_시험_문의" }).first();

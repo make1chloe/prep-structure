@@ -1,6 +1,7 @@
 /** 📅 일정 — 목업 12(원장 달력 · 8회 채우기). 판단은 lib/schedule-plan(순수) · 손은 lib/schedule, 여기는 가져다 그린다.
  *  층: 로그인 확인 → 주소 인자 → 오늘 → 일정 판 한 벌(schedule_board, 속도-상한 일정 8 · 2단) = 4단. 정상 수업은 안 띄운다 — 당연한 것이니까 */
 import Link from "next/link";
+import { listKinds } from "@/lib/todo";
 import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
@@ -20,8 +21,8 @@ export default async function Schedule({ searchParams }) {
     const date = await today(sb);
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date);
     const sel = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : ym === ymOf(date) ? date : `${ym}-01`;
-    const [board, students] = await Promise.all([scheduleBoard(sb, ym, date), studentPicks(sb, date)]);   // 한 파도(속도-1) — 「+ 결석 예정」이 아이를 고른다((어52))
-    d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board, students };
+    const [board, students, kinds] = await Promise.all([scheduleBoard(sb, ym, date), studentPicks(sb, date), listKinds(sb).catch(() => null)]);   // 한 파도(속도-1) — 「+ 결석 예정」이 아이를 고른다((어52)) · (어88) 업무 종류 고르개(0179 전 DB 면 null → 씨앗으로 그린다)
+    d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board, students, kinds };
   } catch (e) { { console.error("[화면] 일정 못 엶:", e); return frame(<Oops what="일정" e={e} />); } }
   const b = d.board, target = Number(b.rules?.["schedule.sessions_per_month"] ?? 8);
   const q = (m, day = null) => `/schedule?m=${m}${day ? `&d=${day}` : ""}${d.classId ? `&c=${d.classId}` : ""}`;
@@ -48,7 +49,7 @@ export default async function Schedule({ searchParams }) {
       {cells.map((c) => <Link prefetch={false} key={c.date} className={"cd" + (c.out ? " out" : "") + (c.sel ? " sel" : "") + (c.isToday ? " today" : "")} href={q(d.ym, c.date)} data-date={c.date} aria-label={c.date}><span className="dn">{c.day}</span>{c.events.slice(0, 3).map((e, i) => <span key={i} className={"ce " + e.kind}>{e.text}</span>)}{c.events.length > 3 && <span className="ce">+{c.events.length - 3}</span>}</Link>)}
     </div></div>
     <div className="schday" style={{ marginTop: 12 }} data-g="day">
-      <Panel d={{ date: d.date, ym: d.ym, sel: d.sel, classId: d.classId, rows, classes: b.classes ?? [], schools: b.schools ?? [] }} />
+      <Panel d={{ date: d.date, ym: d.ym, sel: d.sel, classId: d.classId, rows, classes: b.classes ?? [], schools: b.schools ?? [], kinds: d.kinds ?? null, students: d.students ?? [] }} />
     </div>
     <div className="clegend" data-g="legend">{LEGEND.map(([k, icon, name]) => <span key={k}><i className={"ce " + k} style={{ padding: "0 8px" }}>{icon}</i>{name}</span>)}</div>
   </>);

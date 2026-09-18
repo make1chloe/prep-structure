@@ -81,7 +81,7 @@ function ExamCard({ e, b, today, pending, run, stName, pk }) {
     <div className="rng" data-g="rng">
       {!groups.length && <span className="note" style={{ margin: 0 }} data-g="no-scope">범위가 아직 없습니다</span>}
       {groups.map((g) => <span key={g.key} className={"rg1" + (g.state === "add" ? " add" : g.state === "del" ? " del" : "")} data-g="scope" data-state={g.state}>{g.state === "del" ? <s>{g.title}</s> : <b>{g.title}</b>}<i>{g.sub}</i>
-        {g.state !== "del" && <button className="btn sm" type="button" disabled={pending} data-act="scope-remove" style={{ marginTop: 4 }} onClick={() => run(() => removeScopeAct(g.liveIds), "학교가 뺀 것으로 적었습니다(지우지 않습니다)")}>학교가 뺌</button>}</span>)}
+        {g.state !== "del" && <button className="btn sm" type="button" disabled={pending} data-act="scope-remove" style={{ marginTop: 4 }} onClick={() => run(() => removeScopeAct(g.liveIds), "학교가 제외한 것으로 적었습니다(지우지 않습니다)")}>학교가 뺌</button>}</span>)}
     </div>
     <div className="lf"><span className="ln">+</span><div><b>범위 더하기</b></div>
       <button className="btn sm pri" type="button" data-act="scope-open" aria-pressed={open} onClick={() => setOpen(!open)}>+ 범위</button></div>

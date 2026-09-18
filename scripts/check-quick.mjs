@@ -38,11 +38,11 @@ ok("업무 판(todo_board)이 시작일과 붙은 파일을 실어 준다(앞 �
 
 console.log("\n■ 마감은 없어도 된다 — 떠오른 것부터 적는 자리");
 ok("addTodo 가 마감 없이도 넣는다(전에는 없으면 터졌다) · 날짜 꼴은 있을 때만 본다",
-  /export async function addTodo\(sb, \{ title, dueOn = null/.test(sched) && /if \(dueOn && !isDate\(dueOn\)\)/.test(sched));
+  /export async function addTodo\(sb, \{ title, kind = null, dueOn = null/.test(sched) && /if \(dueOn && !isDate\(dueOn\)\)/.test(sched));
 ok("시작일도 받는다 · 시작일이 마감보다 늦으면 그 자리에서 막는다(대전제-0)",
   /startOn = null \}\)/.test(sched) && /startOn > dueOn/.test(sched) && /if \(startOn\) payload\.start_on = startOn/.test(sched));
 ok("addNote·noteAct 가 그대로 흘려 보낸다 — 손은 하나다(05 와 퀵 메모가 같은 것을 쓴다 · 원칙-1)",
-  /addNote = \(sb, \{ title, dueOn = null/.test(todoLib) && /startOn: f\?\.startOn \|\| null/.test(acts));
+  /addNote = \(sb, \{ title, kind = null, dueOn = null/.test(todoLib) && /startOn: f\?\.startOn \|\| null/.test(acts));
 ok("마감 없는 줄을 오늘로 몰래 안 넣는다(화면·손 어디에도 dueOn 기본값이 오늘이 아니다)",
   !/dueOn: *today/.test(strip(qm)) && !/dueOn: *today/.test(strip(b05)));
 

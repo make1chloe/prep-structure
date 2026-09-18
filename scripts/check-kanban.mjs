@@ -24,10 +24,10 @@ ok("05 카드에 ✎ 가 선다 — **손으로 적은 업무만**(자료 흐름
   /data-act="card-edit"/.test(board) && /c\.todoId && !c\.material &&[\s\S]{0,200}card-edit/.test(board));
 ok("고치기는 **그 자리에서** 편다(모달로 화면을 안 떠난다 · 대전제-22)", /data-g="card-edit-form"/.test(board) && /<QuickMemo inline edit=\{c\}/.test(board));
 
-console.log("\n■ (어80)-A 뺀 것 복구 — 대전제-6 의 짝");
-ok("복구하는 손이 있다(lib/todo restoreTodo) · **뺀 것만** 되살린다", /export async function restoreTodo/.test(todo) && /뺀 업무가 아닙니다/.test(todo));
+console.log("\n■ (어80)-A 삭제한 것 복구 — 대전제-6 의 짝");
+ok("복구하는 손이 있다(lib/todo restoreTodo) · **삭제한 것만** 되살린다", /export async function restoreTodo/.test(todo) && /삭제한 업무가 아닙니다/.test(todo));
 ok("한 번에도 된다(todoMany restore)", /restore: \(id\) => restoreTodo\(sb, id\)/.test(todo) && /export async function restoreAct/.test(acts));
-ok("카드에 「복구」 · 띠에 「복구 N」(뺀 것을 고른 만큼만)",
+ok("카드에 「복구」 · 띠에 「복구 N」(삭제한 것을 고른 만큼만)",
   /data-act="restore"/.test(board) && /data-act="restore-picked"/.test(board) && /toRestore = pickedCards\.filter\(\(x\) => x\.state === "dropped"\)/.test(board));
 
 console.log("\n■ (어80)-A 칸마다 전체 선택 — 원장님 「전체선택버튼이 없음」");
@@ -39,5 +39,42 @@ console.log("\n■ 걷기가 눈으로 본다");
 ok("걷기가 ① 칸마다 전체 ② ✎ 로 제목 고치기 ③ 빼고 복구를 본다",
   /\(어80\)/.test(walk) && /card-edit/.test(walk) && /data-act=restore/.test(walk));
 
+
+/* (어88) 원장님 2026-09-18 업무 05 여섯 — 「이거 기능이 뭐야 대체 · 눌리지도않음」(묶기 딱지) · 「가로배치 카드 드래그」
+   · 「내리기랑 빼기가 정확히 무슨 기능인지 모르겠고」 · 「메모에 추가한 사진은 확인이 안 됨」 · 「눌러서 세부내용확인 불가능」
+   · 「근데 업무종류를 고르는건 가능하게해야함」. 여섯을 하나씩 지킨다. */
+console.log("\n■ (어88) 업무 05 — 눌리는 것만 눌리게 · 끌 수 있게 · 이름 하나 · 사진 · 세부 내용 · 종류");
+{ const css = readFileSync("app/globals.css", "utf8");
+  ok("보기줄에 **안 눌리는 딱지**가 없다(「묶기: 업무 종류 · 고정」은 span 이면서 눌린 단추 색이었다)",
+     !/nb-tool nb-on/.test(board) && !/묶기: 업무 종류/.test(board));
+  ok("카드를 **끌어서** 칸을 옮긴다 · pointer 이벤트 한 벌(폰에서도 된다 · HTML5 draggable 은 check-pref 가 금지)",
+     /onPointerDown=\{\(e\) => grab\(e, c\)\}/.test(board) && /setPointerCapture/.test(board) && !/draggable|onDragStart/.test(board));
+  ok("끌어 놓는 것도 **띠와 같은 손**(moveKindAct · 새 손 0 · 원칙-1) · 띠의 「↔ 분류 옮기기」는 그대로 산다(폰·키보드·여러 장)",
+     /run\(\(\) => moveKindAct\(\[c\.todoId\], to\)/.test(board) && /data-act="move-kind"/.test(board));
+  ok("놓을 자리가 **눈에 보인다**(.nb-col[data-drop] · 끌리는 카드는 흐려진다)",
+     /data-drop=\{drag && over === col\.kind/.test(board) && /\.nb-col\[data-drop="1"\]/.test(css) && /\.nb-card\[data-drag="1"\]/.test(css));
+  ok("카드 클릭을 막는 것은 **여는 쪽 한 곳**이다(손마다 stopPropagation 을 붙이지 않는다 · today/row.js rowtop 과 같은 본 · 원칙-1)",
+     /const openCard = \(c\) => \(e\) => \{ if \(e\.target\.closest\("button,a,input,select,textarea,label"\)\) return;/.test(board));
+  ok("카드를 누르면 **세부 내용**이 열린다(분류 · 마감 · 첨부 · 왜 생겼나 · 메모) · 고치기는 같은 양식 한 벌",
+     /data-g="card-detail"/.test(board) && /data-g="detail-props"/.test(board) && /<QuickMemo inline edit=\{dCard\}/.test(board));
+  ok("**자료 카드는 모달을 안 연다** — 누르면 아래 📦 흐름이 서는 것이 그 카드의 세부 내용이다(모달이 덮으면 못 본다)",
+     /if \(c\.todoId && !c\.material\) setDetail\(c\.id\);/.test(board));
+  ok("첨부 **사진은 썸네일**로 보인다(app/_shell/photo.js 한 벌 — 07·20·아이·학부모가 쓰는 그것) · 사진 아닌 것만 이름 링크",
+     /isImage\(f\.mime\)/.test(board) && /<Photo /.test(board));
+  ok("업무를 넣을 때 **종류를 고른다**(퀵 메모 · 05 · 12 일정) · 상단 띠는 표를 안 읽는다(속도-4 — 화면이 내려준 것 · 없으면 씨앗)",
+     /data-g="quick-kind"/.test(readFileSync("app/_shell/quickmemo.js", "utf8"))
+     && /kinds = null/.test(readFileSync("app/_shell/quickmemo.js", "utf8"))
+     && /data-g="sched-kind"/.test(readFileSync("app/schedule/panel.js", "utf8")));
+  const sched = readFileSync("lib/schedule.js", "utf8");
+  ok("아무 글자나 종류로 안 들어간다 — **문지기 한 곳**(okKind: 표에 있고 · 업무에 보이고 · 살아 있는 것만)",
+     /async function okKind\(sb, kind\)/.test(sched) && /없는 업무 종류입니다/.test(sched) && /kind: await okKind\(sb, kind\)/.test(sched));
+  const todo = readFileSync("lib/todo.js", "utf8");
+  ok("업무 하나를 지울 때 **자료까지 지웠으면 화면이 그 말을 한다**(대전제-0 — 알림이 「삭제 ✓」만 하던 자리)",
+     /return \{ material: alsoMaterial \? t\.material_id : null \}/.test(todo) && /자료와 남은 업무도 함께/.test(board));
+  const due = readFileSync("app/duecard.js", "utf8");
+  ok("대시보드 ⏰ 업무 줄이 **원장님이 만드신 분류 이름**을 쓴다(0182 kind_name · 씨앗에 없으면 열쇠가 그대로 보였다)",
+     /t\.kind_name \?\? kindName\(t\.kind\)/.test(due));
+  ok("대시보드 ⏰ 업무 줄도 **그 자리에서** 끝낸다(원장님 「모달로 바로바로 처리」가 아이 줄에만 지켜져 있었다) · 05 와 같은 손",
+     /data-act="due-todo-done"/.test(due) && /doneAct/.test(due)); }
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
