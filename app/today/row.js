@@ -782,13 +782,20 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const [openCh, setOpenCh] = useState(null);   // (어79) 대단원은 **접힌 채**, 하다가 만 것 하나만 펼친다(원장님 2026-09-17 「전부 다 펼쳐져 있으면 너무 양이 많아」)
   const [seen, setSeen] = useState({});   // (어63) 진도를 그 자리에서 고친다(원장님 2026-09-16 「현재진도를 파악하고 수정하기에 쉬운 구조로」) · 화면 먼저 · 실패하면 되돌린다(속도-3) · 손은 lib/progress setUnit 하나(02b 와 같은 것)
   const stOf = (u) => seen[u.id] ?? u.st ?? "none";
+  /** (어98) 진도를 ○(또는 건너뜀)로 찍으면 그 단원의 **배정 체크를 푼다** — 원장님 2026-09-19
+   *  「진도체크하면 그게 숙제로 배정되어버려」. 이미 한 것을 또 숙제로 내는 것은 말이 안 된다.
+   *  복습으로 내실 것이면 체크를 다시 누르시면 된다(막지 않는다). 서버가 실패하면 체크도 도로 붙인다. */
+  const unpick = (ids) => setUnits((cur) => cur.filter((x) => !ids.includes(x)));
+  const repick = (ids) => setUnits((cur) => [...new Set([...cur, ...ids])]);
   const setSt = (u, k) => { const prev = stOf(u); if (prev === k) return; setSeen((o) => ({ ...o, [u.id]: k }));
-    start(async () => { if (!failM(await progressSet(sheet.id, u.id, k))) setSeen((o) => ({ ...o, [u.id]: prev })); }); };
+    const had = units.includes(u.id) && (k === "done" || k === "skip"); if (had) unpick([u.id]);
+    start(async () => { if (!failM(await progressSet(sheet.id, u.id, k))) { setSeen((o) => ({ ...o, [u.id]: prev })); if (had) repick([u.id]); } }); };
   /** (어79) 원장님 2026-09-17 「숙제검사-숙제배정에서 진도체크도 가능하게: 여기까지, 대단원완료」 — 손은 진도 체크 모달과 **같은 것**(원칙-1) · 화면 먼저, 실패하면 되돌린다(속도-3) */
   const manyDone = (list, run) => { const ids = list.filter((u) => stOf(u) !== "done").map((u) => u.id); if (!ids.length) return;
     const prev = Object.fromEntries(ids.map((id) => [id, seen[id] ?? (pool?.units ?? []).find((x) => x.id === id)?.st ?? "none"]));
-    setSeen((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, "done"])) }));
-    start(async () => { if (!failM(await run(ids))) setSeen((o) => ({ ...o, ...prev })); }); };
+    const had = ids.filter((id) => units.includes(id));   // (어98) 진도로 찍은 단원은 배정에서 뺀다 · 실패하면 도로 붙인다
+    setSeen((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, "done"])) })); if (had.length) unpick(had);
+    start(async () => { if (!failM(await run(ids))) { setSeen((o) => ({ ...o, ...prev })); if (had.length) repick(had); } }); };
   const upTo = (u) => { const all = pool?.units ?? []; const i = all.findIndex((x) => x.id === u.id);
     manyDone(all.slice(0, i + 1).filter((x) => stOf(x) !== "skip"), () => progressUpTo(sheet.id, bookId, u.id)); };
   const chapterDone = (us) => manyDone(us, (ids) => progressSetMany(sheet.id, ids, "done"));
@@ -811,18 +818,24 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
 
             <span className="spacer" /><span className="pill" data-g="give-count">{n}줄</span>
             <span className={"pill" + (nOut ? "" : " warn")} data-g="give-saved">{nOut ? `지금 나감 ${nOut}` : "아직 안 나감"}</span></div>}{/* (어62) 체크는 제안일 뿐이라 저장 전에는 「아직 안 나감」 */}
-          {allUnits.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-units-h">📕 단원<span className="cnt">{units.length}/{allUnits.length}</span></div>
+          {allUnits.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-units-h">📕 배정할 단원<span className="cnt">{units.length}/{allUnits.length}</span>
+            <span className="spacer" /><span className="note" data-g="give-hint" style={{ margin: 0 }}>체크 = 숙제로 배정(저장해야 나감) · 오른쪽 = 진도(바로 저장)</span></div>
             <div className="left" data-g="give-units" style={{ maxHeight: 280, overflow: "auto" }}>{groups.map((g) => { const chOpen = openCh === g.name; const chFin = g.us.every((u) => stOf(u) === "done" || stOf(u) === "skip"); return <Fragment key={g.name}>
               <div className="hh" data-g="give-chapter" data-chapter={g.name} data-open={chOpen ? "1" : "0"} style={{ margin: "6px 0 0" }}>
                 <button type="button" className="btn sm gho" data-act="chapter-open" aria-expanded={chOpen} onClick={() => setOpenCh(chOpen ? null : g.name)}>{chOpen ? "▾" : "▸"} {g.name}</button>
                 <span className="cnt">{g.us.filter((u) => u.left).length}/{g.us.length}</span>
-                {chOpen && <><button type="button" className="btn sm gho" data-act="chapter-all" aria-pressed={allOn(g.us)} onClick={() => flipGroup(g.us)}>전체</button>
-                  <button type="button" className="btn sm gho" data-act="chapter-done" disabled={chFin} onClick={() => chapterDone(g.us)}>이 대단원 완료</button></>}</div>
+                {/* (어98) 「전체」(배정)와 「대단원 완료」(진도)가 나란히 있어 둘 다 진도로 읽혔다 — 이름으로 가른다(원장님 2026-09-19) */}
+                {chOpen && <><button type="button" className="btn sm gho" data-act="chapter-all" aria-pressed={allOn(g.us)} onClick={() => flipGroup(g.us)}>전체 배정</button>
+                  <span className="spacer" /><span className="tag" data-g="prog-tag">진도</span>
+                  <button type="button" className="btn sm gho" data-act="chapter-done" disabled={chFin} onClick={() => chapterDone(g.us)}>대단원 완료</button></>}</div>
               {chOpen && g.us.map((u) => <div key={u.id} className="ckl" data-g="give-unit" data-unit={u.id} data-chapter={g.name} data-done={stOf(u) === "done" ? "1" : "0"} data-st={stOf(u)}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, flex: "1 1 auto", minWidth: 0, ...(stOf(u) === "done" ? { color: "var(--mute)" } : null) }}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null].filter(Boolean).join(" · ")}</small></label>
-                {stOf(u) === "skip" && <span className="tag" data-g="unit-skip">건너뜀</span>}
-                <button type="button" className="btn sm gho" data-act="unit-upto" aria-label={`${u.short} 까지 모두 완료`} onClick={() => upTo(u)}>여기까지 ○</button>
-                <span className="tri" data-g="unit-prog">{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(stOf(u) === "skip" ? "none" : stOf(u)) === k} {...icon(markText(k))} onClick={() => setSt(u, k)}>{ch}</button>)}</span>
+                {/* (어98) 왼쪽은 **배정**(체크 · 저장해야 나감) · 오른쪽 칸은 **진도**(누르면 바로 저장) — 한 줄에 섞여 있던 것을 테두리로 가른다 */}
+                <span className="wv" data-g="unit-prog-zone" style={{ gap: 4, marginLeft: "auto", paddingLeft: 6, borderLeft: "1px solid var(--edge)" }}>
+                  {stOf(u) === "skip" && <span className="tag" data-g="unit-skip">건너뜀</span>}
+                  <button type="button" className="btn sm gho" data-act="unit-upto" aria-label={`${u.short} 까지 모두 완료`} onClick={() => upTo(u)}>여기까지 ○</button>
+                  <span className="tri" data-g="unit-prog">{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(stOf(u) === "skip" ? "none" : stOf(u)) === k} {...icon(markText(k))} onClick={() => setSt(u, k)}>{ch}</button>)}</span>
+                </span>
               </div>)}
             </Fragment>; })}</div></>}
           {lines.length > 0 && <><div className="hh" style={{ marginTop: 10 }} data-g="give-items-h">✓ 활동<span className="cnt">{items.length}/{lines.length}</span></div>

@@ -54,8 +54,8 @@ ok("(어59) 검사 카드에서 연 배정은 **「이미 해왔어야 하는 �
 ok("(어59) 배정 모달의 교재 목록은 **진행중이 먼저**(보류 교재에 배정하면 (어57) 대로 카드에서 접혀 안 보인다) · 보류면 이름 옆에 무엇으로 보류인지 적는다",
   (() => { const r = strip(readFileSync("lib/routine.js", "utf8")); return /const st = stopOn\(b, sheet\.date\)/.test(r) && /\.sort\(\(a, b\) => Number\(a\.stop !== "running"\) - Number\(b\.stop !== "running"\)\)/.test(r); })()
   && /b\.stopName \? ` · \$\{b\.stopName\}` : ""/.test(row), "givePool 차례 · 이름 꼬리");
-ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 진도 세그의 ○ 와 흐림으로 보인다((어63) 로 「다 함」 꼬리표를 걷고 **그 자리에서 고치는** 세그가 대신한다 · 「이미 완료된 부분이 표시안되는점」 · (어62) 로 차례는 **교재 그대로** 두었다 — 대단원을 넘나들며 고르려면 차례가 흔들리면 안 된다)",
-  /data-g="give-units-h">📕 단원/.test(row) && /data-g="give-items-h">✓ 활동/.test(row) && /data-g="give-items" style=\{\{ marginLeft: 14 \}\}/.test(row)
+ok("(어59) 모달에서 **단원과 활동이 갈린다**(원장님 「학습항목과 단원이 구별이 안되는점」) · 머리 둘(📕 배정할 단원 · ✓ 활동) · 활동은 들여쓴다 · **이미 끝낸 단원**은 진도 세그의 ○ 와 흐림으로 보인다((어63) 로 「다 함」 꼬리표를 걷고 **그 자리에서 고치는** 세그가 대신한다 · 「이미 완료된 부분이 표시안되는점」 · (어62) 로 차례는 **교재 그대로** 두었다 — 대단원을 넘나들며 고르려면 차례가 흔들리면 안 된다)",
+  /data-g="give-units-h">📕 배정할 단원/.test(row) && /data-g="give-items-h">✓ 활동/.test(row) && /data-g="give-items" style=\{\{ marginLeft: 14 \}\}/.test(row)
   && /data-done=\{stOf\(u\) === "done" \? "1" : "0"\}/.test(row) && /data-g="unit-prog"/.test(row) && !/const ordUnits =/.test(row));
 ok("(어60) 검사 카드는 **검사에서 뒤늦게 적은 줄**이 있으면 보류 교재라도 안 접는다(원장님 2026-09-16 「숙제검사에서 배정한 지난시간 숙제가 검사할 것으로 떠야하는데 안뜸」) · 볼 것이 없을 때만 접는다((어57))",
   /const own = \(bid\) => sheet\.check\.some\(\(r\) => r\.units\?\.book_id === bid && !r\.carry_of\)/.test(row) && /stopOn\(b, date\) !== "running" && !own\(b\.book_id\)/.test(row));

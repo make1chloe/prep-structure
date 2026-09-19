@@ -2324,6 +2324,31 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
   const nLine = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
   ok("배정 모달 · 집이 눌려 있다 · 교재 고르개 · 단원 목록 · **그 자리 루틴 활동이 전부 체크된 채**(답 ⓐ) · 진도 다음 단원 하나가 체크된 채 · 단추는 「N줄 배정」", (await gm.locator("[data-g=give-slot] button[aria-pressed=true]").textContent()) === "집" && (await gm.locator("select[data-g=give-book] option").count()) >= 1 && (await gm.locator("[data-g=give-item]").count()) >= 1 && (await gm.locator("[data-g=give-item] input:not(:checked)").count()) === 0 && (await gm.locator("[data-g=give-unit] input:checked").count()) === 1 && nLine >= 1 && /줄 배정$/.test(await gm.locator("button[data-act=give-save]").textContent()), `${nLine}줄 · 활동 ${await gm.locator("[data-g=give-item]").count()} · 단원 ${await gm.locator("[data-g=give-unit]").count()}`);
   await snapModal("give");
+  /* (어98) 배정과 진도를 가른다 — 원장님 2026-09-19 「진도체크처럼 나와있고 진도체크하면 그게 숙제로 배정되어버려」.
+     ⚠️ 걷기가 진도를 건드리므로 **바로 되돌린다**(뒤 걸음이 진도를 센다 · (어93)·(어94)·(어95) 에서 배운 것). */
+  { const chh = gm.locator("button[data-act=chapter-open]").first();
+    if ((await chh.getAttribute("aria-expanded")) !== "true") { await chh.click(); await p.waitForTimeout(500); }
+    ok("(어98) 대단원 머리에서 **배정과 진도가 이름으로 갈린다** — 「전체 배정」 · 「진도」 딱지 + 「대단원 완료」",
+      (await gm.locator("[data-act=chapter-all]").first().textContent()).trim() === "전체 배정"
+      && (await gm.locator("[data-act=chapter-done]").first().textContent()).trim() === "대단원 완료"
+      && (await gm.locator("[data-g=give-chapter] [data-g=prog-tag]").count()) >= 1,
+      (await gm.locator("[data-g=give-chapter]").first().textContent() ?? "").replace(/\s+/g, " ").slice(0, 90));
+    ok("(어98) 소단원 줄에서도 진도 손은 **따로 선 칸**에 모인다(배정 체크는 왼쪽) · 머리가 두 일을 말한다",
+      (await gm.locator("[data-g=give-unit]").first().locator("[data-g=unit-prog-zone]").count()) === 1
+      && (await gm.locator("[data-g=give-hint]").count()) === 1);
+    const picked = gm.locator("[data-g=give-unit]").filter({ has: p.locator("input.ck:checked") }).first();
+    if (await picked.count()) {
+      const uid = await picked.getAttribute("data-unit");
+      const nBefore = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
+      await picked.locator("[data-g=unit-prog] button").first().click(); await p.waitForTimeout(1000);   // ○ = 진도 완료
+      const row2 = gm.locator(`[data-g=give-unit][data-unit="${uid}"]`);
+      const nAfter = Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) || 0;
+      ok("(어98) 진도를 ○ 로 찍으면 그 단원의 **배정 체크가 풀린다** — 이미 한 것을 또 숙제로 내지 않는다",
+        !(await row2.locator("input.ck").isChecked()) && nAfter < nBefore, `배정 ${nBefore} → ${nAfter}`);
+      await row2.locator("[data-g=unit-prog] button").last().click(); await p.waitForTimeout(1000);   // · = 아직 · 걷기가 바꾼 진도를 되돌린다
+      await row2.locator("input.ck").check(); await p.waitForTimeout(250);
+      ok("(어98) 걷기가 바꾼 진도·체크는 걷기가 되돌린다(판을 바꿔 놓고 가지 않는다)",
+        Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "") || 0) === nBefore); } }
   const off1 = await gm.locator("[data-g=give-item]").first().locator("input");
   await off1.uncheck(); await p.waitForTimeout(150);
   ok("활동 하나를 풀면 줄 수가 준다(전부 깔고 뺄 것만 푼다)", Number((await gm.locator("button[data-act=give-save]").textContent()).replace(/\D/g, "")) === nLine - 1);
@@ -2366,6 +2391,10 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
       const nU = await gm.locator("[data-g=give-unit]").count();
       ok("(어62) 대단원 고르개(한 번에 한 대단원) 대신 **대단원 머리 + 소단원** · 편 대단원의 소단원이 보인다",
         (await gm.locator("select[data-g=give-chapter]").count()) === 0 && nCh >= 1 && nU >= 1, `대단원 ${nCh}개 · 보이는 소단원 ${nU}개`);
+      /* (어98) 바로 위 「여기까지 ○」가 **진도**를 찍었고, 진도를 찍으면 그 단원의 **배정 체크가 풀린다**(원장님 2026-09-19).
+         그러니 배정을 보려면 다시 고른다 — 막지는 않는다(복습으로 또 내실 수 있어야 한다). */
+      { const u0 = gm.locator("[data-g=give-unit]").first().locator("input.ck");
+        if (!(await u0.isChecked())) { await u0.check(); await p.waitForTimeout(250); } }
       { const said = (await gm.locator("[data-g=give-saved]").textContent()) ?? "";   // 체크는 제안일 뿐 — 판에 실제로 있는 줄만 「지금 나감 N」 이고 없으면 「아직 안 나감」
         const real = await gm.evaluate((m) => [...m.querySelectorAll("[data-g=give-unit] input:checked")].length > 0);
         ok("(어62) 체크가 거짓말하지 않는다 — 체크가 있어도 판에 안 들어갔으면 「아직 안 나감」", /^(아직 안 나감|지금 나감 \d+)$/.test(said.trim()) && real, said); }
@@ -2390,6 +2419,9 @@ console.log("■ (어56) 숙제 배정은 글이 아니라 교재 › 단원 × 
       ok("(어63) 새로고침해도 그대로 · 진도가 진짜 저장됐다", (await gm.locator("[data-g=give-unit]").first().getAttribute("data-st")) === to);
       await gm.locator("[data-g=give-unit]").first().locator("[data-g=unit-prog] button").nth(IDX[st0]).click(); await p.waitForTimeout(1200);
       ok("(어63) 되돌려도 그 자리에서 바뀐다(양쪽 다) · 씨앗 진도를 제자리로", (await gm.locator("[data-g=give-unit]").first().getAttribute("data-st")) === st0, `${to} → ${st0}`); }
+    /* (어98) 진도를 만졌으니 배정 체크가 풀려 있을 수 있다 — 낼 것을 다시 고르고 저장한다(원장님이 하시는 그대로) */
+    { const u0 = gm.locator("[data-g=give-unit]").first().locator("input.ck");
+      if (!(await u0.isChecked())) { await u0.check(); await p.waitForTimeout(250); } }
     await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1800);
     await pick(rg, "check");
     const btns = await rg.locator("[data-card=check] [data-v]").count(), chk1 = await chkN();

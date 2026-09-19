@@ -75,5 +75,23 @@ console.log("\n■ (어90) 진도 체크 — 접힌 채 고르기 · 전체 · �
      /data-g="prog-dirty"/.test(pm) && /data-act="prog-save"/.test(pm) && /data-act="prog-revert"/.test(pm)
      && /const tryClose = \(\) => \{ if \(dirty > 0\) \{ setAsking\(true\); return; \}/.test(pm)
      && /data-act="prog-discard"/.test(pm) && /<\/>, tryClose\);/.test(pm)); }
+/* (어98) 숙제 배정과 진도 체크는 **다른 일**이다 — 원장님 2026-09-19:
+   「오늘 숙제검사에서 숙제배정하는거 · 진도체크+숙제배정인데 · 지금 화면은 진도체크처럼 나와있고
+    진도체크하면 그게 숙제로 배정되어버려」.
+   (어79) 에서 원장님이 「숙제배정에서 진도체크도 가능하게」 하셨을 때 내가 **같은 줄에** 넣은 것이 뿌리다.
+   둘 다 있어야 한다는 말씀이었지 섞으라는 말씀이 아니었다. */
+{ const r = strip(read("app/today/row.js"));
+  ok("(어98) 대단원 머리에서 **이름으로** 갈린다 — 「전체 배정」(배정) · 「진도」 딱지 + 「대단원 완료」(진도)",
+     /data-act="chapter-all"[\s\S]{0,200}>전체 배정<\/button>/.test(r) && /data-g="prog-tag">진도<\/span>/.test(r)
+     && /data-act="chapter-done"[\s\S]{0,200}>대단원 완료<\/button>/.test(r));
+  ok("(어98) 소단원 줄에서 진도 손(여기까지 ○ · ○◐·)은 **따로 선 칸**에 모인다 — 배정 체크는 왼쪽",
+     /data-g="unit-prog-zone"[\s\S]{0,900}data-act="unit-upto"[\s\S]{0,600}data-g="unit-prog"[\s\S]{0,300}<\/span>/.test(r));
+  ok("(어98) 머리가 **두 일과 저장 규칙**을 말한다(진도는 바로 · 배정은 저장해야 · 대전제-0)",
+     /data-g="give-units-h">📕 배정할 단원/.test(r) && /data-g="give-hint"/.test(r) && /체크 = 숙제로 배정\(저장해야 나감\) · 오른쪽 = 진도\(바로 저장\)/.test(r));
+  ok("(어98) 진도를 ○·건너뜀으로 찍으면 그 단원의 **배정 체크를 푼다** — 이미 한 것을 또 숙제로 내지 않는다 · 서버가 실패하면 도로 붙인다",
+     /const unpick = \(ids\) =>/.test(r) && /const repick = \(ids\) =>/.test(r)
+     && /k === "done" \|\| k === "skip"\); if \(had\) unpick\(\[u\.id\]\)/.test(r) && /if \(had\.length\) unpick\(had\)/.test(r)
+     && (r.match(/repick\(/g) ?? []).length === 2); }
+
 console.log(`\n■ (어79) 매일 누르는 자리 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

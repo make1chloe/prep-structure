@@ -28,3 +28,13 @@
 `bash scripts/check-all.sh`(검사 + 빌드). 빨간 것은 앱이 틀린 것이다. DB 열쇠(`.env.local`)가 없는 자리는 DB 검사를 **건너뜀으로 센다** — 초록이 아니다.
 눌러보기는 `bash scripts/e2e/run.sh`(로컬 Postgres·PostgREST·인증 흉내 + 앱 :3300 + 화면 검사).
 PR은 안 만든다 — 작업 브랜치와 `v2` 둘 다에 푸시한다(원장님 허락). 되돌릴 안전망은 검사와 빌드뿐이다.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
