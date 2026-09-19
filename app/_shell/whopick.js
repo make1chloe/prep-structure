@@ -10,7 +10,7 @@
  *
  *  (어95) 원장님 2026-09-19(여쭌 55 의 답): 「**b** + 체크박스」 — 「거르개로 줄이고 이름으로 찾는다」.
  *  ⚠️ 학교·반 단추는 **고르개 그대로** 둔다((어83) 원장님 말씀) — 거르개는 **찾기 한 줄**이 따로 한다.
- *     찾기는 **이름과 학교**를 같이 본다(「한밭」도 「지훈」도 같은 칸에 적으신다).
+ *     찾기는 **이름·학교·반**을 같이 본다(원장님 「학교반이름 검색으로 필터링해서」 — 셋을 한 칸에 치신다).
  *  ⚠️ 찾는 중에는 **보이는 아이**가 곧 손이 닿는 아이다 — 학교·반 단추도 「전체」도 보이는 것만 집는다.
  *     그리고 「전체」는 이미 고른 아이에 **더한다** — 거르고 전체를 눌렀다고 딴 학교에서 고른 아이가 조용히 빠지지 않는다(대전제-0). */
 import { useMemo, useState } from "react";
@@ -22,10 +22,11 @@ export default function WhoPick({ students = [], classes = [], value = [], onCha
   const on = new Set(value ?? []);
   const set = (ids) => onChange([...new Set(ids)]);
   const [q, setQ] = useState("");
+  const className = useMemo(() => new Map((classes ?? []).map((c) => [c.id, classText(c)])), [classes]);
   const shown = useMemo(() => {
     const k = q.trim().toLowerCase(); if (!k) return students;
-    return students.filter((s) => `${s.name ?? ""} ${s.school ?? ""}`.toLowerCase().includes(k));
-  }, [students, q]);
+    return students.filter((s) => `${s.name ?? ""} ${s.school ?? ""} ${(s.classIds ?? []).map((id) => className.get(id) ?? "").join(" ")}`.toLowerCase().includes(k));
+  }, [students, q, className]);
   const schools = useMemo(() => {
     const m = new Map();
     for (const s of shown) { const k = s.schoolId ?? "", n = s.school ?? "학교 없음"; if (!m.has(k)) m.set(k, { key: k, name: n, ids: [] }); m.get(k).ids.push(s.id); }

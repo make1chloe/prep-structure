@@ -19,7 +19,7 @@ if (/node:crypto/.test(readFileSync("lib/sms-plan.js", "utf8"))) bad.push("① l
 w = where(/["']late_notice["']/, ["lib/late.js", "lib/send-plan.js"]).filter((p) => !/^scripts\//.test(p)); if (w.length) bad.push(`확정-㊿ 하원 지연 알림을 lib/late.js 밖에서 넣는다: ${w.join(", ")}`);
 // 큐에 넣는 유형 ⊆ 손이 있는 유형
 const send = strip(readFileSync("lib/send.js", "utf8")), plan = strip(readFileSync("lib/send-plan.js", "utf8"));
-const kinds = Object.fromEntries([...plan.matchAll(/(\w+): "([a-z_]+)"/g)].filter(([, k]) => /^(daily|late|arrival|leave|plan)$/.test(k)).map(([, k, v]) => [k, v]));
+const kinds = Object.fromEntries([...plan.matchAll(/(\w+): "([a-z_]+)"/g)].filter(([, k]) => /^(daily|late|arrival|leave|plan|give)$/.test(k)).map(([, k, v]) => [k, v]));
 const handled = new Set([...send.matchAll(/handlers\[KINDS\.(\w+)\]/g)].map((m) => kinds[m[1]]));
 const enqueued = new Set(all.flatMap(([, s]) => [...s.matchAll(/enqueue\(\w+, "([a-z_]+)"/g)].map((m) => m[1])));
 for (const k of enqueued) if (!handled.has(k)) bad.push(`큐에 넣는 유형에 손이 없다: ${k} (lib/send.js)`);

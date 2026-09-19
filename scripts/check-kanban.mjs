@@ -117,8 +117,9 @@ console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄�
 { const qm = strip(read("app/_shell/quickmemo.js")), wp = strip(read("app/_shell/whopick.js")), plan = strip(read("lib/todo-plan.js")), sch = strip(read("lib/schedule.js"));
   ok("(어95) 아이 고르개는 결석·보강과 **같은 부품**(WhoPick · 원칙-1) · 고르개 하나로 한 명만 잇던 자리는 없앴다",
      /<WhoPick\b/.test(qm) && /whopick\.js"/.test(qm) && !/aria-label="아이"/.test(qm) && /studentIds/.test(qm));
-  ok("(어95) 고르개에 **찾기 한 줄**(이름·학교) — 거르면 학교·반 단추도 「전체」도 **보이는 아이**만 집는다",
-     /data-g="who-find"/.test(wp) && /s\.name \?\? ""\} \$\{s\.school \?\? ""\}/.test(wp) && /const shown = useMemo/.test(wp)
+  ok("(어95) 고르개에 **찾기 한 줄**(이름·학교·반 — 원장님 「학교반이름 검색으로 필터링해서」) — 거르면 학교·반 단추도 「전체」도 **보이는 아이**만 집는다",
+     /data-g="who-find"/.test(wp) && /s\.name \?\? ""\} \$\{s\.school \?\? ""\} \$\{\(s\.classIds/.test(wp) && /className\.get\(id\)/.test(wp) && /const shown = useMemo/.test(wp)
+     && /classIds: s\.class_ids/.test(strip(read("lib/todo-plan.js")))   /* 05 도 반을 내려준다(0185 todo_board) */
      && /\[\.\.\.value, \.\.\.shown\.map/.test(wp) && /shown\.map\(\(s\) => <label/.test(wp));
   ok("(어95) 이은 아이를 읽는 자리는 **한 곳**(todo-plan who) · 0184 전 판의 옛 칸도 같이 읽는다(대전제-27)",
      /export const who = \(t\) => t\.students \?\? \(t\.student_id/.test(plan) && /students: sts, student: sts\.map/.test(plan));
@@ -127,6 +128,25 @@ console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄�
   ok("(어95) 잇는 줄도 **안 지운다**(대전제-6 · state=off) · **새 표라 따로 적는다**(대전제-27) · 못 이었으면 말한다",
      /async function setTodoStudents/.test(sch) && /state: "off"/.test(sch) && !/from\("todo_student"\)\.delete\(\)/.test(sch)
      && /could not find the table\|PGRST205\|does not exist/.test(sch) && /업무는 적었지만 아이는 못 이었습니다/.test(sch)); }
+
+/* (어96) 배부 크로스체크 — 원장님 2026-09-19 「내가 완료처리하면 ① 학생에게 알림이가고 ② 어플에서 목록에떠야해 …
+   그냥 생각없이 체크누르면 큰 문제가 돼. 크로스체크가 필요하다는거야」 · 「칸반 자체에 이 기능이 있고 그걸 내가 쓸지말지 결정해야할듯」. */
+{ const todoLib = strip(read("lib/todo.js")), sendLib = strip(read("lib/send.js")), meLib = strip(read("lib/me.js")), sql = read("supabase/migrations/0185_give_cross.sql");
+  ok("(어96) 스위치는 **칸마다**다(배부 한 자리에 안 박는다) — ✏️ 양식에 「끝내면 아이에게」 넷과 「아이 확인 받기」",
+     /data-g="kind-notify"/.test(board) && /NOTIFY_WAYS\.map/.test(board) && /data-g="kind-confirm"/.test(board) && /notifyWay: col\.notifyWay/.test(board));
+  ok("(어96) 씨앗은 **여태 하던 그대로** — 켜는 것은 원장님이 하신다 · 다만 배부는 이미 뜨던 목록이라 'list' 로 적어 둔다(대전제-0)",
+     /set notify_way = 'list' where kind = 'hand' and notify_way = 'none'/.test(sql) && !/confirm_got = true/.test(sql));
+  ok("(어96) 카드가 「받음 n/N」과 **누가 안 받아 갔나**를 말하고, 손은 ✅ 채점 줄과 같은 꼴이다(새 꼴 0 · 원칙-1)",
+     /data-g="cross"/.test(board) && /data-act="give-check"/.test(board) && /data-act="give-check-all"/.test(board) && /data-act="give-uncheck"/.test(board));
+  ok("(어96) 다 안 받아 가면 ✓ 끝냄이 **잠기고 까닭을 그 자리에서** 말한다(대전제-0) · 잠금은 서버도 건다",
+     /disabled=\{pending \|\| Boolean\(crossOf\(c\)\?\.locked\)\}/.test(board) && /data-g="cross-locked"/.test(board)
+     && /아직 안 받아 간 아이 \$\{left\.length\}명/.test(todoLib));
+  ok("(어96) 첫 「✓ 끝냄」은 **나눠 주고 카드를 남긴다**(state doing) — 받아 가야 닫힌다",
+     /update\(\{ state: "doing" \}\)/.test(todoLib) && /return \{ kind: t\.kind, state: "doing"/.test(todoLib));
+  ok("(어96) 알림은 **큐를 지나간다** — 그래야 방해금지에 함께 걸린다(바로 notify 를 부르면 밤에 운다)",
+     /enqueue\(sb, "give_notice"/.test(todoLib) && !/\bnotify\(/.test(todoLib) && /handlers\[KINDS\.give\] = family\(/.test(sendLib));
+  ok("(어96) 「어플 목록」을 끄면 아이 07 의 📚 카드가 아예 안 선다 · 표·칸이 없는 DB 면 여태처럼 보인다(대전제-27)",
+     /const listOn = noKindTbl/.test(meLib) && /groupGives\(listOn \?/.test(meLib) && /could not find the table\|PGRST205\|does not exist/.test(meLib)); }
 
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

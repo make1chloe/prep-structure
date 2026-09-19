@@ -2671,6 +2671,48 @@ console.log("■ (어84) ⏰ 마감 필요 — 판이 선 뒤의 실제 목록 �
   await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(어95) 걷기가 세운 업무는 걷기가 치운다 — 판을 바꿔 놓고 가지 않는다", (await td.locator("[data-g=col] [data-g=card]").filter({ hasText: "zz_95_아이 여럿" }).count()) === 0); }
 
+/* (어96) 배부 크로스체크 — 원장님 2026-09-19 「그냥 생각없이 체크누르면 큰 문제가 돼. 크로스체크가 필요하다는거야」.
+   스위치는 **꺼진 채로 나간다**(원장님이 켜신다) — 그래서 걷기가 **켜고 걷고 도로 끈다**. 판을 바꿔 놓고 가지 않는다. */
+{ await p.goto(`${APP}/schedule/todo`); await p.waitForLoadState("networkidle").catch(() => {});
+  const col = td.locator("[data-g=col][data-kind=hand]");
+  const setConfirm = async (on) => { await col.locator("button[data-act=kind-edit]").click(); await p.waitForTimeout(500);
+    const box = td.locator("[data-g=kind-form][data-kind=hand] [data-g=kind-confirm] input.ck");
+    if (on) await box.check(); else await box.uncheck();
+    await td.locator("[data-g=kind-form][data-kind=hand] button[data-act=kind-save]").click(); await p.waitForTimeout(1500);
+    await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); };
+  await setConfirm(true);
+  /* ⚠️ 배부 칸에는 카드가 여럿이라 **한 장을 열쇠로 붙잡고** 걷는다 — 「크로스 줄이 있는 아무 카드」로 세면 옆 카드를 센다(r9 실측) */
+  const first = col.locator("[data-g=card]").filter({ has: p.locator("button[data-act=done]") }).first();
+  const id = (await first.count()) ? await first.getAttribute("data-id") : null;
+  const mine = () => col.locator(`[data-g=card][data-id="${id}"]`);
+  ok("(어96) 칸 머리의 ✏️ 에서 「아이 확인 받기」를 켤 수 있다 — 배부 칸에 아직 하는 중인 카드가 있다", Boolean(id), `배부 카드 ${await col.locator("[data-g=card]").count()}`);
+  if (id) {
+    if (!(await mine().locator("[data-g=cross-locked]").count())) {
+      await mine().locator("button[data-act=done]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+      await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    }
+    ok("(어96) 나눠 줘도 **그 카드가 안 사라진다** — 「받음 n/N」과 아직 안 받아 간 아이가 그 자리에 선다(대전제-0)",
+      (await mine().count()) === 1 && /받음 \d+\/\d+/.test(await mine().locator("[data-g=cross]").textContent()),
+      (await col.textContent()).replace(/\s+/g, " ").slice(0, 160));
+    ok("(어96) 다 안 받아 갔으니 「✓ 끝냄」이 **잠겨 있고 까닭이 그 자리에** 있다",
+      (await mine().locator("[data-g=cross-locked]").count()) === 1 && (await mine().locator("button[data-act=done]").isDisabled()),
+      await mine().locator("[data-g=cross-locked]").textContent().catch(() => "까닭 없음"));
+    const allb = mine().locator("[data-act=give-check-all]");
+    if (await allb.count()) await allb.click(); else await mine().locator("[data-act=give-check]").first().click();
+    await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+    await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    ok("(어96) 원장 확인 도장을 찍으면 잠김이 풀리고 「확인함」으로 바뀐다(폰 없는 아이에게 막다른 길을 안 만든다)",
+      (await mine().locator("[data-g=cross-locked]").count()) === 0 && (await mine().locator("[data-act=give-uncheck]").count()) >= 1,
+      (await mine().locator("[data-g=cross]").textContent()).replace(/\s+/g, " "));
+    await mine().locator("button[data-act=done]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+    await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    ok("(어96) 다 받아 간 뒤의 「✓ 끝냄」이 **그 카드**를 닫는다", (await mine().locator("button[data-act=done]").count()) === 0,
+      (await mine().textContent().catch(() => "카드 없음")).replace(/\s+/g, " ").slice(0, 120));
+  }
+  await setConfirm(false);
+  ok("(어96) 걷기가 켠 스위치는 걷기가 끈다 — 씨앗은 꺼진 채다(원장님이 켜신다)",
+    (await col.locator("[data-g=card] [data-g=cross]").count()) === 0); }
+
 await b.close();
 ok(`화면 안 JS 오류 0 · ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

@@ -9,8 +9,8 @@ import { usePick, PickAll, PickGroup, PickBox, PickBar } from "../../_shell/pick
 import { useRouter } from "next/navigation";
 import Photo from "@/app/_shell/photo.js";
 import { isImage } from "@/lib/files-plan";
-import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct, materialFormAct, addMaterialAct } from "./actions.js";
-import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText, whoPicks } from "@/lib/todo-plan";
+import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, checkedAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct, materialFormAct, addMaterialAct } from "./actions.js";
+import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, NOTIFY_WAYS, giveCross, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText, whoPicks } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 import { ACT, FACE } from "@/lib/emoji";
 import { icon } from "@/app/_shell/icon.js";   // (어80) 아이콘만 있는 손의 이름·툴팁 한 벌
@@ -44,12 +44,16 @@ export default function Board({ d }) {
   const selCard = (sel ? all.find((x) => x.id === sel) : only.length ? all.find((x) => only.includes(x.material?.id)) : null) ?? null;   // 자료만 걸러 열었으면 📦 흐름도 그 자료로
   const schools = b.schools ?? [];
   const schoolPick = (v) => setSchool(v);
-  const openKind = (col) => { const key = col ? col.kind : "new"; if (kindOpen === key) { setKindOpen(null); return; } setKindOpen(key); setKf(col ? { name: col.name, cls: col.cls ?? "", showOn: col.showOn ?? "todo" } : { name: "", cls: "", showOn: "todo" }); };
+  const openKind = (col) => { const key = col ? col.kind : "new"; if (kindOpen === key) { setKindOpen(null); return; } setKindOpen(key); setKf(col ? { name: col.name, cls: col.cls ?? "", showOn: col.showOn ?? "todo", notifyWay: col.notifyWay ?? "none", confirmGot: Boolean(col.confirmGot) } : { name: "", cls: "", showOn: "todo", notifyWay: "none", confirmGot: false }); };
   /** (어80) 분류 한 벌 — 넣기와 수정이 **같은 양식**이다(원칙-1 · 대전제-19). 지우지 않고 내린다(대전제-6)이라 「삭제」는 state=off 고, 「복구」가 짝이다 */
   const kindForm = (col) => <div data-g="kind-form" data-kind={col ? col.kind : "new"} style={{ marginTop: 4 }} onClick={(x) => x.stopPropagation()}>
     <input value={kf.name} aria-label="분류 이름" placeholder="학교 행사" onChange={(x) => setKf({ ...kf, name: x.target.value })} style={{ width: "100%" }} />
     <div className="seg sm" data-g="kind-cls" style={{ marginTop: 4 }}>{COLORS.map(([v, nm]) => <button key={v || "none"} type="button" data-cls={v} aria-pressed={kf.cls === v} onClick={() => setKf({ ...kf, cls: v })}>{nm}</button>)}</div>
     <div className="seg sm" data-g="kind-where" style={{ marginTop: 4 }}>{SHOW_ON.map(([v, nm]) => <button key={v} type="button" data-where={v} aria-pressed={kf.showOn === v} onClick={() => setKf({ ...kf, showOn: v })}>{nm}</button>)}</div>
+    {/* (어96) 원장님 2026-09-19 「그냥 칸반 자체에 이 기능이 있고 그걸 내가 쓸지말지 결정해야할듯 · 알림만주거나 어플목록에 띄우거나 둘다 하거나 선택가능하게해야함」 */}
+    <div className="wv" style={{ marginTop: 6, gap: 4 }}><span className="fl" style={{ margin: 0 }}>끝내면 아이에게</span>
+      <div className="seg sm" data-g="kind-notify">{NOTIFY_WAYS.map(([v, nm]) => <button key={v} type="button" data-way={v} aria-pressed={kf.notifyWay === v} onClick={() => setKf({ ...kf, notifyWay: v })}>{nm}</button>)}</div></div>
+    <label className="ckl" style={{ marginTop: 4 }} data-g="kind-confirm"><input type="checkbox" className="ck" checked={Boolean(kf.confirmGot)} onChange={(x) => setKf({ ...kf, confirmGot: x.target.checked })} />아이 확인 받기 · 다 받아 가야 카드가 닫힘</label>
     <div className="wv" style={{ marginTop: 4, gap: 4 }}>
       <button className="btn pri sm" type="button" disabled={pending || !kf.name.trim()} data-act={col ? "kind-save" : "kind-add"} onClick={() => run(() => (col ? editKindAct(col.kind, kf) : addKindAct(kf)), col ? "수정했어요" : `분류 ✓ · ${kf.name.trim()}`, () => setKindOpen(null))}>{col ? "수정" : "넣기"}</button>
 
@@ -87,6 +91,8 @@ export default function Board({ d }) {
    *  React 가 카드를 전부 부수고 다시 만든다 → 눌러 둔 체크박스가 사라졌다 살아나고 **스크롤·포커스가 튄다**.
    *  갈고리를 안 쓰므로 **부품이 아니라 함수로 부른다**(`{Card({ c, k })}`) — 그러면 갈래가 안 바뀌어 안 튄다.
    *  열쇠(key)는 뿌리에 단다 — DOM 은 한 글자도 안 바뀐다(마크업을 보는 검사·목업 화소 그대로). */
+  /** (어96) 이 카드가 아이 확인을 받는 칸인가 — 칸마다 켜고 끄신다(0185 todo_kind.confirm_got · 원장님 2026-09-19) */
+  const crossOf = (c) => (c.kind === "hand" && c.material && klist.find((x) => x.kind === c.kind)?.confirmGot ? giveCross(c.material) : null);
   const Card = ({ c, k }) => <div key={k} className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} data-drag={drag === c.id ? "1" : "0"} onClick={openCard(c)} aria-pressed={sel === c.id}>
     {c.todoId ? <span className="grip" data-g="card-grip" aria-hidden="true" onPointerDown={(e) => grab(e, c)} onPointerMove={follow} onPointerUp={() => drop(c)} onPointerCancel={() => drop(c)}>⠿</span> : null}
     {c.todoId ? <PickBox pick={pk} id={c.id} label={`${c.title} 고르기`} /> : null}<span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
@@ -104,13 +110,22 @@ export default function Board({ d }) {
     {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.map((s) => { const tid = stepTodoOf(all, c.material?.id, s.step); return <button key={s.step} type="button" className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"} disabled={pending || !tid} style={{ border: 0, background: "none", padding: 0, font: "inherit", cursor: tid ? "pointer" : "default" }} onClick={(x) => { x.stopPropagation(); if (!tid) return; run(() => (s.done ? undoAct(tid) : doneAct(tid)), s.done ? `${s.name} 취소 · 카드가 제 칸으로 돌아갑니다` : `${s.name} ✓ · 카드가 다음 칸으로 갑니다`); }}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</button>; })}</span></div>}
     {c.kind === "solve" && <div className="nb-prop"><span className="nb-pi">✍️</span><span className="nb-pv" data-g="submit">제출 {c.submitted ?? 0}/{c.n}{c.waiting?.length ? ` · 아직: ${c.waiting.join(", ")}` : " · 다 냈습니다"}</span></div>}
     {c.kind === "grade" && <div className="nb-prop"><span className="nb-pi">✅</span><span className="nb-pv" data-g="grade" style={{ display: "inline-flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>채점 {c.scored ?? 0}/{c.n}{(c.toGrade ?? []).map((s) => <button key={s.id} type="button" className="btn sm pri" data-act="scored" data-student={s.id} disabled={pending} onClick={() => { run(() => scoredAct(c.material.id, s.id, true), `채점 ✓ · ${s.name}`); }}>{s.name} ✓</button>)}{(c.graded ?? []).map((s) => <button key={s.id} type="button" className="btn sm" data-act="unscored" data-student={s.id} disabled={pending} onClick={() => { run(() => scoredAct(c.material.id, s.id, false), `채점 취소 · ${s.name}`); }}>{s.name} 채점함</button>)}</span></div>}
+    {/* (어96) 배부 크로스체크 — 원장님 2026-09-19 「자기가 챙겨서 받아갔다는 체크를 해야 … 생각없이 체크누르면 큰 문제가 돼」.
+        아이가 찍은 「받았다」와 원장님 확인 도장이 **두 눈**이다. 손은 ✅ 채점 줄과 같은 꼴(원칙-1 · 새 꼴 0). */}
+    {crossOf(c) && <div className="nb-prop"><span className="nb-pi">🤝</span><span className="nb-pv" data-g="cross" style={{ display: "inline-flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+      {(() => { const x = crossOf(c); return <>받음 {x.ok}/{x.n}
+        {x.left.map((s) => <button key={s.id} type="button" className="btn sm pri" data-act="give-check" data-student={s.id} disabled={pending} onClick={() => { run(() => checkedAct(c.material.id, [s.id], true), `확인 ✓ · ${s.name}`); }}>{s.name} ✓</button>)}
+        {x.left.length > 1 && <button type="button" className="btn sm" data-act="give-check-all" disabled={pending} onClick={() => { run(() => checkedAct(c.material.id, x.left.map((s) => s.id), true), `확인 ✓ · ${x.left.length}명`); }}>전체 확인</button>}
+        {x.checked.map((s) => <button key={s.id} type="button" className="btn sm" data-act="give-uncheck" data-student={s.id} disabled={pending} onClick={() => { run(() => checkedAct(c.material.id, [s.id], false), `확인 취소 · ${s.name}`); }}>{s.name} 확인함</button>)}</>; })()}
+    </span></div>}
     {c.book && <div className="nb-prop"><span className="nb-pi">📚</span><span className="nb-pv">{c.book}</span></div>}
     {c.style && <div className="nb-prop"><span className="nb-pi">🧪</span><span className="nb-pv">{c.style}</span></div>}
     {c.kind === "score" && <div className="nb-prop"><span className="nb-pi">👧</span><span className="nb-pv">아이가 넣습니다</span></div>}
     {c.why && c.kind !== "score" && <div className="nb-prop"><span className="nb-pi">🧾</span><span className="nb-pv">{c.why}</span></div>}
     {c.note && <div className="nb-prop"><span className="nb-pi">✎</span><span className="nb-pv">{c.note}</span></div>}
     <div className="wv" style={{ marginTop: 6, gap: 4 }}>
-      {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => { run(() => doneAct(c.todoId), `끝냈습니다. ${c.title}`); }}>✓ 끝냄</button>}
+      {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm pri" type="button" disabled={pending || Boolean(crossOf(c)?.locked)} data-act="done" onClick={() => { run(() => doneAct(c.todoId), (r) => (r?.state === "doing" ? `배부 ✓ · ${r.handed}명 · 다 받아 가면 닫힘` : `끝냈습니다. ${c.title}`)); }}>✓ 끝냄</button>}
+      {crossOf(c)?.locked && <span className="note" data-g="cross-locked" style={{ margin: 0 }}>아직 안 받아 간 아이 {crossOf(c).left.length}명</span>}{/* (어96) 잠긴 까닭을 그 자리에서 말한다(대전제-0) */}
       {c.todoId && !c.material && (c.state === "todo" || c.state === "doing") && <button className="btn sm gho icb" type="button" disabled={pending} data-act="card-edit" {...icon("수정")} onClick={() => { setEditing(editing === c.id ? null : c.id); }}>{ACT.edit}</button>}{/* (어80) 원장님 2026-09-18 「입력한 세부내용자체도 추가수정삭제가 안됨」 */}
       {c.todoId && c.state === "dropped" && <button className="btn sm" type="button" disabled={pending} data-act="restore" onClick={() => { run(() => restoreAct(c.todoId), `복구 ✓ · ${c.title}`); }}>{ACT.restore} 복구</button>}
       {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => { run(() => dropAct(c.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능")); }}>삭제</button>}
@@ -139,7 +154,7 @@ export default function Board({ d }) {
       <button className="btn sm gho" type="button" data-act="retest-cancel" onClick={() => { setTaking(null); setWrong(""); }}>취소</button>
     </div>}
     {editing === c.id && <div data-g="card-edit-form" onClick={(x) => x.stopPropagation()} style={{ marginTop: 6 }}>
-      <QuickMemo inline edit={c} students={picks} kinds={kinds} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
+      <QuickMemo inline edit={c} students={picks} classes={b.classes ?? []} kinds={kinds} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
     </div>}{/* (어80) 넣기 양식이 그대로 **고치기** 양식이다(원칙-1) · 그 자리에서 편다(대전제-22) */}
   </div>;
   return <>
@@ -164,7 +179,7 @@ export default function Board({ d }) {
       <button type="button" className="btn sm gho" disabled={pending || !pickedCards.length} data-act="drop-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "drop"), (r) => `삭제 ✓ · ${r.n}개 · 복구 가능`, pk.clear)}>삭제 {pickedCards.length}</button>
     </PickBar>
     <div className="wv" style={{ margin: "0 0 8px" }}><span className="spacer" /><Sibs here="/schedule/todo" /></div>
-    <div className="card" data-g="quick-card" style={{ marginBottom: 8 }}><QuickMemo inline students={picks} kinds={kinds} /></div>{/* (어78) 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」 — 상단 띠 📌 와 **같은 부품**이다(원칙-1) */}
+    <div className="card" data-g="quick-card" style={{ marginBottom: 8 }}><QuickMemo inline students={picks} classes={b.classes ?? []} kinds={kinds} /></div>{/* (어78) 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」 — 상단 띠 📌 와 **같은 부품**이다(원칙-1) */}
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -288,7 +303,7 @@ export default function Board({ d }) {
               : <a key={f.id} className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">{FACE.files} {f.name}</a>))}
           </div>}
           {dCard.todoId && !dCard.material && (dCard.state === "todo" || dCard.state === "doing")
-            && <div style={{ marginTop: 10 }}><QuickMemo inline edit={dCard} students={picks} kinds={kinds} onSaved={() => setDetail(null)} onCancel={() => setDetail(null)} /></div>}
+            && <div style={{ marginTop: 10 }}><QuickMemo inline edit={dCard} students={picks} classes={b.classes ?? []} kinds={kinds} onSaved={() => setDetail(null)} onCancel={() => setDetail(null)} /></div>}
         </div>
         <div className="mdlf">
           {dCard.todoId && (dCard.state === "todo" || dCard.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="detail-done" onClick={() => run(() => doneAct(dCard.todoId), "끝냄 ✓", () => setDetail(null))}>✓ 끝냄</button>}

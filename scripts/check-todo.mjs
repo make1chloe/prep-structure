@@ -1,6 +1,6 @@
 /** 업무 · 내신 자료 판단 검사(검사-57) · lib/todo-plan.js 순수 셈: 카드 목록(한 벌 → 종류가 바깥 축 · 성적 받기는 회차에서 세어 나온다) · 마감 줄(D-N 은 시험까지 · 지남은 마감 기준) · 칸(인쇄는 장수) · 숨긴 그룹 · 알약 · 학교 거르개 · 차례 ·
  *  🔥 못 따라갑니다 · 한 번에 뽑기 · 자료 단계 체크·흐름(자료 하나 안에서만 순서, 확정-㉟) · ♻️(체크된 채로, 확정-㊵) · 반복 글·읽기 · 04 나무(자료·유형·항목) · 학생별 표(진도를 알아야 냅니다) · 새 자료 읽기 */
-import { stepTodoOf, filterMaterials, onlyText, cardsOf, dueLine, ddayText, overdueText, columnsOf, hiddenOf, counts, filterSchool, sortCards, behindOf, printAllOf, stepChecks, flowOf, pagesOf, repeatText, parseRepeat, treeOf, materialTags, nextStep, studentRows, reuseRows, parseMaterial, todoLine, schoolTag, isOverdue, KINDS, schoolBooksOf, examYear } from "../lib/todo-plan.js";
+import { giveCross, stepTodoOf, filterMaterials, onlyText, cardsOf, dueLine, ddayText, overdueText, columnsOf, hiddenOf, counts, filterSchool, sortCards, behindOf, printAllOf, stepChecks, flowOf, pagesOf, repeatText, parseRepeat, treeOf, materialTags, nextStep, studentRows, reuseRows, parseMaterial, todoLine, schoolTag, isOverdue, KINDS, schoolBooksOf, examYear } from "../lib/todo-plan.js";
 import { readFileSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다
 let n = 0, bad = 0;
@@ -116,11 +116,25 @@ ok("다 제출·다 채점하면 둘 다 ✓ 끝냄(숨긴 그룹) · 체크 글
    크로스체크는 **언제 줬나**가 밑감이라 이것이 거짓이면 그 위에 아무것도 못 세운다. */
 { const t = strip(readFileSync("lib/todo.js", "utf8"));
   ok("(어96) 배부는 **안 준 아이만** 채운다 — 먼저 준 날짜를 안 덮어쓴다",
-     /if \(step === "hand" && !back\) changed\(await db\(sb\)\.from\("material_give"\)\.update\(\{ handed_at: now\(\) \}\)\.eq\("material_id", materialId\)\.is\("handed_at", null\)/.test(t)
+     /update\(\{ handed_at: now\(\) \}\)\.eq\("material_id", materialId\)\.is\("handed_at", null\)/.test(t) && /if \(step === "hand" && !back\) \{/.test(t)
      && !/update\(\{ handed_at: back \? null : now\(\) \}\)/.test(t));
   ok("(어96) 무를 때만 통째로 비운다(잘못 누른 것을 되돌리는 자리) · 죽은 줄 0",
      /if \(step === "hand" && back\) changed\(await db\(sb\)\.from\("material_give"\)\.update\(\{ handed_at: null \}\)/.test(t)
      && (t.match(/from\("material_give"\)\.update\(\{ handed_at/g) ?? []).length === 3);   /* 무르기 · 채우기 · handOut */ }
+
+/* (어96) 배부 크로스체크 셈 — 원장님 2026-09-19 「자기가 챙겨서 받아갔다는 체크 … 크로스체크가 필요하다는거야」 */
+{ const gv = (...ss) => giveCross({ students: ss });
+  const 준받 = { id: "a", name: "가", handed: true, got: true, checked: false };
+  const 준안 = { id: "b", name: "나", handed: true, got: false, checked: false };
+  const 도장 = { id: "c", name: "다", handed: true, got: false, checked: true };
+  const 안준 = { id: "d", name: "라", handed: false, got: false, checked: false };
+  ok("(어96) 「받음 n/N」은 **준 아이**만 센다 · 원장 확인 도장도 받은 것으로 센다(폰 없는 아이에게 막다른 길을 안 만든다)",
+     J([gv(준받, 준안, 도장, 안준).n, gv(준받, 준안, 도장, 안준).ok, gv(준받, 준안, 도장, 안준).left.map((x) => x.name)]) === J([3, 2, ["나"]]),
+     J(gv(준받, 준안, 도장, 안준)));
+  ok("(어96) 아직 안 준 아이가 있으면 **안 잠긴다** — 그때의 「✓ 끝냄」은 곧 나눠 주는 손이다",
+     gv(준받, 준안, 안준).locked === false);
+  ok("(어96) 다 줬는데 덜 받아 갔으면 **잠긴다** · 다 받아 가면 풀린다",
+     gv(준받, 준안).locked === true && gv(준받, 도장).locked === false && gv().locked === false); }
 
 console.log(`\ncheck-todo ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

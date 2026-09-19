@@ -5,7 +5,7 @@ import { editTodo } from "@/lib/schedule";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";
 import { takeQuiz } from "@/lib/quiz";   // (어89) 재시험 끝냄 — 01 과 같은 손(원칙-1)
-import { materialForm, addMaterial, finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored , restoreTodo, addKind, editKind, dropKind, restoreKind, moveKindOrder, moveKind } from "@/lib/todo";
+import { materialForm, addMaterial, finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored, setChecked, restoreTodo, addKind, editKind, dropKind, restoreKind, moveKindOrder, moveKind } from "@/lib/todo";
 const wrap = (fn) => act(fn, "업무 05");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
 export async function undoAct(todoId) { return wrap(async () => { const { sb } = await staff(); return undoTodo(sb, todoId); }); }
@@ -17,8 +17,8 @@ export async function unitTestDueAct(due) { return wrap(async () => { const { sb
 export async function noteAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addNote(sb, { title: f?.title, kind: f?.kind || null, dueOn: f?.dueOn || null, dueTime: f?.dueTime || null, studentIds: f?.studentIds ?? [], note: f?.note || null, startOn: f?.startOn || null }) }; }); }   // (어78) 마감·시작일은 없어도 된다 — 📌 퀵 메모와 05 가 같은 손을 쓴다 · (어95) 아이는 여럿
 export async function editNoteAct(todoId, f) { return wrap(async () => { const { sb } = await staff(); await editTodo(sb, todoId, { title: f?.title, kind: f?.kind || undefined, dueOn: f?.dueOn || null, dueTime: f?.dueTime || null, studentIds: f?.studentIds ?? [], startOn: f?.startOn || null }); return {}; }); }   // (어80) ✎ 한 줄 고치기 — 퀵 메모와 **같은 양식**이 넣기·고치기를 다 한다(원칙-1)
 /* ── (어80) 분류 자체를 더하고 고치고 내린다 — 원장님 2026-09-18 「업무 칸반보드에 분류자체를 추가/수정/삭제가 되게해줘」 ── */
-export async function addKindAct(f) { return wrap(async () => { const { sb } = await staff(); return { kind: await addKind(sb, { name: f?.name, cls: f?.cls ?? "", showOn: f?.showOn ?? "todo" }) }; }); }
-export async function editKindAct(kind, f) { return wrap(async () => { const { sb } = await staff(); await editKind(sb, kind, { name: f?.name, cls: f?.cls ?? "", showOn: f?.showOn }); return {}; }); }
+export async function addKindAct(f) { return wrap(async () => { const { sb } = await staff(); return { kind: await addKind(sb, { name: f?.name, cls: f?.cls ?? "", showOn: f?.showOn ?? "todo", notifyWay: f?.notifyWay, confirmGot: f?.confirmGot }) }; }); }
+export async function editKindAct(kind, f) { return wrap(async () => { const { sb } = await staff(); await editKind(sb, kind, { name: f?.name, cls: f?.cls ?? "", showOn: f?.showOn, notifyWay: f?.notifyWay, confirmGot: f?.confirmGot }); return {}; }); }
 export async function dropKindAct(kind) { return wrap(async () => { const { sb } = await staff(); await dropKind(sb, kind); return {}; }); }
 export async function restoreKindAct(kind) { return wrap(async () => { const { sb } = await staff(); await restoreKind(sb, kind); return {}; }); }
 export async function kindOrderAct(kind, dir) { return wrap(async () => { const { sb } = await staff(); await moveKindOrder(sb, kind, dir); return {}; }); }
@@ -28,6 +28,7 @@ export async function quizPaperAct(quizId, on) { return wrap(async () => { const
 export async function repeatAct(f) { return wrap(async () => { const { sb } = await staff(); return addRepeat(sb, { name: f?.name, every: f?.every, day: f?.day, weekday: f?.weekday, lead: f?.lead, days: f?.days, left: f?.left }, await today(sb)); }); }
 export async function repeatActiveAct(id, active) { return wrap(async () => { const { sb } = await staff(); await setRepeatActive(sb, id, active); return {}; }); }
 export async function printAllAct(materialIds) { return wrap(async () => { const { sb } = await staff(); return printAll(sb, materialIds); }); }
+export async function checkedAct(materialId, studentIds, on) { return wrap(async () => { const { sb } = await staff(); return setChecked(sb, String(materialId), studentIds, Boolean(on)); }); }   // (어96) 원장 확인 도장 — 아이 하나도 여럿도(대전제-20)
 export async function scoredAct(materialId, studentId, on) { return wrap(async () => { const { sb } = await staff(); return setScored(sb, String(materialId), String(studentId), Boolean(on)); }); }   // ✅ 채점 아이마다((가)-⑧)
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
 export async function manyAct(ids, op, value = null) { return wrap(async () => { const { sb } = await staff(); return todoMany(sb, ids, op, value); }); }   // (어28)-③ 고른 업무에 한 번에(done · undo · due · drop)

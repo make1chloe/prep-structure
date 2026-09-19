@@ -23,7 +23,7 @@ const formOf = (c) => (c ? { title: c.title ?? "", kind: c.kind ?? "note", dueOn
 /** (어88) `kinds` — 업무 종류 고르개(원장님 2026-09-18 「근데 업무종류를 고르는건 가능하게해야함」).
  *  ⚠️ **상단 띠 📌 는 어느 화면에서나 뜨므로 표를 읽지 않는다**(속도-4) — 화면이 읽은 것을 내려주고, 안 주면 씨앗(KINDS)으로 그린다.
  *  씨앗에는 원장님이 새로 만드신 분류가 없으니, 05 에서는 반드시 내려준다(05 는 이미 읽은 값이라 조회 0). */
-export default function QuickMemo({ students = null, kinds = null, inline = false, edit = null, onSaved = null, onCancel = null }) {
+export default function QuickMemo({ students = null, classes = null, kinds = null, inline = false, edit = null, onSaved = null, onCancel = null }) {
   const router = useRouter(); const [open, setOpen] = useState(inline);
   const kindOpts = useMemo(() => kindList(kinds).filter((k) => k.state === "active" && k.showOn !== "schedule"), [kinds]);
   const [f, setF] = useState(() => formOf(edit)); const [more, setMore] = useState(Boolean(edit));
@@ -61,7 +61,7 @@ export default function QuickMemo({ students = null, kinds = null, inline = fals
         <label className="fl" style={{ margin: 0 }}>마감</label><DateBox type="date" className="dt" value={f.dueOn} aria-label="마감" onChange={up("dueOn")} style={{ width: "auto" }} />
         <DateBox type="time" value={f.dueTime} aria-label="시각" onChange={up("dueTime")} style={{ width: "auto" }} />
       </div>}
-      {more && students && <div style={{ marginTop: 6 }}><WhoPick students={students} value={f.studentIds} onChange={(ids) => setF({ ...f, studentIds: ids })} label="아이" /></div>}
+      {more && students && <div style={{ marginTop: 6 }}><WhoPick students={students} classes={classes ?? []} value={f.studentIds} onChange={(ids) => setF({ ...f, studentIds: ids })} label="아이" /></div>}
       {more && <Upload paste sendRef={sendRef} label="📷 사진 · 📄 파일" hint="붙여넣기(Ctrl+V)도 돼요" compact />}
       {err && <p className="note" role="alert" style={{ margin: "6px 0 0", color: "var(--miss)" }}>{err}</p>}
       {msg && <p className="note" data-g="quick-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}
