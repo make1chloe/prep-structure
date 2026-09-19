@@ -32,7 +32,7 @@ export default function Keys({ rows = [] }) {
         <span className={"tag" + (r.bad?.length ? "" : r.ready ? " on" : "")} data-g="key-state" style={r.bad?.length ? { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" } : undefined}>{r.bad?.length ? "수정 필요" : r.ready ? "켜짐" : "안 켜짐"}</span>
         <button className="btn sm" type="button" data-act="key-edit" aria-pressed={open === r.id} onClick={() => edit(r)}>{open === r.id ? "닫기" : "수정"}</button></div>
       {open === r.id && <div className="card" style={{ margin: "4px 0 8px" }} data-g="key-form">
-        <p className="note k" style={{ marginTop: 0 }}>{r.why} {r.site && <a href={r.site} target="_blank" rel="noreferrer">{r.site} 👉</a>}</p>
+        <p className="note k" style={{ marginTop: 0 }}>{r.why} {r.site && <a href={r.site} target="_blank" rel="noreferrer">{r.site}</a>}</p>
         {r.fields.map((f) => { const v = form[f.k] ?? "", why = fieldNag(f, v); return (<div className="wv" key={f.k}><label className="fl" style={{ margin: 0, minWidth: 90 }}>{f.label}</label>
           <input type={f.k === "from" ? "tel" : "text"} value={v} {...NOFILL} aria-label={f.label} name={`key-${f.k}`} aria-invalid={why ? "true" : undefined}
             placeholder={f.secret || f.peek ? (f.filled ? "넣어 둠 · 바꿀 때만 · 지우려면 -" : f.hint || "") : f.hint || ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })}

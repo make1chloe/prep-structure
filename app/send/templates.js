@@ -17,7 +17,7 @@ export default function Templates({ items = [], ready = false, placeholders = []
   return (<div className="sgrp" data-card="templates">
     <div className="sgh"><b>✉️ 문자 문구</b><span className="spacer" />
       {ready ? <span className="pill" data-g="sms-ready">문자 길 켜짐(솔라피)</span>
-             : <Link prefetch={false} className="pill warn" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 · 연동 설정 👉</Link>}</div>
+             : <Link prefetch={false} className="pill warn goto" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 · 연동 설정</Link>}</div>
     <div className="wv" style={{ margin: "0 0 8px" }} data-g="sms-kinds">
       <span className="note" style={{ margin: 0 }}>문자로도</span>
       {SMS_ALSO.map(([k, name]) => { const on = ks.includes(k);

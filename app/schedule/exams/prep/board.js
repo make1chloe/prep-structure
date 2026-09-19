@@ -49,10 +49,10 @@ export default function Board({ d }) {
       <div className="mtree" data-g="tree">
         {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다. 「+ 자료」로 유형(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 업무가 저절로 섭니다(영어 시험일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
         {tree.groups.map((g) => <div className="mt1" key={g.source} data-g="mt1" data-source={g.source}>
-          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 👉</Link></div>
+          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><Link prefetch={false} className="btn sm goto" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계</Link></div>
           {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length, nx = nextStep(m, todos, today); return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
             <div className="mth2"><b>{m.type}{m.title && m.title !== m.type ? ` · ${m.title}` : ""}</b><span className="spacer" />
-              <Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계 👉</Link>
+              <Link prefetch={false} className="btn sm goto" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계</Link>
               {materialTags(m).map((t) => <span key={t} className={"tag" + (t === "아직 안 만듦" ? " act" : t.startsWith("♻️") ? " on" : "")} data-g="mtag">{t}</span>)}
               {nx && <span className={"tag" + (nx.late ? " act" : "")} data-g="next-step" data-step={nx.step}>{nx.text}</span>}
               {["made", "printed"].includes(m.state) && left > 0 && <button className="btn sm pri" type="button" disabled={pending} data-act="hand" onClick={() => run(() => handAct(m.id), (r) => `나눠 줬습니다. ${r.handed}명${r.left ? ` · 아직 ${r.left}명` : " · 배부 끝"}`)}>📤 배부 {left}명</button>}

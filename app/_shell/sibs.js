@@ -10,5 +10,5 @@ export const familyOf = (here) => Object.values(유형).find((xs) => xs.some(([h
 export default function Sibs({ here }) {
   const fam = familyOf(here);
   if (!fam) return null;
-  return <>{fam.filter(([h]) => h !== here).map(([h, name]) => <Link prefetch={false} className="btn sm" key={h} href={h} data-g="sib">{name} 👉</Link>)}</>;
+  return <>{fam.filter(([h]) => h !== here).map(([h, name]) => <Link prefetch={false} className="btn sm goto" key={h} href={h} data-g="sib">{name}</Link>)}</>;
 }

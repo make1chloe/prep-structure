@@ -26,13 +26,13 @@ export default function DueCard({ due, date }) {
   if (!rows.length && !todos.length) return <p className="note" data-g="due-clear" style={{ margin: 0 }}>오늘 마감할 것 없음</p>;
   return <>
     {rows.length > 0 && <div data-g="due-students">
-      <div className="duehead"><b>{FACE.mine} 아이 {rows.length}</b><span className="spacer" /><Link prefetch={false} className="btn sm gho" href="/today">오늘 수업 {ACT.goto}</Link></div>
+      <div className="duehead"><b>{FACE.mine} 아이 {rows.length}</b><span className="spacer" /><Link prefetch={false} className="btn sm gho goto" href="/today">오늘 수업</Link></div>
       <div className="duel">{rows.map((r) => <button key={r.sheet_id} type="button" className="duer" data-g="due-row" data-student={r.student_id} onClick={() => setOpen(r)}>
         <b>{r.name}</b><span className="spacer" />{r.steps.map((k) => <i key={k} className={"tag" + (k === "attend" ? " now" : "")}>{dueStepName(k)}{k === "check" ? ` ${r.left}` : ""}</i>)}
       </button>)}</div>
     </div>}
     {todos.length > 0 && <div data-g="due-todos" style={{ marginTop: rows.length ? 6 : 0 }}>
-      <div className="duehead"><b>{FACE.todo} 업무 {todos.length}</b><span className="spacer" /><Link prefetch={false} className="btn sm gho" href="/schedule/todo">업무 {ACT.goto}</Link></div>
+      <div className="duehead"><b>{FACE.todo} 업무 {todos.length}</b><span className="spacer" /><Link prefetch={false} className="btn sm gho goto" href="/schedule/todo">업무</Link></div>
       {/* (어88) ① 분류 이름은 **판이 실어 준 것**을 먼저 쓴다(0182 kind_name) — 원장님이 05 에서 만드신 분류는
                 씨앗에 없어 `u3f9a2b1c` 로 보였다. ② 업무 줄도 **그 자리에서** 끝낸다 —
                 원장님 「모달로 바로바로 처리」가 아이 줄에만 지켜져 있었다(업무는 화면 이동뿐이었다) */}

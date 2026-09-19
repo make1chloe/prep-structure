@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════
  * 클로이영어 새 앱 — 겉 한 벌. **손으로 고치지 않는다.**
- * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-18).
+ * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-19).
  * 겉을 바꾸려면 목업을 고치고 다시 만든다 — 목업이 곧 명세다. check-mockup 이 둘이 같은지 잰다.
  * 까닭·규칙은 docs/디자인-기본.md(배색 다섯 벌 · 치수 한 벌 · 글꼴 한 벌 · 금지 9).
  * ══════════════════════════════════════════════════════════════════════ */
@@ -15,6 +15,7 @@
   --violet:#6D28D9; --violet-fill:#EDE9FE; --on-violet:#5B21B6; --violet-wash:#F5F3FF;
   --pink:#BE185D; --pink-fill:#FCE7F3; --on-pink:#9D174D; --pink-wash:#FDF2F8;
   --cyan:#0E7490; --cyan-fill:#CFFAFE; --on-cyan:#155E75; --cyan-wash:#ECFEFF;
+  --teal:#0F766E; --teal-fill:#CCFBF1; --on-teal:#115E59; --teal-wash:#F0FDFA;
   /* ⚠️ 노랑(--weak)·주황(--amber)은 글씨로 쓰지 않는다 — 어둡게 누르면 갈색이 된다(원장님 9/5 「이 색 금지」). 채움·테두리·연한 바탕만, 글씨는 --on-* 또는 --navy */
   --shadow:0 1px 2px rgba(17,24,39,.04),0 6px 20px rgba(17,24,39,.05);
   color-scheme:light;
@@ -43,6 +44,7 @@
   --violet:#C4B5FD; --violet-fill:#2E1065; --on-violet:#DDD6FE; --violet-wash:#1E1533;
   --pink:#F9A8D4; --pink-fill:#500724; --on-pink:#FBCFE8; --pink-wash:#2A0F1C;
   --cyan:#67E8F9; --cyan-fill:#164E63; --on-cyan:#A5F3FC; --cyan-wash:#0E2A33;
+  --teal:#5EEAD4; --teal-fill:#134E4A; --on-teal:#99F6E4; --teal-wash:#0C2E2B;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.45);
   color-scheme:dark;
 }
@@ -57,6 +59,7 @@
   --violet:#C4B5FD; --violet-fill:#2E1065; --on-violet:#DDD6FE; --violet-wash:#1E1533;
   --pink:#F9A8D4; --pink-fill:#500724; --on-pink:#FBCFE8; --pink-wash:#2A0F1C;
   --cyan:#67E8F9; --cyan-fill:#164E63; --on-cyan:#A5F3FC; --cyan-wash:#0E2A33;
+  --teal:#5EEAD4; --teal-fill:#134E4A; --on-teal:#99F6E4; --teal-wash:#0C2E2B;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.45);
   color-scheme:dark;
 }
@@ -71,6 +74,7 @@ html[data-skin="ink"]{
   --violet:#C4B5FD; --violet-fill:#2E1065; --on-violet:#DDD6FE; --violet-wash:#1E1533;
   --pink:#F9A8D4; --pink-fill:#500724; --on-pink:#FBCFE8; --pink-wash:#2A0F1C;
   --cyan:#67E8F9; --cyan-fill:#164E63; --on-cyan:#A5F3FC; --cyan-wash:#0E2A33;
+  --teal:#5EEAD4; --teal-fill:#134E4A; --on-teal:#99F6E4; --teal-wash:#0C2E2B;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.45);
   color-scheme:dark;
 }
@@ -84,6 +88,7 @@ html[data-skin="warm"]{
   --violet:#C4B5FD; --violet-fill:#2E1065; --on-violet:#DDD6FE; --violet-wash:#1E1533;
   --pink:#F9A8D4; --pink-fill:#500724; --on-pink:#FBCFE8; --pink-wash:#2A0F1C;
   --cyan:#67E8F9; --cyan-fill:#164E63; --on-cyan:#A5F3FC; --cyan-wash:#0E2A33;
+  --teal:#5EEAD4; --teal-fill:#134E4A; --on-teal:#99F6E4; --teal-wash:#0C2E2B;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.45);
   color-scheme:dark;
 }
@@ -97,6 +102,7 @@ html[data-skin="paper"]{
   --violet:#6D28D9; --violet-fill:#EBE6F6; --on-violet:#5B21B6; --violet-wash:#F3F0FA;
   --pink:#BE185D; --pink-fill:#F8E3EC; --on-pink:#9D174D; --pink-wash:#FBEFF4;
   --cyan:#0E7490; --cyan-fill:#D6F1F3; --on-cyan:#155E75; --cyan-wash:#E9F6F7;
+  --teal:#0F766E; --teal-fill:#D2F2EC; --on-teal:#115E59; --teal-wash:#EDF8F5;
   --shadow:0 1px 2px rgba(17,24,39,.04),0 6px 20px rgba(17,24,39,.05);
   color-scheme:light;
 }
@@ -110,6 +116,7 @@ html[data-skin="bright"]{
   --violet:#5B21B6; --violet-fill:#E7E0FA; --on-violet:#4C1D95; --violet-wash:#F5F3FF;
   --pink:#9D174D; --pink-fill:#FBDCEA; --on-pink:#831843; --pink-wash:#FDF2F8;
   --cyan:#155E75; --cyan-fill:#CDEFF5; --on-cyan:#164E63; --cyan-wash:#ECFEFF;
+  --teal:#115E59; --teal-fill:#CBEFE7; --on-teal:#134E4A; --teal-wash:#EDFAF6;
   --shadow:0 1px 2px rgba(17,24,39,.04),0 6px 20px rgba(17,24,39,.05);
   color-scheme:light;
 }
@@ -269,6 +276,12 @@ label.fl{display:block;font-size:var(--fs-2);font-weight:700;color:var(--faint);
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:var(--fs-3);color:var(--ink)}
 .btn.pri{background:var(--navy);color:var(--on-navy);border-color:transparent;font-weight:500}
 .btn.gho{border:0;color:var(--mid)}
+/* (어91) 페이지 이동 단추 — 원장님 2026-09-18 「페이지 이동버튼은 이모지 화살표를 빼고 박스처리해서 색깔을 다르게 표시해줘. 쓰인적 없는색으로」.
+   👉 를 걷고 **청록 박스**로 바꾼다. 청록(teal)은 여덟 색(파랑·초록·빨강·노랑·주황·보라·분홍·하늘) 어디에도 없던 색이고,
+   파랑(주 동작 .pri)·초록(끝냄)과 헷갈리지 않는다. 「다른 화면으로 간다」는 뜻을 색 하나가 맡는다. */
+.btn.goto{border:1px solid var(--teal);background:var(--teal-wash);color:var(--teal);font-weight:500}
+.btn.goto:hover{background:var(--teal-fill)}
+.pill.goto{border:1px solid var(--teal);background:var(--teal-wash);color:var(--teal)}
 .btn.gho[aria-pressed="true"]{background:var(--sunk);color:var(--navy);font-weight:700}
 .kb{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
 .col{flex:0 0 208px;background:var(--sunk);border:1px solid var(--hair);border-radius:8px;padding:8px}

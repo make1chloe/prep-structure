@@ -17,7 +17,7 @@ export default function PrepCard({ student, prep = [], date, closed = false }) {
   const books = (student.books ?? []).map((b) => ({ id: b.book_id, name: b.books?.name ?? b.name, area: b.books?.area ?? b.area }));
   return (<div className="card" data-card="prep">
     <div className="ctitle"><span className="cemo">📄</span>내신 자료<span className="auto">{list.length ? `시험 ${list.length}` : "멈춘 교재 없음"}</span><span className="spacer" />
-      <Link prefetch={false} className="btn sm" href={list.length ? `/schedule/exams/prep?e=${list[0].exam.id}` : "/schedule/exams/prep"} data-g="to-prep">📄 04 전체 👉</Link></div>
+      <Link prefetch={false} className="btn sm goto" href={list.length ? `/schedule/exams/prep?e=${list[0].exam.id}` : "/schedule/exams/prep"} data-g="to-prep">📄 04 전체</Link></div>
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="prep-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}
     {list.map(({ exam: e, stopped, rows, notGiven, scopes, dday }) => <div key={e.id} data-g="prep-exam" data-exam={e.id} style={{ marginBottom: 8 }}>

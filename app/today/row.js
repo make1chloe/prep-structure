@@ -880,7 +880,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={closed || !selected.length} onClick={apply}>적용</button><button type="button" className="btn gho" onClick={onClose}>닫기</button>
-          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 · 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">루틴 11 👉</Link></span>}</div>
+          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 · 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">루틴 11</Link></span>}</div>
       </div>
     </div>
   );

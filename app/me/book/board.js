@@ -19,7 +19,7 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「권�
   const [open, setOpen] = useState({}); const [flag, setFlag] = useState(null); const [ff, setFf] = useState({ unitId: "", kind: "not_done", said: "" });
   const allIds = (b.units ?? []).map((u) => u.id); const pk = usePick(allIds); const picking = pk.count > 0;   // (어75) 대단원 전체·일부 골라 한 번에(원장님 9/18)
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  if (!b.book) return <div className="task" data-card="road"><div className="h"><b><span className="cemo">🛤️</span>내 진도체크</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p><Link prefetch={false} className="btn sm" href="/me">나 👉</Link></div>;
+  if (!b.book) return <div className="task" data-card="road"><div className="h"><b><span className="cemo">🛤️</span>내 진도체크</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p><Link prefetch={false} className="btn sm goto" href="/me">나</Link></div>;
   const road = roadOf(b), head = headTags(b, road), books = bookTags(b.books ?? [], today), flags = flagLines(b.flags ?? []), band = editBand(b.edit, b.student);
   const upTo = (c, s) => { const i = c.subs.findIndex((x) => x.id === s.id); return c.subs.slice(0, i + 1).filter((x) => x.can && x.status !== "done").map((x) => x.id); };   // 여기까지 — 그 줄까지 아직인 것만(쌤이 찍은 줄은 건드리지 않는다)
   /* ⚠️ 줄을 <label> 로 감싸면 안 된다 — 고르기 네모(그것도 <label>)를 눌렀을 때 바깥 label 이 **체크까지 같이** 눌러 버린다(겹친 label).

@@ -26,6 +26,6 @@ export default async function Cal({ searchParams }) {
     d = await calendar(sb, st, ym, date, tday, ROLES.STUDENT);
   } catch (e) { { console.error("[화면] 달력 못 엶:", e); return frame(<Oops what="달력" e={e} kind="task" />); } }
   if (decide(ROLES.STUDENT, d.access, ME.today) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div></div>);
-  const cal = <CalView d={d} base="/me/cal" backHref="/me" backLabel="나 👉" />;
+  const cal = <CalView d={d} base="/me/cal" backHref="/me" backLabel="나" />;
   return frame(seeing ? <><AsBand name={st.name} kind="me" />{cal}</> : cal);   // 👁 띠는 07 과 같은 부품(asband.js) — 달력도 「누구 화면인가」를 말한다
 }

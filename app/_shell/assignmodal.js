@@ -31,7 +31,7 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
         <div className="mdlh"><b>교재 배정{name ? ` · ${name}` : ""}</b><span className="spacer" /><button type="button" className="x" {...icon("닫기")} onClick={onClose}>✕</button></div>
         <div className="mdlb">
           {errNode}
-          {why != null ? <div className="lf warn" data-g="assign-why"><span className="ln">📕</span><div><b>배정은 됐고 오늘 줄은 0</b><small>{why}</small></div><Link prefetch={false} className="btn sm" href="/settings/routine">루틴 11 👉</Link></div>
+          {why != null ? <div className="lf warn" data-g="assign-why"><span className="ln">📕</span><div><b>배정은 됐고 오늘 줄은 0</b><small>{why}</small></div><Link prefetch={false} className="btn sm goto" href="/settings/routine">루틴 11</Link></div>
             : !rows ? <p className="note">읽는 중…</p>
             : !rows.length ? <p className="note" data-g="assign-none">배정할 교재 없음{total ? ` · 교재 ${total}권이 다 배정됨` : " · 교재 15 에 쓰는 교재가 없음"}</p>
             : <div data-g="assign-list">

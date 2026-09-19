@@ -55,7 +55,7 @@ export default async function Home() {
         {d.reflect.length > 0 && <Row icon="⚠️" cls="i-abs" b={`반성문 ${d.reflect.length}명`} small={d.reflect.map((r) => `${r.name} · 이달 경고 ${r.count}회째 · ${dispName(r.disposal)}`).join(" · ")} />}
       </Card> },
     { id: 'send', name: '발송', node: <Card emo="📨" title="발송" id="send" {...fold("send")}>
-        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small={<>마감한 것만 나갑니다 · <span data-g="unread">안 읽은 집 {d.unread}</span></>}><Link prefetch={false} className="btn sm" href="/send">발송 👉</Link></Row>
+        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small={<>마감한 것만 나갑니다 · <span data-g="unread">안 읽은 집 {d.unread}</span></>}><Link prefetch={false} className="btn sm goto" href="/send">발송</Link></Row>
       </Card> },
     { id: 'soon', name: '오늘 안', node: <Card emo="🔥" title="오늘 안" id="soon" {...fold("soon")}>
         {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}
@@ -69,18 +69,18 @@ export default async function Home() {
       </Card> },
     { id: 'month', name: '이 달', node: <Card emo="📅" title="이 달" id="month" {...fold("month")}>
         {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.exams.changed.length && !d.short.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
-        {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정 👉</Link></Row>}
+        {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri goto" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정</Link></Row>}
         {d.short.map((s) => <Row key={`short-${s.id}`} icon="📅" cls="i-abs" b={<span data-g="short-class">{s.text}</span>}><ClassMakeup classId={s.id} ym={s.ym} short={s} /></Row>)}
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
-        {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요. {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다. 학교 시험에서 보고 「봤음」` : "학교 시험에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 👉</Link></Row>)}
+        {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요. {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다. 학교 시험에서 보고 「봤음」` : "학교 시험에서 보고 「봤음」"}><Link prefetch={false} className="btn sm goto" href="/schedule/exams" data-act="exam-changed-go">시험</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 · ${e.text}`} />)}
-        {d.exams.missing.length > 0 && <Row icon="🅰️" cls="i-ex" b={`영어 시험일 없음 · ${d.exams.missing.map((s) => s.name).join(" · ")}`}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-missing-go">시험 👉</Link></Row>}
+        {d.exams.missing.length > 0 && <Row icon="🅰️" cls="i-ex" b={`영어 시험일 없음 · ${d.exams.missing.map((s) => s.name).join(" · ")}`}><Link prefetch={false} className="btn sm goto" href="/schedule/exams" data-act="exam-missing-go">시험</Link></Row>}
       </Card> },
     { id: 'answer', name: '답할 것', node: <Card emo="💬" title="답할 것" id="answer" {...fold("answer")}>
         {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}
         {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} />}
         {d.requests.map((r) => <Row key={r.id} icon="·" cls="i-hw" b={<span data-g="req-row" data-req={r.id}>{r.name} · {whenText(r.at, date)} 「{r.body.slice(0, 60)}」</span>} small={rkind(r.kind)}><Answer id={r.id} /></Row>)}
-        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")}><Link prefetch={false} className="btn sm" href="/ops/inquiry" data-act="inquiry-go">신규 상담 👉</Link></Row>}
+        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")}><Link prefetch={false} className="btn sm goto" href="/ops/inquiry" data-act="inquiry-go">신규 상담</Link></Row>}
       </Card> },
   ], d.pref);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref dash · 4단계-6)
   return frame(<>

@@ -93,7 +93,12 @@ console.log("■ (어67)-② 얼굴 · 탭마다 하나 · 한 그림이 한 뜻
 
 { const OLD = String.fromCodePoint(0x2197);   // 옛 우상향 화살표 — 이 파일이 그 글자를 품으면 제가 저를 잡으므로 코드포인트로 적는다
   const stray = [...files("app"), ...files("lib"), ...files("scripts")].filter((p) => readFileSync(p, "utf8").includes(OLD));
-  ok(`(어67)-③ 「다른 화면으로」는 ACT.goto 👉 하나 · 옛 우상향 화살표(${OLD}) 0(원장님 2026-09-16 「우상향 화살표 그거좀 아이콘 자체를 바꿔 개못생김」 → 9/17 「다른이모지!!!!」)`, ACT.goto === "👉" && stray.length === 0, stray.join(" · ")); }
+  /* (어91) 원장님 2026-09-18 「페이지 이동버튼은 이모지 화살표를 빼고 박스처리해서 색깔을 다르게 표시해줘」.
+     「다른 화면으로」를 맡던 그림(👉)을 **없앴다** — 이제 **청록 박스**(.btn.goto)가 그 뜻을 맡는다(check-nav 가 잰다).
+     여기서는 **옛 화살표가 되살아나지 않는지**만 지킨다(우상향 화살표도 👉 도 0).
+     ⚠️ 이 주석에 그 글자를 **그대로 쓰면 안 된다** — 위 OLD 주석이 경고한 그대로, 검사가 저를 잡는다(2026-09-18 실측). */
+  ok(`(어67)-③(어91) 「다른 화면으로」에 그림 0 — 옛 우상향 화살표(${OLD}) 도 👉 도 안 쓴다 · 뜻은 청록 박스가 맡는다`,
+     ACT.goto === undefined && stray.length === 0 && !JSON.stringify(ACT).includes("👉"), `ACT.goto=${ACT.goto} · ${stray.join(", ")}`); }
 
 console.log("■ 래칫 · 손의 그림은 ACT 표에서 온다(늘면 실패 · 줄이는 것이 답)");
 { const act = new Set(Object.values(ACT).map((e) => e.replace(/️/g, "")));

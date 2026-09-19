@@ -33,13 +33,13 @@ export default function DueModal({ row, onClose, onDone }) {
           <div className="seg sm" data-g="due-att" aria-label={`${row.name} 출결`}>{ATTEND.map(([v, name]) => <button key={v} type="button" aria-pressed={attend === v} disabled={pending || closed} onClick={() => pick(v)}>{name}</button>)}</div>
           {closed && <span className="note" data-g="due-locked" style={{ margin: 0 }}>마감함 · 출결 잠김</span>}</div>{/* 마감한 판은 못 고친다(검사-⑤) — 잠긴 채로 두고 까닭을 그 자리에서 말한다(대전제-0) */}
         {row.left > 0 && <div className="wv" style={{ marginBottom: 6 }}><span className="fl" style={{ margin: 0 }}>숙제 검사</span>
-          <span className="pill bad">{row.left}개 남음</span><Link prefetch={false} className="btn sm" href="/today" data-act="due-check">숙제 검사 {ACT.goto}</Link></div>}
+          <span className="pill bad">{row.left}개 남음</span><Link prefetch={false} className="btn sm goto" href="/today" data-act="due-check">숙제 검사</Link></div>}
         <div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>마감</span>
           {closed ? <span className="pill">마감함</span> : <button type="button" className="btn pri sm" disabled={pending} data-act="due-close" onClick={doClose}>지금 마감</button>}
-          {closed && !row.sent && <Link prefetch={false} className="btn sm" href="/send" data-act="due-send">발송 {ACT.goto}</Link>}
+          {closed && !row.sent && <Link prefetch={false} className="btn sm goto" href="/send" data-act="due-send">발송</Link>}
           {closed && row.sent && <span className="pill">보냄</span>}</div>
       </div>
-      <div className="mdlf"><Link prefetch={false} className="btn" href="/today">오늘 수업 {ACT.goto}</Link><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
+      <div className="mdlf"><Link prefetch={false} className="btn goto" href="/today">오늘 수업</Link><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
     </div>
   </div>;
 }

@@ -117,9 +117,9 @@ export default function Board({ d }) {
           여기서 틀린 개수만 적으면 **01 과 같은 손**(takeQuiz)이 그 아이 그날 일지에 적는다 — 새 손 0 */}
       {c.quizId && c.sheetId && !c.closed && <button className="btn sm pri" type="button" disabled={pending} data-act="retest-done" aria-pressed={taking === c.id} onClick={() => setTaking(taking === c.id ? null : c.id)}>✓ 끝냄</button>}
       {c.quizId && c.closed && <span className="pill" data-g="retest-locked">마감함 · 잠김</span>}{/* 마감한 판은 못 고친다(검사-⑤) — 안 눌리는 단추를 그리지 않는다(원장님 9/18 「눌리지도않음」) */}
-      {c.quizId && <Link prefetch={false} className="btn sm" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업 👉</Link>}
-      {c.kind === "score" && <Link prefetch={false} className="btn sm" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적 👉</Link>}
-      {c.exam && c.material && <Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${c.exam.id}`} onClick={(x) => x.stopPropagation()}>📄 자료 👉</Link>}
+      {c.quizId && <Link prefetch={false} className="btn sm goto" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업</Link>}
+      {c.kind === "score" && <Link prefetch={false} className="btn sm goto" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적</Link>}
+      {c.exam && c.material && <Link prefetch={false} className="btn sm goto" href={`/schedule/exams/prep?e=${c.exam.id}`} onClick={(x) => x.stopPropagation()}>📄 자료</Link>}
     </div>
     {taking === c.id && <div data-g="retest-take" onClick={(x) => x.stopPropagation()} style={{ marginTop: 6 }} className="wv">
       <label className="fl" style={{ margin: 0 }}>틀린 개수</label>

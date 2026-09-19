@@ -42,7 +42,7 @@ export default async function Guide() {
   return (
     <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}>
       <div className="task" data-card="guide">
-        <div className="h"><b><span className="cemo">{ACT.guide}</span>사용 가이드</b><span className="spacer" /><Link prefetch={false} className="btn sm" href={home}>{ACT.goto} 내 화면</Link></div>
+        <div className="h"><b><span className="cemo">{ACT.guide}</span>사용 가이드</b><span className="spacer" /><Link prefetch={false} className="btn sm goto" href={home}> 내 화면</Link></div>
         {rows.map((r) => <Row key={r.what} {...r} />)}
         <p className="note" style={{ margin: "8px 0 0" }}>더 궁금하면 내 화면 맨 밑에서 선생님께 물어봐요</p>
       </div>

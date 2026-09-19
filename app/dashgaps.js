@@ -28,11 +28,11 @@ export default function DashGaps({ gaps = [], calls = [], summary, people, date,
   return (<>
     {progress?.show && <div className="lf warn" style={{ marginBottom: 8 }} data-g="progress-band" data-open={progress.open ? "1" : "0"}><span className="ln">✎</span><div><b>{progress.text}</b><small>{progress.small}</small></div>
       {progress.open && <button type="button" className="btn sm" data-act="progress-close" disabled={pending} onClick={() => start(async () => { if (fail(await academyAct(false))) router.refresh(); })}>닫기</button>}
-      <Link prefetch={false} className="btn sm gho" href="/settings/progress">진도 체크 화면 👉</Link></div>}
+      <Link prefetch={false} className="btn sm gho goto" href="/settings/progress">진도 체크 화면</Link></div>}
     <div className="gap" data-g="gap">
       <div className="gaph"><span className="gi">🚨</span><b>{gaps.length ? `오늘 수업 전에 · 오늘 줄이 안 나갈 아이 ${summary.bad}명` : "오늘 수업 전에 · 오늘 줄이 안 나갈 아이 없음"}</b><span className="spacer" />{gaps.length > 0 && <span className="pill warn">오늘 0줄</span>}</div>
       {gaps.length > 0 && <div className="gapchips" data-g="gap-chips">{byStudent.filter((s) => s.rows.length).map((s) => chip(s, s.rows.length, "gap-chip"))}</div>}
-      <div className="gapok"><span className="gi">✅</span>{gaps.length ? <>나머지 <b>{summary.ok}명</b> 다 참</> : <>오늘 <b>{people.students}명</b> 다 참</>}<span className="spacer" /><Link prefetch={false} className="btn sm" href="/today">오늘 수업 👉</Link></div>
+      <div className="gapok"><span className="gi">✅</span>{gaps.length ? <>나머지 <b>{summary.ok}명</b> 다 참</> : <>오늘 <b>{people.students}명</b> 다 참</>}<span className="spacer" /><Link prefetch={false} className="btn sm goto" href="/today">오늘 수업</Link></div>
     </div>
     {calls.length > 0 && <div className="card warn" style={{ marginBottom: 8 }} data-g="memo-calls"><div className="ctitle"><span className="cemo">✍</span>메모로만 진도가 올라간 교재 <b>{calls.length}</b></div>
       <div className="gapchips" data-g="call-chips">{byStudent.filter((s) => s.calls.length).map((s) => chip(s, s.calls.length, "call-chip"))}</div></div>}
@@ -42,7 +42,7 @@ export default function DashGaps({ gaps = [], calls = [], summary, people, date,
       <div className="mdlb" data-g="gap-modal">
         {/* 한 아이의 교재 줄(gap-book · call-book) · 줄마다 손이 다르고(진도 체크 · 루틴 11) 한 번에 할 것이 없어 고르기(대전제-20)는 안 붙인다 · 교재 배정 모달은 고르기 한 벌 */}
         {cur.rows.map((g) => <div key={g.book_id} className="lf" data-g="gap-book" data-gap={g.kind}><span className="ln">📕</span><div><b>{g.book}</b><small><span className="tag">{g.tag}</span>{g.absent && <span className="tag">오늘 결석 예정</span>}</small></div>
-          {g.kind === "no_units" ? <button type="button" className="btn sm pri" data-act="next-round" disabled={pending} onClick={() => start(async () => { if (fail(await nextRoundFor(cur.id, g.book_id))) router.refresh(); })}>다음 회독 시작</button> : g.kind === "cursor_stuck" ? <button type="button" className="btn sm pri" data-act="gap-progress" onClick={() => setProg({ studentId: cur.id, book: { book_id: g.book_id, books: { name: g.book } } })}>진도 체크</button> : <Link prefetch={false} className="btn sm" href={`/settings/routine?s=${cur.id}`}>루틴 11 👉</Link>}</div>)}
+          {g.kind === "no_units" ? <button type="button" className="btn sm pri" data-act="next-round" disabled={pending} onClick={() => start(async () => { if (fail(await nextRoundFor(cur.id, g.book_id))) router.refresh(); })}>다음 회독 시작</button> : g.kind === "cursor_stuck" ? <button type="button" className="btn sm pri" data-act="gap-progress" onClick={() => setProg({ studentId: cur.id, book: { book_id: g.book_id, books: { name: g.book } } })}>진도 체크</button> : <Link prefetch={false} className="btn sm goto" href={`/settings/routine?s=${cur.id}`}>루틴 11</Link>}</div>)}
         {cur.calls.map((c) => <div key={`c-${c.book_id}`} className="lf" data-g="call-book"><span className="ln">✍</span><div><b>{c.book}</b><small><span className="tag">메모로만 {c.streak}회</span></small></div><button type="button" className="btn sm pri" data-act="call-progress" onClick={() => setProg({ studentId: cur.id, book: { book_id: c.book_id, books: { name: c.book } } })}>진도 체크</button></div>)}
       </div>
       <div className="mdlf"><button type="button" className="btn sm" data-act="gap-assign" onClick={() => setAssign({ studentId: cur.id, name: cur.name })}>+ 교재 배정</button><span className="spacer" /><button type="button" className="btn gho" onClick={() => setWho(null)}>닫기</button></div></div></div>}

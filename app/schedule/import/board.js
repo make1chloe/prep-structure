@@ -24,10 +24,10 @@ export default function Board({ d }) {
       <span className="pill" style={{ fontWeight: 700 }} data-g="last">나이스 · {b.last_neis_at ? `${md(seoulDate(b.last_neis_at))} 받음` : "아직 안 받음"}</span>
       <span className="pill">학교 {(b.schools ?? []).length}곳</span>
       <span className="spacer" />
-      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 👉</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🗓️ 학교 시험 👉</Link>
+      <Link prefetch={false} className="btn sm goto" href="/schedule">📅 일정</Link><Link prefetch={false} className="btn sm goto" href="/schedule/exams">🗓️ 학교 시험</Link>
       <button className="btn sm pri" type="button" disabled={pending || !b.neis_key} data-act="import" onClick={() => run(() => importAct(), (r) => `받았습니다. 학교 ${r.r.schools}곳 · 시험 ${r.r.put}줄${r.r.changed?.length ? ` · 📡 날짜 바뀐 회차 ${r.r.changed.length}(${r.r.changed.map((c) => `${c.school ? c.school + " " : ""}${c.name} ${changeText(c)}`).join(" / ")}) · 학교 시험에서 보고 「봤음」` : ""} · 건너뜀(쉬는 날 ${r.r.skipped.off} · 행사 ${r.r.skipped.event} · 평가 ${r.r.skipped.assess})${r.r.failed.length ? ` · 못 받음: ${r.r.failed.join(" / ")}` : ""}`)}>🔄 다시 받기</button>
     </div>
-    {!b.neis_key && <p className="note" data-g="no-key">나이스 키가 없습니다. <Link prefetch={false} href="/settings#keys" data-act="to-keys"><b>설정 → 🔌 연동 설정 👉</b></Link> 에서 넣으면 「다시 받기」가 켜집니다((터)).</p>}
+    {!b.neis_key && <p className="note" data-g="no-key">나이스 키가 없습니다. <Link prefetch={false} href="/settings#keys" data-act="to-keys"><b>설정 → 🔌 연동 설정</b></Link> 에서 넣으면 「다시 받기」가 켜집니다((터)).</p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <div className="nsplit">
@@ -49,7 +49,7 @@ export default function Board({ d }) {
     </div>
     <div className="card" style={{ marginTop: 8 }} data-g="no-neis">
       <div className="ctitle"><span className="cemo">🧩</span>나이스에 없는 학교</div>
-      {(b.schools ?? []).map((s) => <div key={s.id} className="li" data-g="school-line" data-school={s.id}><span className="n">{s.neis_code ? "✓" : "?"}</span><div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{s.name}</b><small>{s.students}명 · {s.neis_code ? `나이스 코드 ${s.neis_code} · 받은 시험 ${s.neis_exams}` : "나이스 코드 없음 · 찾아서 붙이세요"}{s.site_exams > 0 ? ` · 홈페이지에서 받은 시험 ${s.site_exams}` : ""}{s.site_url ? <> · <span data-g="site-seen">{s.site_seen_at ? `${md(seoulDate(s.site_seen_at))} 받음` : "아직 한 번도 못 받음"}</span></> : null}{s.site_url && staleText(s.site_seen_at, d.date) ? <> · <b data-g="site-stale" style={{ color: "var(--miss)" }}>{staleText(s.site_seen_at, d.date)}</b></> : null}{s.site_url ? <> · <a href={s.site_url} target="_blank" rel="noreferrer" data-g="site-link">홈페이지 👉</a></> : " · 홈페이지 주소 없음"}</small>
+      {(b.schools ?? []).map((s) => <div key={s.id} className="li" data-g="school-line" data-school={s.id}><span className="n">{s.neis_code ? "✓" : "?"}</span><div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{s.name}</b><small>{s.students}명 · {s.neis_code ? `나이스 코드 ${s.neis_code} · 받은 시험 ${s.neis_exams}` : "나이스 코드 없음 · 찾아서 붙이세요"}{s.site_exams > 0 ? ` · 홈페이지에서 받은 시험 ${s.site_exams}` : ""}{s.site_url ? <> · <span data-g="site-seen">{s.site_seen_at ? `${md(seoulDate(s.site_seen_at))} 받음` : "아직 한 번도 못 받음"}</span></> : null}{s.site_url && staleText(s.site_seen_at, d.date) ? <> · <b data-g="site-stale" style={{ color: "var(--miss)" }}>{staleText(s.site_seen_at, d.date)}</b></> : null}{s.site_url ? <> · <a href={s.site_url} target="_blank" rel="noreferrer" data-g="site-link">홈페이지</a></> : " · 홈페이지 주소 없음"}</small>
         <div className="wv" style={{ marginTop: 4 }}>
           <input value={urls[s.id] ?? s.site_url ?? ""} onChange={(e) => setUrls({ ...urls, [s.id]: e.target.value })} placeholder="https:// 학교 홈페이지" aria-label="홈페이지 주소" name="site" style={{ flex: "1 1 200px" }} /><button className="btn sm" type="button" disabled={pending} data-act="site-save" onClick={() => run(() => siteUrlAct(s.id, urls[s.id] ?? ""), "주소를 적었습니다")}>🔗 주소 저장</button>
           <button className="btn sm gho" type="button" disabled={pending || !b.neis_key} data-act="find-open" onClick={() => setFind({ schoolId: s.id, q: s.name, rows: null })}>학교 찾기</button></div>

@@ -48,10 +48,21 @@ ok("(어9) 폰에서 탭은 **접는다** · 굴림막대에 숨기지 않는다
 // (어39) 대전제-22 「행동은 그 자리에서 · 페이지를 안 떠난다」(원장님 2026-09-15 「누르면 팝업이든 모달이든 뜨고 저장하면 페이지도 안 벗어나고」) · 다른 화면으로 보내 일하게 하는 「동사 👉」 래칫.
 //   참고로 가는 명사 👉(학교 시험 👉 · 자료 👉 · 일정 👉)는 둔다. 실측 17 → (어39) 발송 10 둘 걷고 문자틀 하나 명사로 → 14 · (어41) 대시보드·학생 14·설정·오늘 01 을 그 자리 모달로 → 0
 { const espree = (await import("espree")).default ?? (await import("espree"));
-  const VERB = /(수정|열기|보내기|잡기|체크|하기|만들기|가져오기|가져오기|조절|보기|넣기|더하기|연결|배정) ?👉/;
-  const hits = [];
-  for (const f of walk("app").filter((p) => !p.includes("/api/"))) { let toks; try { toks = espree.parse(readFileSync(f, "utf8"), { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, tokens: true }).tokens; } catch { continue; }
-    for (const t of toks) if (["String", "Template", "JSXText"].includes(t.type) && t.value.includes("👉") && VERB.test(t.value)) hits.push(`${f}: ${t.value.replace(/\s+/g, " ").trim().slice(0, 30)}`); }
-  const ARROW_MAX = 0;   // (어41) 대시보드 칩·모달 · 14 학원 열기 · 배정 모달 · 나머지는 명사 👉 로
-  ok(`다른 화면으로 보내 일하게 하는 「동사 👉」 ≤ ${ARROW_MAX}(지금 ${hits.length} · 대전제-22 · (어41) 0 · 일하러 보내지 않고 그 자리 모달·토글)`, hits.length <= ARROW_MAX, hits.join(" | ")); }
+  /* (어91) 원장님 2026-09-18 「페이지 이동버튼은 이모지 화살표를 빼고 박스처리해서 색깔을 다르게 표시해줘. 쓰인적 없는색으로」.
+     👉 를 걷고 **청록 박스**(.btn.goto)로 바꿨다 — 그러면 「동사 👉 0」 규칙이 **잴 것이 없어 무력해진다**.
+     그래서 같은 규칙을 새 꼴로 옮긴다: **청록 박스의 이름은 명사**여야 한다(일하러 보내지 않는다 · 대전제-22). */
+  const VERB = /(수정|열기|보내기|잡기|체크|하기|만들기|가져오기|조절|보기|넣기|더하기|연결|배정)$/;
+  const files = walk("app").filter((p) => !p.includes("/api/"));
+  const src = files.map((f) => [f, readFileSync(f, "utf8")]);
+  const arrows = [];
+  for (const [f, t] of src) if (/👉/.test(t.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, ""))) arrows.push(f);
+  ok("👉 는 화면 글에 0 — 그림 대신 **청록 박스**가 「다른 화면으로 간다」를 맡는다((어91))", arrows.length === 0, arrows.join(", "));
+  const gotoNames = [];
+  for (const [f, t] of src) for (const m of t.matchAll(/className="(?:btn|pill)[^"]*\bgoto\b[^"]*"[^>]*>([^<{]{1,30})</g)) {
+    const name = m[1].replace(/\s+/g, " ").trim().replace(/[.·]$/, "");
+    if (name && VERB.test(name)) gotoNames.push(`${f}: ${name}`);
+  }
+  ok(`청록 박스(페이지 이동)의 이름은 **명사**다 · 동사 0 (대전제-22 — 일하러 다른 화면으로 보내지 않는다)`, gotoNames.length === 0, gotoNames.join(" · "));
+  const nGoto = src.reduce((k, [, t]) => k + (t.match(/className="(?:btn|pill)[^"]*\bgoto\b/g) ?? []).length, 0);
+  ok(`청록 박스가 실제로 쓰인다 · 지금 ${nGoto}곳(👉 를 걷은 자리)`, nGoto >= 30, String(nGoto)); }
 console.log(`\n■ 화면 이동 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);
