@@ -97,8 +97,9 @@ export function MaterialCard({ gives, today, fold = null, folded = false }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition();
   const total = gives.groups.reduce((n, g) => n + g.items.length, 0) + gives.done.length;
   const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r.ok) setErr(r.msg); });
-  const Item = ({ it, dim = false }) => (
-    <div className="task" style={{ marginTop: 4, padding: 8, background: dim ? "var(--sunk)" : undefined }} data-material={it.material_id}>
+  /* (어92) 부품이 아니라 함수로 — 판 안에서 만든 부품은 상태가 바뀔 때마다 통째로 다시 만들어져 고른 것·스크롤이 튄다 */
+  const Item = ({ it, dim = false, k }) => (
+    <div key={k} className="task" style={{ marginTop: 4, padding: 8, background: dim ? "var(--sunk)" : undefined }} data-material={it.material_id}>
       <div className="h"><b style={{ fontSize: "var(--fs-3)" }}>{it.material?.title}</b><span className="spacer" />
         {it.due_on && it.stage !== "done" && <span className={"pill" + (dueBad(it.due_on, today) ? " bad" : " warn")} data-g="due">{dueText(it.due_on, today)}</span>}
         {it.stage === "done" && <span className="tag on">제출함</span>}</div>
@@ -111,8 +112,8 @@ export function MaterialCard({ gives, today, fold = null, folded = false }) {
     <div className="task" data-card="material" data-folded={folded ? "1" : "0"}>
       <div className="h"><b><span className="cemo">📚</span>받을 교재·학습지</b><span className="spacer" /><span className="pill">{total ? `${gives.done.length}/${total}` : "없음"}</span>{fold}</div>
       {!total && <p className="note" style={{ margin: "8px 0 0" }}>아직 받을 학습지가 없어요</p>}
-      {gives.groups.map((g, i) => <div key={g.name}><div style={{ marginTop: i ? 12 : 8, fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{i + 1} {g.name}</div>{g.items.map((it) => <Item key={it.material_id} it={it} />)}</div>)}
-      {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /></summary>{gives.done.map((it) => <Item key={it.material_id} it={it} dim />)}</details>}
+      {gives.groups.map((g, i) => <div key={g.name}><div style={{ marginTop: i ? 12 : 8, fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{i + 1} {g.name}</div>{g.items.map((it) => Item({ it, k: it.material_id }))}</div>)}
+      {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /></summary>{gives.done.map((it) => Item({ it, dim: true, k: it.material_id }))}</details>}
       {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
     </div>
   );

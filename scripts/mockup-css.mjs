@@ -19,6 +19,11 @@ const FORCE_APP = s => /^(:root|html|body|\*)(?![\w-])/.test(s) || /\[data-(skin
 // 목업 설명·물음·기록·머리줄 부품은 앱에 안 들어간다 — 화면 안에 있어도 겉껍질
 const FORCE_CHROME = s => /\.(fx|look|ask|opts|opt|rules|nsec|nh|ng|nb|notewrap|ph1|eyebrow|lede|shead|snum|stag|wrap)(?![\w-])|^(nav|main|header\.top|section\.screen)(?![\w-])/.test(s);
 
+/* (어92) `.task[draggable]` 은 **목업 시연용**이다 — 목업 제 script 가 쓴다(4962줄).
+   앱에는 draggable 속성을 단 요소가 하나도 없어 globals.css 로 가면 **죽은 규칙**이 되고,
+   다음 사람이 「여기 드래그가 있나 보다」로 읽는다(원장님 9/18 「눌리지도않음」과 같은 결). 겉껍질로 보낸다. */
+const CHROME_BY_NAME = ["\\.task\\[draggable\\]"].map((x) => new RegExp("^" + x + "$"));
+
 // ── 2. 브라우저에 묻는다 ──
 async function classify(selectors) {
   const { orig } = build();
@@ -53,6 +58,7 @@ const guessed = [];
 for (const r of rules) {
   const ps = parts(r.selector);
   const verdicts = ps.map(pt => {
+    if (CHROME_BY_NAME.some((re) => re.test(pt.trim()))) return "chrome";
     if (FORCE_CHROME(pt)) return "chrome"; if (FORCE_APP(pt)) return "app";
     const m = out[strip(pt)]; if (m && m.i > 0) return "app"; if (m && m.o > 0) return "chrome"; return null;
   });

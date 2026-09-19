@@ -17,8 +17,9 @@ export default function Board({ d }) {
   const live = (b.videos ?? []).filter((v) => v.state === "active"), hidden = (b.videos ?? []).filter((v) => v.state !== "active");
   const vIds = useMemo(() => (b.videos ?? []).map((v) => v.id), [b]); const pk = usePick(vIds); const pv = (b.videos ?? []).filter((v) => pk.has(v.id)), toDown = pv.filter((v) => v.state === "active"), toUp = pv.filter((v) => v.state !== "active"); const [folderTo, setFolderTo] = useState("");   /* 고른 영상 · 띠에서 한 번에 */
   const unwatched = live.reduce((n, v) => n + counts(v.assigns, cut).unwatched, 0);
-  const Video = ({ v }) => { const c = counts(v.assigns, cut), rows = (v.assigns ?? []).filter((a) => a.state !== "retired"); return (
-    <div className="card" style={{ margin: "0 0 8px" }} data-g="video" data-video={v.id} data-state={v.state}>
+  /* (어92) 부품이 아니라 함수로 — 판 안에서 만든 부품은 상태가 바뀔 때마다 통째로 다시 만들어져 고른 것·스크롤이 튄다 */
+  const Video = ({ v, k }) => { const c = counts(v.assigns, cut), rows = (v.assigns ?? []).filter((a) => a.state !== "retired"); return (
+    <div key={k} className="card" style={{ margin: "0 0 8px" }} data-g="video" data-video={v.id} data-state={v.state}>
       <div className="ctitle"><PickBox pick={pk} id={v.id} label={`${v.title} 고르기`} /><span className="cemo">🎬</span><span data-g="title">{v.title}</span> · <span data-g="len">{v.seconds ? mmss(v.seconds) : "길이 아직(아이 폰이 처음 알려 줍니다)"}</span>{v.folder && <span className="tag" style={{ marginLeft: 6 }}>📁 {v.folder}</span>}<span className="spacer" /><a className="btn sm gho goto" href={v.url} target="_blank" rel="noreferrer">유튜브</a>
         {v.state === "active" ? <button type="button" className="btn sm gho" disabled={pending} data-act="hide" onClick={() => run(() => setAct(v.id, { state: "hidden" }), "삭제 ✓ · 복구할 수 있습니다")}>삭제</button> : <button type="button" className="btn sm" disabled={pending} data-act="unhide" onClick={() => run(() => setAct(v.id, { state: "active" }), "복구했습니다")}>복구</button>}</div>
       {!rows.length && <p className="note" style={{ margin: "4px 0" }}>배정한 아이가 없습니다. + 배정</p>}
@@ -57,8 +58,8 @@ export default function Board({ d }) {
       <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button>
       {folders(b.videos ?? []).length > 0 && <div className="wv" data-g="folder-pick" style={{ flexBasis: "100%", marginBottom: 0 }}><span className="note" style={{ margin: 0 }}>있는 폴더</span>{folders(b.videos ?? []).map((x) => <button key={x} type="button" className="btn sm gho" data-act="folder" aria-pressed={nv.folder === x} onClick={() => setNv({ ...nv, folder: x })}>{x}</button>)}</div>}</div></div>}
     {!live.length && <div className="card" data-g="empty"><p className="note" style={{ margin: 0 }}>영상 없음 · + 영상</p></div>}
-    {groupByFolder(live).map((g) => <div key={g.folder} data-g="folder" data-folder={g.empty ? "" : g.folder}>{(live.some((v) => String(v.folder ?? "").trim()) || !g.empty) && <div className="hh" style={{ margin: "8px 0 4px" }} data-g="folder-head">📁 {g.folder} <span className="cnt">{g.videos.length}개</span></div>}{g.videos.map((v) => <Video key={v.id} v={v} />)}</div>)}
+    {groupByFolder(live).map((g) => <div key={g.folder} data-g="folder" data-folder={g.empty ? "" : g.folder}>{(live.some((v) => String(v.folder ?? "").trim()) || !g.empty) && <div className="hh" style={{ margin: "8px 0 4px" }} data-g="folder-head">📁 {g.folder} <span className="cnt">{g.videos.length}개</span></div>}{g.videos.map((v) => Video({ v, k: v.id }))}</div>)}
     {hidden.length > 0 && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm gho" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>삭제한 영상 {hidden.length}</button></div>}
-    {showHidden && hidden.map((v) => <Video key={v.id} v={v} />)}
+    {showHidden && hidden.map((v) => Video({ v, k: v.id }))}
   </>;
 }

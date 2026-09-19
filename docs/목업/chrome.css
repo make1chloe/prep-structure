@@ -45,6 +45,7 @@ section.screen{margin:0 0 64px}
 .real th,.real td{padding:8px 8px;text-align:left;border-bottom:1px solid var(--hair);vertical-align:top}
 .real th{background:var(--sunk);font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
 .real td.g{font-weight:500;white-space:nowrap}
+.task[draggable]{position:relative}
 /* 제목 아이콘 — 화면이 무슨 일을 하는지 글자 앞에서 먼저 말한다 */
 .hemo{margin-right:8px;font-size:.78em;width:1.55em;height:1.55em;border-radius:12px;display:inline-grid;place-items:center;background:var(--sunk);vertical-align:-.28em}
 .notewrap{display:flex;flex-direction:column;gap:24px}

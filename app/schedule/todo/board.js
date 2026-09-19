@@ -79,7 +79,12 @@ export default function Board({ d }) {
    *  그러면 흐름을 모달 **안**에 두면 될 일이었다(Flow 한 벌). 누른 자리에서 바로 보여 더 낫다.
    *  ⚠️ 안의 손은 안 건드린다 — **여는 쪽에서 한 번 거른다**(today/row.js:90 rowtop 과 같은 본 · 원칙-1). */
   const openCard = (c) => (e) => { if (e.target.closest("button,a,input,select,textarea,label")) return; setSel(c.id); setDetail(c.id); };
-  const Card = ({ c }) => <div className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} data-drag={drag === c.id ? "1" : "0"} onClick={openCard(c)} aria-pressed={sel === c.id}>
+  /** (어92) 원장님 2026-09-18 「고르면 스크롤 튐」 — 까닭은 여기였다.
+   *  `Card` 를 **판 함수 안에서** 만들면 상태가 바뀔 때마다 **부품 갈래가 새것**이 되어
+   *  React 가 카드를 전부 부수고 다시 만든다 → 눌러 둔 체크박스가 사라졌다 살아나고 **스크롤·포커스가 튄다**.
+   *  갈고리를 안 쓰므로 **부품이 아니라 함수로 부른다**(`{Card({ c, k })}`) — 그러면 갈래가 안 바뀌어 안 튄다.
+   *  열쇠(key)는 뿌리에 단다 — DOM 은 한 글자도 안 바뀐다(마크업을 보는 검사·목업 화소 그대로). */
+  const Card = ({ c, k }) => <div key={k} className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} data-drag={drag === c.id ? "1" : "0"} onClick={openCard(c)} aria-pressed={sel === c.id}>
     {c.todoId ? <span className="grip" data-g="card-grip" aria-hidden="true" onPointerDown={(e) => grab(e, c)} onPointerMove={follow} onPointerUp={() => drop(c)} onPointerCancel={() => drop(c)}>⠿</span> : null}
     {c.todoId ? <PickBox pick={pk} id={c.id} label={`${c.title} 고르기`} /> : null}<span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
     <div className={"nb-prop" + (isOverdue(c, today) ? " nb-over" : "")}><span className="nb-pi">📅</span><span className="nb-pv" data-g="due">{c.startOn ? `${monthDay(c.startOn)} 부터 · ` : ""}{dueLine(c, today)}</span></div>
@@ -199,7 +204,7 @@ export default function Board({ d }) {
           </span>}
           {kinds && <button className="btn sm gho icb" type="button" disabled={pending} data-act="kind-edit" aria-pressed={kindOpen === col.kind} {...icon("분류 수정")} onClick={() => openKind(col)}>{ACT.edit}</button>}</div>
         {kindOpen === col.kind && kindForm(col)}
-        {col.cards.map((x) => <Card key={x.id} c={x} />)}
+        {col.cards.map((x) => Card({ c: x, k: x.id }))}
         {!col.cards.length && <p className="note" style={{ margin: "4px 0 0" }}>없음</p>}
         {col.kind === "print" && pa.list.length > 0 && <button className="nb-add" type="button" disabled={pending} data-act="print-all" onClick={() => setPrinting(true)}>🖨 {pa.pages}장 뽑기</button>}
       </div>)}
@@ -213,23 +218,29 @@ export default function Board({ d }) {
         {hidden.reuse.length > 0 && <button type="button" className="nb-hg" data-act="show-reuse" aria-pressed={Boolean(show.reuse)} onClick={() => setShow({ ...show, reuse: !show.reuse })}>👁 <span className="nb-pill">♻️ 이미 있는 것</span><span className="nb-cnt" data-g="reuse-count">{hidden.reuse.length}</span></button>}
         {hidden.dropped.length > 0 && <button type="button" className="nb-hg" data-act="show-dropped" aria-pressed={Boolean(show.dropped)} onClick={() => setShow({ ...show, dropped: !show.dropped })}>👁 <span className="nb-pill">삭제한 것</span><span className="nb-cnt">{hidden.dropped.length}</span></button>}
         {hidden.reuse.length > 0 && <div className="nb-hh" style={{ paddingTop: 8 }}>이미 있는 것 {hidden.reuse.length} · {hidden.reuse.map((x) => x.title).join(" · ")}. 「만들기」가 <b>체크된 채로</b> 섰습니다(㊵)</div>}
-        {show.done && hidden.done.map((x) => <Card key={x.id} c={x} />)}
-        {show.reuse && hidden.reuse.map((x) => <Card key={x.id} c={x} />)}
-        {show.dropped && hidden.dropped.map((x) => <Card key={x.id} c={x} />)}
+        {show.done && hidden.done.map((x) => Card({ c: x, k: x.id }))}
+        {show.reuse && hidden.reuse.map((x) => Card({ c: x, k: x.id }))}
+        {show.dropped && hidden.dropped.map((x) => Card({ c: x, k: x.id }))}
       </div>
     </div>}
-    {view === "table" && <div className="tblwrap" data-g="table"><table><thead><tr><th>종류</th><th>업무</th><th>마감</th><th>학교</th><th>인원</th><th>단계</th><th>왜 생겼나</th><th></th></tr></thead><tbody>
+    {view === "table" && <div className="tblwrap" data-g="table"><table><thead><tr><th><PickGroup pick={pk} ids={cards.filter((x) => (x.state === "todo" || x.state === "doing") && x.todoId).map((x) => x.id)} label="전체" /></th><th>종류</th><th>업무</th><th>마감</th><th>학교</th><th>인원</th><th>단계</th><th>왜 생겼나</th><th></th></tr></thead><tbody>
+      {/* (어92) 원장님 2026-09-18 「모든 목록은 전체, 일부선택 → 선택후 일괄액션」 · 대전제-19·20 —
+          보드에서 되는 일(고르기 · ✎ · 삭제 · 마감)이 **표에서는 하나도 안 됐다**. 같은 손을 같은 줄에 단다(새 손 0). */}
       {cards.filter((x) => x.state === "todo" || x.state === "doing").map((x) => <tr key={x.id} className={isOverdue(x, today) ? "hi" : ""} data-g="row" data-kind={x.kind} data-id={x.id}>
+        <td>{x.todoId ? <PickBox pick={pk} id={x.id} label={`${x.title} 고르기`} /> : null}</td>
         <td><span className={"nb-pill " + (cols.find((cl) => cl.kind === x.kind)?.cls ?? "")}>{kindName(x.kind, klist)}</span></td><td className="sch">{x.title}{x.extra ? ` · ${x.extra}` : ""}</td><td>{dueLine(x, today)}</td><td>{x.school ? schoolTag(x) : ""}</td><td className="num">{x.n ?? ""}</td>
         <td>{x.checks ? x.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => `${s.done ? "✓" : "·"}${s.name}`).join(" ") : ""}</td><td>{x.why ?? ""}</td>
-        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), `끝냈습니다. ${x.title}`)}>✓ 끝냄</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제 완료</button>}{x.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => run(() => unitTestDueAct(x.dueUnitTest), "출제했습니다")}>출제 완료</button>}</td>
+        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), "끝냄 ✓")}>✓ 끝냄</button>}
+          {x.todoId && !x.material && <button className="btn sm gho icb" type="button" disabled={pending} data-act="row-edit" {...icon("수정")} onClick={() => { setView("board"); setDetail(x.id); setSel(x.id); }}>{ACT.edit}</button>}
+          {x.todoId && <input type="date" className="dt" value={x.due ?? ""} aria-label={`${x.title} 마감`} disabled={pending} onChange={(e) => run(() => dueAct(x.todoId, e.target.value || null), "마감 ✓")} style={{ width: "auto" }} />}
+          {x.todoId && <button className="btn sm gho" type="button" disabled={pending} data-act="row-drop" onClick={() => run(() => dropAct(x.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능"))}>삭제</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제 완료</button>}{x.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => run(() => unitTestDueAct(x.dueUnitTest), "출제했습니다")}>출제 완료</button>}</td>
       </tr>)}
       {!cards.filter((x) => x.state === "todo" || x.state === "doing").length && <tr><td colSpan={8} className="note">업무가 없습니다</td></tr>}
     </tbody></table></div>}
     <div className="two" style={{ marginTop: 12 }}>
       <div className="card" style={{ margin: 0 }} data-g="flow">
         <div className="ctitle"><span className="cemo">📦</span>자료 단계{selCard?.material ? ` · ${selCard.material.type} · ${selCard.material.title}` : ""}</div>
-        {selCard?.material ? <Flow card={selCard} /> : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 여기 섭니다</p>}
+        {selCard?.material ? Flow({ card: selCard }) : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 여기 섭니다</p>}
       </div>
       <div className="card" style={{ margin: 0, borderColor: behind.length ? "var(--miss)" : undefined }} data-g="behind">
         <div className="ctitle"><span className="cemo">🔥</span>{behind.length ? `${behind[0].title}` : "못 따라가는 시험 없음"}</div>
@@ -264,7 +275,7 @@ export default function Board({ d }) {
             {dCard.note && <div className="lf"><span className="ln">✎</span><div><b style={{ whiteSpace: "pre-wrap", fontWeight: 400 }}>{dCard.note}</b><small>메모</small></div></div>}
             {dCard.why && <div className="lf"><span className="ln">🧾</span><div><b style={{ fontWeight: 400 }}>{dCard.why}</b><small>왜 생겼나</small></div></div>}
           </div>
-          {dCard.material && <div style={{ marginTop: 8 }} data-g="detail-flow"><span className="fl" style={{ margin: "0 0 4px" }}>{FACE.files} {dCard.material.type} · {dCard.material.title}</span><Flow card={dCard} /></div>}
+          {dCard.material && <div style={{ marginTop: 8 }} data-g="detail-flow"><span className="fl" style={{ margin: "0 0 4px" }}>{FACE.files} {dCard.material.type} · {dCard.material.title}</span>{Flow({ card: dCard })}</div>}
           {dCard.files?.length > 0 && <div className="wv" data-g="detail-files" style={{ gap: 6, marginTop: 8 }}>
             {dCard.files.map((f) => (isImage(f.mime)
               ? <Photo key={f.id} id={f.id} name={f.name} size={110} />

@@ -60,7 +60,7 @@ console.log("\n■ (어88) 업무 05 — 눌리는 것만 눌리게 · 끌 수 �
   ok("**모든 카드가** 모달을 연다(원장님 2026-09-18 「이거 그냥 다 모달 가능하게해줘」)",
      /setSel\(c\.id\); setDetail\(c\.id\); \};/.test(board));
   ok("자료 카드는 모달 **안에서** 📦 단계 흐름을 본다(아래까지 안 내려간다) · 흐름은 한 벌(Flow · 두 벌로 안 그린다 · 원칙-1)",
-     /const Flow = \(\{ card \}\) =>/.test(board) && /data-g="detail-flow"/.test(board) && /<Flow card=\{selCard\} \/>/.test(board));
+     /const Flow = \(\{ card \}\) =>/.test(board) && /data-g="detail-flow"/.test(board) && /Flow\(\{ card: selCard \}\)/.test(board));
   ok("첨부 **사진은 썸네일**로 보인다(app/_shell/photo.js 한 벌 — 07·20·아이·학부모가 쓰는 그것) · 사진 아닌 것만 이름 링크",
      /isImage\(f\.mime\)/.test(board) && /<Photo /.test(board));
   ok("업무를 넣을 때 **종류를 고른다**(퀵 메모 · 05 · 12 일정) · 상단 띠는 표를 안 읽는다(속도-4 — 화면이 내려준 것 · 없으면 씨앗)",

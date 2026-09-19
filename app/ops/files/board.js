@@ -22,7 +22,8 @@ export default function Board({ d }) {
   const fileIds = useMemo(() => [...inboxRows(b.inbox).map((f) => f.id), ...columns(b.bins).flatMap((x) => x.cards.flatMap((k) => (k.files ?? []).map((f) => f.id)))], [b]); const pk = usePick(fileIds);   /* 고른 자료(방금 온 것 · 올린 기록 안) · 띠에서 유형으로 한 번에 */
   const openCard = open ? cols.flatMap((x) => x.cards).find((x) => (x.bin?.id ?? x.title) === open) : null; const star = openCard ? sharpest(openCard.files) : null;
   const tg = sendTargets(b.students, sid);
-  const FileRow = ({ f, bin }) => <div className="lf" data-g="bin-file" data-file={f.id}><PickBox pick={pk} id={f.id} label={`${f.orig_name} 고르기`} />{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{icon(f.mime)}</span>}<div><b>{star === f.id ? "⭐ " : ""}{f.orig_name}</b><small>{whoText(f)} · {md(seoulDate(f.uploaded_at))} · {sizeText(f.bytes)}{star === f.id ? " · 가장 또렷" : ""}{f.note ? ` · 💬 「${f.note}」` : ""}</small>{f.by_role !== "principal" && f.by_role !== "instructor" && f.by_role !== "assistant" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div>}</div>
+  /* (어92) 부품이 아니라 함수로 — 판 안에서 만든 부품은 상태가 바뀔 때마다 통째로 다시 만들어져 고른 것·스크롤이 튄다 */
+  const FileRow = ({ f, bin, k }) => <div key={k} className="lf" data-g="bin-file" data-file={f.id}><PickBox pick={pk} id={f.id} label={`${f.orig_name} 고르기`} />{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{icon(f.mime)}</span>}<div><b>{star === f.id ? "⭐ " : ""}{f.orig_name}</b><small>{whoText(f)} · {md(seoulDate(f.uploaded_at))} · {sizeText(f.bytes)}{star === f.id ? " · 가장 또렷" : ""}{f.note ? ` · 💬 「${f.note}」` : ""}</small>{f.by_role !== "principal" && f.by_role !== "instructor" && f.by_role !== "assistant" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div>}</div>
     <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a>
     {bin && <select value={bin.kind} aria-label={`${f.orig_name} 유형 옮기기`} disabled={pending} data-g="move" onChange={(e) => run(() => sortAct(f.id, e.target.value), `${e.target.value} 로 옮겼습니다`, () => setOpen(null))} style={{ width: "auto" }}>{kinds.map((k) => <option key={k} value={k}>{k}</option>)}</select>}</div>;
   return <>
@@ -57,7 +58,7 @@ export default function Board({ d }) {
         </div>)}
       </div>
       {openCard && <div className="card" style={{ marginTop: 8 }} data-g="bin-files"><div className="ctitle"><span className="cemo">📂</span>{openCard.title} · {openCard.n}개{star ? " · ⭐ 가장 또렷한 것을 골라 씁니다(지우지 않습니다)" : ""}<span className="spacer" /><button type="button" className="btn sm" onClick={() => setOpen(null)}>닫기</button></div>
-        {openCard.files.map((f) => <FileRow key={f.id} f={f} bin={openCard.bin} />)}</div>}
+        {openCard.files.map((f) => FileRow({ f, bin: openCard.bin, k: f.id }))}</div>}
     </>}
     {tab === "out" && <div data-g="sent">
       {!sent.length && <p className="note" style={{ margin: "4px 0" }}>보낸 것 없음 · 📤 보내기</p>}
