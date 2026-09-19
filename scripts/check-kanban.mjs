@@ -96,5 +96,21 @@ console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄�
      && /closed: Boolean\(q\.closed\)/.test(readFileSync("lib/todo-plan.js", "utf8")));
   ok("결과를 말한다 — 넘김 ✓ / 못 넘김이면 재시험이 다시 선다(대전제-0)",
      /넘김 ✓/.test(board) && /못 넘김 · 재시험이 다시 섭니다/.test(board)); }
+/* (어94) 05 에서 자료를 **그 자리에서** 세운다 — 원장님 2026-09-19 「내신을 업무에 통합시켜도 될거 같은데」.
+   여태 05 의 「📄 자료」는 만들기가 아니라 04 로 보내는 링크 목록이었다(대전제-22 위반). 양식은 04 와 **한 벌**이라
+   두 벌이 어긋날 일이 없다(원칙-1) — 그래서 여기서 「링크 0」과 「같은 부품」 둘 다 지킨다. */
+{ const mm = strip(read("app/_shell/materialmodal.js")), p04 = strip(read("app/schedule/exams/prep/board.js"));
+  /* 「세우기」가 04 로 보내면 안 된다. 카드의 「📄 자료」(.goto)는 그 시험의 자료를 **보러** 가는 길이라 남긴다 —
+     대전제-22 가 막는 것은 「동사 👉 다른 화면」이고 이건 이름이다((어91) 이동 단추와 같은 꼴). 그 길은 답 56-ⓑ 에서 없어진다. */
+  ok("(어94) 05 의 「+ 자료」는 04 로 보내지 않는다 — 그 자리에서 모달이 열린다(대전제-22) · 04 로 가는 길은 카드의 「📄 자료」 하나뿐",
+     /\{nw === "material" && <MaterialModal\b/.test(board) && /data-act="new-material"/.test(board) && (board.match(/exams\/prep/g) ?? []).length === 1,
+     `04 로 가는 길 ${(board.match(/exams\/prep/g) ?? []).length}`);
+  ok("(어94) 04 와 05 가 **같은 양식 한 벌**을 쓴다(app/_shell/materialmodal.js · 원칙-1)",
+     /<MaterialModal\b/.test(p04) && /materialmodal\.js"/.test(board) && /materialmodal\.js"/.test(p04));
+  ok("(어94) 양식은 시험이 정해졌으면 고르개를 안 그린다(04) · 05 는 고른다 — 고른 시험의 종류·보는 아이는 그때 읽는다(판 파도에 안 태운다 · 속도-1)",
+     /\{exams && /.test(mm) && /data-g="add-exam"/.test(mm) && /load\(examId\)/.test(mm) && /load=\{materialFormAct\}/.test(board));
+  ok("(어94) 세우는 손은 04 와 같은 한 벌(lib/todo.js addMaterial) · 05 도 가벼운 materialForm 으로 읽는다(prepBoard 는 셋을 읽어 모달엔 무겁다)",
+     /addMaterial\(sb, \{ examId/.test(read("app/schedule/todo/actions.js")) && /materialForm\(sb, examId/.test(read("app/schedule/todo/actions.js")) && /materialForm\(sb, examId/.test(read("app/schedule/exams/prep/actions.js"))); }
+
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

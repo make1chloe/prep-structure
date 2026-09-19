@@ -9,12 +9,13 @@ import { usePick, PickAll, PickGroup, PickBox, PickBar } from "../../_shell/pick
 import { useRouter } from "next/navigation";
 import Photo from "@/app/_shell/photo.js";
 import { isImage } from "@/lib/files-plan";
-import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct } from "./actions.js";
+import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct, materialFormAct, addMaterialAct } from "./actions.js";
 import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 import { ACT, FACE } from "@/lib/emoji";
 import { icon } from "@/app/_shell/icon.js";   // (어80) 아이콘만 있는 손의 이름·툴팁 한 벌
 import { DateBox } from "../../_shell/datebox.js";
+import MaterialModal from "../../_shell/materialmodal.js";   // (어94) 04 와 같은 「+ 자료」 양식 한 벌(원칙-1)
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 /** (어80) 분류 색 — 목업 CSS 의 칸 색 그대로(nb-*). 「기본」은 색 없음 */
 const COLORS = [["", "기본"], ["nb-orange", "주황"], ["nb-blue", "파랑"], ["nb-yellow", "노랑"], ["nb-green", "초록"], ["nb-red", "빨강"]];
@@ -175,8 +176,10 @@ export default function Board({ d }) {
       <button className="btn sm" type="button" data-act="new-unit-test" onClick={() => setNw("unit_test")}>✍️ 단원평가 출제</button>
       <button className="btn sm" type="button" data-act="new-repeat" onClick={() => setNw("repeat")}>⏰ 반복</button>
       <span className="spacer" /><button className="btn sm" type="button" onClick={() => setNw(null)}>닫기</button></div></div>}
-    {nw === "material" && <div className="card" data-g="new-material" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📄</span>자료 · 시험 고르기</div>
-      <div className="tags">{(b.exams_soon ?? []).map((e) => <Link prefetch={false} key={e.id} className="tag on" href={`/schedule/exams/prep?e=${e.id}`}>{e.school ?? "전국"} {e.name} · {monthDay(examOn(e))} · 자료 {e.materials}</Link>)}{!(b.exams_soon ?? []).length && <span className="note" style={{ margin: 0 }}>다가오는 시험 없음 · 🗓️ 학교 시험</span>}</div></div>}
+    {/* (어94) 「📄 자료」는 **그 자리에서** 세운다 — 04 로 보내던 링크 목록을 걷었다(대전제-22 · 원장님 2026-09-19 「내신을 업무에 통합」).
+        양식·손은 04 와 같은 한 벌(app/_shell/materialmodal.js · lib/todo.js addMaterial · 원칙-1) */}
+    {nw === "material" && <MaterialModal exams={b.exams_soon ?? []} load={materialFormAct} save={addMaterialAct} onClose={() => setNw(null)}
+      onSaved={(r) => { setMsg(`자료를 세웠습니다. 항목 ${r.items} · 배정 ${r.students}명 · 업무 ${r.todos}`); router.refresh(); }} />}
     {nw === "unit_test" && <div className="card" data-g="new-unit-test" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">✍️</span>단원평가 출제</div>
       <div className="wv"><select value={ut.studentId} aria-label="아이" onChange={(x) => setUt({ ...ut, studentId: x.target.value })} style={{ width: "auto" }}><option value="">아이</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school}` : ""}</option>)}</select>
         <select value={ut.topicId} aria-label="문법 분류" onChange={(x) => setUt({ ...ut, topicId: x.target.value })} style={{ width: "auto" }}><option value="">문법 분류</option>{(b.topics ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>

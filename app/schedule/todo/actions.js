@@ -5,7 +5,7 @@ import { editTodo } from "@/lib/schedule";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";
 import { takeQuiz } from "@/lib/quiz";   // (어89) 재시험 끝냄 — 01 과 같은 손(원칙-1)
-import { finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored , restoreTodo, addKind, editKind, dropKind, restoreKind, moveKindOrder, moveKind } from "@/lib/todo";
+import { materialForm, addMaterial, finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored , restoreTodo, addKind, editKind, dropKind, restoreKind, moveKindOrder, moveKind } from "@/lib/todo";
 const wrap = (fn) => act(fn, "업무 05");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
 export async function undoAct(todoId) { return wrap(async () => { const { sb } = await staff(); return undoTodo(sb, todoId); }); }
@@ -35,3 +35,8 @@ export async function manyAct(ids, op, value = null) { return wrap(async () => {
  *  05 에서 그 자리에서 틀린 개수만 적는다. 쓰는 손은 **01 오늘 수업과 같은 것**(lib/quiz takeQuiz · 새 손 0 · 원칙-1)이라
  *  결과가 그 아이 그날 수업 일지에 제대로 남고, 넘기면 passed · 못 넘기면 다음 재시험이 또 선다(그 판단도 01 과 같다). */
 export async function retestTakeAct(sheetId, quizId, wrong) { return wrap(async () => { const { sb } = await staff(); return await takeQuiz(sb, sheetId, quizId, { wrong }); }); }
+
+/** (어94) 05 에서 자료를 **그 자리에서** 세운다 — 원장님 2026-09-19 「내신을 업무에 통합시켜도 될거 같은데」.
+ *  04 로 보내던 링크를 걷고 같은 양식(app/_shell/materialmodal.js)을 연다 · 세우는 것은 04 와 **같은 한 벌**(lib/todo.js addMaterial). */
+export async function materialFormAct(examId) { return wrap(async () => { const { sb } = await staff(); return materialForm(sb, examId, await today(sb)); }); }
+export async function addMaterialAct(examId, f) { return wrap(async () => { const { sb } = await staff(); const b = await materialForm(sb, examId, await today(sb)); return addMaterial(sb, { examId, typeId: f?.typeId, title: f?.title, items: f?.items, studentIds: f?.studentIds ?? [], takers: b.takers ?? [], types: b.types ?? [] }); }); }

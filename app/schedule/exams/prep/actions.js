@@ -3,9 +3,9 @@
 import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { today } from "@/lib/day";
-import { prepBoard, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook, setItemUnit, giveMaterial } from "@/lib/todo";
+import { prepBoard, materialForm, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook, setItemUnit, giveMaterial } from "@/lib/todo";
 const wrap = (fn) => act(fn, "내신 대비 04");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
-export async function addMaterialAct(examId, f) { return wrap(async () => { const { sb } = await staff(); const b = await prepBoard(sb, examId, await today(sb)); return addMaterial(sb, { examId, typeId: f?.typeId, title: f?.title, items: f?.items, studentIds: f?.studentIds ?? [], takers: b.takers ?? [], types: b.types ?? [] }); }); }
+export async function addMaterialAct(examId, f) { return wrap(async () => { const { sb } = await staff(); const b = await materialForm(sb, examId, await today(sb)); return addMaterial(sb, { examId, typeId: f?.typeId, title: f?.title, items: f?.items, studentIds: f?.studentIds ?? [], takers: b.takers ?? [], types: b.types ?? [] }); }); }
 export async function reuseAct(examId, fromId, studentIds = [], revised = false) { return wrap(async () => { const { sb } = await staff(); const b = await prepBoard(sb, examId, await today(sb)); return reuseMaterial(sb, { examId, fromId, studentIds, takers: b.takers ?? [], types: b.types ?? [], revised: Boolean(revised) }); }); }
 export async function schoolProgAct(examId, studentId, text) { return wrap(async () => { const { sb } = await staff(); return setSchoolProg(sb, examId, studentId, text); }); }
 export async function giveAct(materialId, studentIds = []) { return wrap(async () => { const { sb } = await staff(); return giveMaterial(sb, materialId, studentIds); }); }   // (어21) 01 에서 배정 — 04 의 + 자료 배정과 같은 줄

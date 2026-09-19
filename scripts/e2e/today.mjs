@@ -2612,6 +2612,35 @@ console.log("■ (어84) ⏰ 마감 필요 — 판이 선 뒤의 실제 목록 �
       } else ok("마감한 판이라 출결이 잠겨 있고 **까닭을 그 자리에서 말한다**(대전제-0)", (await p.locator(".mdlov [data-g=due-locked]").count()) === 1 && (await mdl.locator("button").first().isDisabled()), (await p.locator(".mdlov .mdlb").textContent()).replace(/\s+/g, " ").slice(0, 120));
       await p.locator(".mdlov .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(600); } } }
 
+
+/* (어94) 「+ 자료」가 04 로 보내지 않고 **그 자리에서** 세운다 — 원장님 2026-09-19 「내신을 업무에 통합시켜도 될거 같은데」.
+   ⚠️ **맨 끝에 둔다.** 자료를 세우면 「자료 만들기 · 인쇄 · 배부 · ✓ 끝냄」 수가 다 움직여서, 중간에 두면
+   그 수를 세는 뒤 걸음 넷이 어긋난다(9/19 실측). 끝에 두고, 그래도 **세운 것은 치운다**(판을 바꿔 놓고 가지 않는다). */
+{ await p.goto(`${APP}/schedule/todo`); await p.waitForLoadState("networkidle").catch(() => {});
+  const madeBefore = Number((await colCount("make")).replace(/\D/g, ""));
+  await td.locator("button[data-act=new-open]").click(); await td.locator("button[data-act=new-material]").click(); await p.waitForTimeout(400);
+  const mm = p.locator("[data-g=add]");
+  ok("(어94) 「📄 자료」를 누르면 04 로 안 가고 그 자리에서 양식이 열린다 · 시험 고르개가 있다(04 는 시험이 정해져 있어 없다)",
+    (await mm.count()) === 1 && (await mm.locator("[data-g=add-exam]").count()) === 1 && p.url().includes("/schedule/todo"), p.url());
+  await mm.locator("[data-g=add-exam]").selectOption({ index: 1 }); await p.waitForTimeout(1500);
+  ok("(어94) 시험을 고르면 그 시험의 자료 종류와 보는 아이를 그때 읽어 온다(판 파도에 안 태운다)",
+    (await mm.locator("select[aria-label='자료 종류'] option").count()) > 1 && (await mm.locator("[data-g=add-students] input.ck").count()) >= 1,
+    `종류 ${await mm.locator("select[aria-label='자료 종류'] option").count()} · 아이 ${await mm.locator("[data-g=add-students] input.ck").count()}`);
+  await mm.locator("select[aria-label='자료 종류']").selectOption({ index: 1 });
+  await mm.locator("input[aria-label='유형 이름']").fill("zz_05에서 세운 자료");
+  await mm.locator("textarea[aria-label=항목]").fill("가, 나");
+  await mm.locator("button[data-act=add-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  const mine = () => td.locator("[data-g=col] [data-g=card]").filter({ hasText: "zz_05에서 세운 자료" }).first();
+  ok("(어94) 저장하면 양식이 닫히고 「자료 만들기」 칸이 늘어난다 — 04 를 한 번도 안 열었다",
+    (await p.locator("[data-g=add]").count()) === 0 && Number((await colCount("make")).replace(/\D/g, "")) > madeBefore && (await mine().count()) === 1,
+    `만들기 ${madeBefore} → ${await colCount("make")}`);
+  await mine().locator(".nb-title").first().click(); await p.waitForTimeout(700);
+  await p.locator("[data-g=card-detail] button[data-act=detail-drop]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어94) 05 에서 세운 자료는 05 에서 그대로 치운다(자료와 남은 업무가 함께) · 판이 원래 수로 돌아온다",
+    Number((await colCount("make")).replace(/\D/g, "")) === madeBefore,
+    `만들기 ${await colCount("make")} · 기대 ${madeBefore}`); }
+
 await b.close();
 ok(`화면 안 JS 오류 0 · ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);
