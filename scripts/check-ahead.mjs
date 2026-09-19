@@ -45,12 +45,23 @@ function walk2(dir) {
 console.log(`■ 앱은 DB 보다 앞서지 않는다 — 0${들어간데까지} 까지 들어간 것으로 치고, 그 뒤 ${안들어간.length}개가 더한 칸 ${새칸.length}개를 본다`);
 console.log(`   (새 칸: ${새칸.map((c) => `${c.table}.${c.col}`).join(" · ") || "없음"})`);
 
-/** ① 읽는 자리 — 새 칸 이름이 **글자(문자열)** 로 나오면 그 조회가 통째로 죽는다(select · eq · order · onConflict 다 같다) */
+/** 안 들어간 마이그레이션이 **새로 만드는 표** — ⑦ 이 보고, ① 도 쓴다 */
+const 새표 = [];
+for (const f of 안들어간) for (const m of read(`supabase/migrations/${f}`).matchAll(/create table(?:\s+if not exists)?\s+v2\.(\w+)/gi)) 새표.push({ table: m[1], file: f });
+
+/** ① 읽는 자리 — 새 칸 이름이 **글자(문자열)** 로 나오면 그 조회가 통째로 죽는다(select · eq · order · onConflict 다 같다).
+ *  ⚠️ **새 표를 거는 줄은 뺀다**((어95)) — 그 줄은 칸이 아니라 **표**가 없어서 어차피 걸리고, 그 자리는 ⑦ 이 따로 본다
+ *     (「없으면 넘어간다」를 갖춰야 한다). v2.todo_student.todo_id 처럼 **다른 표의 새 칸과 이름만 같은** 칸까지 걸면
+ *     고칠 수 없는 빨강이 되어, 파수꾼이 옳은 코드를 막는다. */
 const 글자 = [];
+const 새표줄 = (l) => 새표.some(({ table }) => new RegExp(`from\\("${table}"\\)`).test(l));
 for (const { p, s } of srcs) {
-  for (const m of s.matchAll(/"[^"\n]*"|'[^'\n]*'|`[^`]*`/g)) {
-    const hit = 새칸.find((c) => new RegExp(`\\b${c.col}\\b`).test(m[0]));
-    if (hit) 글자.push(`${p} · ${hit.col} · ${m[0].slice(0, 60)}`);
+  for (const line of s.split("\n")) {
+    if (새표줄(line)) continue;
+    for (const m of line.matchAll(/"[^"\n]*"|'[^'\n]*'|`[^`]*`/g)) {
+      const hit = 새칸.find((c) => new RegExp(`\\b${c.col}\\b`).test(m[0]));
+      if (hit) 글자.push(`${p} · ${hit.col} · ${m[0].slice(0, 60)}`);
+    }
   }
 }
 ok("새 칸 이름이 조회·거르기 글자에 안 나온다 — 나오면 그 화면이 **통째로** 죽는다((어78) 사고: 오늘 수업이 안 열렸다)",
@@ -94,8 +105,6 @@ ok("안 들어간 01xx 마다 붙여넣기 파일(docs/sql-paste/NNNN.sql)이 �
 /** ⑦ (어80) 새 **표** — 칸과 같은 일이 표에도 있다. 표가 없는 DB 에서 그것을 읽으면 그 조회가 오류를 내는데,
  *  받는 쪽이 그 오류를 안 가리면 화면이 통째로 안 열린다((어78) 과 같은 꼴). 그러니 ① 읽는 파일이 「없으면 넘어간다」를 갖추고
  *  ② TBL_PASTE(lib/sqlError.js)에 올라 있어야 한다 — 걸렸을 때 화면이 **무엇을 하실지** 말한다(대전제-0). */
-const 새표 = [];
-for (const f of 안들어간) for (const m of read(`supabase/migrations/${f}`).matchAll(/create table(?:\s+if not exists)?\s+v2\.(\w+)/gi)) 새표.push({ table: m[1], file: f });
 const 표탈 = [];
 for (const { table } of 새표) {
   for (const { p, s } of srcs) if (new RegExp(`from\\("${table}"\\)`).test(s) && !/could not find the table|does not exist/i.test(s)) 표탈.push(`${p} · ${table} 를 읽는데 「없으면 넘어간다」가 없다`);

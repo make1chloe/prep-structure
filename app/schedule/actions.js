@@ -9,7 +9,7 @@ import { importExams, searchSchools, setSchoolCode } from "@/lib/neis";
 const wrap = (fn) => act(fn, "일정 12");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function holidayAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addHoliday(sb, { date: f.date, classId: f.classId || null, reason: f.reason }) }; }); }
 export async function undoHolidayAct(id) { return wrap(async () => { const { sb } = await staff(); await undoHoliday(sb, id); return {}; }); }
-export async function todoAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addTodo(sb, { title: f.title, kind: f.kind || null, dueOn: f.dueOn, dueTime: f.dueTime || null, note: f.note }) }; }); }
+export async function todoAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addTodo(sb, { title: f.title, kind: f.kind || null, dueOn: f.dueOn, dueTime: f.dueTime || null, note: f.note, studentIds: f.studentIds ?? [] }) }; }); }   // (어95) 12 도 아이를 여럿 잇는다
 export async function doneTodoAct(id) { return wrap(async () => { const { sb } = await staff(); await doneTodo(sb, id); return {}; }); }
 export async function examAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addExam(sb, { scope: f.scope, schoolId: f.schoolId || null, grade: f.grade, name: f.name, termFrom: f.termFrom, termTo: f.termTo || null, englishOn: f.englishOn, date: await today(sb) || null }) }; }); }
 export async function englishOnAct(id, date) { return wrap(async () => { const { sb } = await staff(); await setEnglishOn(sb, id, date || null, await today(sb)); return {}; }); }

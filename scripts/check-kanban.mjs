@@ -112,5 +112,21 @@ console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄�
   ok("(어94) 세우는 손은 04 와 같은 한 벌(lib/todo.js addMaterial) · 05 도 가벼운 materialForm 으로 읽는다(prepBoard 는 셋을 읽어 모달엔 무겁다)",
      /addMaterial\(sb, \{ examId/.test(read("app/schedule/todo/actions.js")) && /materialForm\(sb, examId/.test(read("app/schedule/todo/actions.js")) && /materialForm\(sb, examId/.test(read("app/schedule/exams/prep/actions.js"))); }
 
+/* (어95) 업무에 아이를 **여럿** 잇는다 — 원장님 2026-09-19 여쭌 54 「b」 · 55 「b + 체크박스」.
+   고르개는 결석·보강이 쓰던 그 부품(WhoPick)이고, 이은 아이는 카드에 **이름으로** 보인다(「3명」만 적으면 누구인지 모른다 · 대전제-0). */
+{ const qm = strip(read("app/_shell/quickmemo.js")), wp = strip(read("app/_shell/whopick.js")), plan = strip(read("lib/todo-plan.js")), sch = strip(read("lib/schedule.js"));
+  ok("(어95) 아이 고르개는 결석·보강과 **같은 부품**(WhoPick · 원칙-1) · 고르개 하나로 한 명만 잇던 자리는 없앴다",
+     /<WhoPick\b/.test(qm) && /whopick\.js"/.test(qm) && !/aria-label="아이"/.test(qm) && /studentIds/.test(qm));
+  ok("(어95) 고르개에 **찾기 한 줄**(이름·학교) — 거르면 학교·반 단추도 「전체」도 **보이는 아이**만 집는다",
+     /data-g="who-find"/.test(wp) && /s\.name \?\? ""\} \$\{s\.school \?\? ""\}/.test(wp) && /const shown = useMemo/.test(wp)
+     && /\[\.\.\.value, \.\.\.shown\.map/.test(wp) && /shown\.map\(\(s\) => <label/.test(wp));
+  ok("(어95) 이은 아이를 읽는 자리는 **한 곳**(todo-plan who) · 0184 전 판의 옛 칸도 같이 읽는다(대전제-27)",
+     /export const who = \(t\) => t\.students \?\? \(t\.student_id/.test(plan) && /students: sts, student: sts\.map/.test(plan));
+  ok("(어95) 카드가 **누구인지** 말한다(이름 알약) — 「3명」만 적고 이름이 없으면 덜 말하는 화면이다(대전제-0)",
+     /data-g="card-who"/.test(board) && /c\.students\.map\(\(s\) => <span/.test(board));
+  ok("(어95) 잇는 줄도 **안 지운다**(대전제-6 · state=off) · **새 표라 따로 적는다**(대전제-27) · 못 이었으면 말한다",
+     /async function setTodoStudents/.test(sch) && /state: "off"/.test(sch) && !/from\("todo_student"\)\.delete\(\)/.test(sch)
+     && /could not find the table\|PGRST205\|does not exist/.test(sch) && /업무는 적었지만 아이는 못 이었습니다/.test(sch)); }
+
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

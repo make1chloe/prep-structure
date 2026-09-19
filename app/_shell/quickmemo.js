@@ -6,6 +6,7 @@
  *  ⚠️ 마감을 **안 묻는다**. 떠오른 것을 적는 자리에서 날짜부터 물으면 적기를 멈춘다 · 마감 없는 줄은 05 에서 「마감 없음」으로 선다(대전제-0).
  *     날짜·아이·첨부는 「자세히」를 펴야 나온다 — 접힌 채가 기본이라 한 줄 적고 Enter 면 끝이다.
  *  ⚠️ 상단 띠에서는 **표를 안 읽는다**(속도-4) — 그래서 아이 고르개는 이미 명단을 읽은 05 에서만 준다(students).
+ *  ⚠️ (어95) 아이는 **여럿**이다(원장님 2026-09-19 「b」 · 「b + 체크박스」) — 고르개는 결석·보강과 **같은 부품**(WhoPick · 원칙-1)이다.
  *  ⚠️ 사진은 **저장한 뒤에** 붙는다(붙을 줄이 있어야 붙는다) — 저장 단추가 Upload 의 send 를 부른다. 올리는 길은 그대로 한 곳(대전제-7). */
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -15,9 +16,10 @@ import { ACT } from "@/lib/emoji";
 import { kindList } from "@/lib/todo-plan";
 import { icon } from "./icon.js";
 import { DateBox } from "./datebox.js";
-const EMPTY = { title: "", kind: "note", dueOn: "", startOn: "", dueTime: "", studentId: "" };
+import WhoPick from "./whopick.js";   // (어95) 「누구에게」 한 벌 — 결석·보강·업무가 같은 고르개(원칙-1)
+const EMPTY = { title: "", kind: "note", dueOn: "", startOn: "", dueTime: "", studentIds: [] };
 /** (어80) `edit` 를 주면 **같은 양식이 고치기**가 된다 — 넣기와 고치기를 두 벌로 그리지 않는다(원칙-1 · 대전제-19) */
-const formOf = (c) => (c ? { title: c.title ?? "", kind: c.kind ?? "note", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentId: c.studentId ?? "" } : EMPTY);
+const formOf = (c) => (c ? { title: c.title ?? "", kind: c.kind ?? "note", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentIds: c.studentIds ?? [] } : EMPTY);
 /** (어88) `kinds` — 업무 종류 고르개(원장님 2026-09-18 「근데 업무종류를 고르는건 가능하게해야함」).
  *  ⚠️ **상단 띠 📌 는 어느 화면에서나 뜨므로 표를 읽지 않는다**(속도-4) — 화면이 읽은 것을 내려주고, 안 주면 씨앗(KINDS)으로 그린다.
  *  씨앗에는 원장님이 새로 만드신 분류가 없으니, 05 에서는 반드시 내려준다(05 는 이미 읽은 값이라 조회 0). */
@@ -58,8 +60,8 @@ export default function QuickMemo({ students = null, kinds = null, inline = fals
         <label className="fl" style={{ margin: 0 }}>시작일</label><DateBox type="date" className="dt" value={f.startOn} aria-label="시작일" onChange={up("startOn")} style={{ width: "auto" }} />
         <label className="fl" style={{ margin: 0 }}>마감</label><DateBox type="date" className="dt" value={f.dueOn} aria-label="마감" onChange={up("dueOn")} style={{ width: "auto" }} />
         <DateBox type="time" value={f.dueTime} aria-label="시각" onChange={up("dueTime")} style={{ width: "auto" }} />
-        {students && <select value={f.studentId} aria-label="아이" onChange={up("studentId")} style={{ width: "auto" }}><option value="">아이 없음</option>{students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
       </div>}
+      {more && students && <div style={{ marginTop: 6 }}><WhoPick students={students} value={f.studentIds} onChange={(ids) => setF({ ...f, studentIds: ids })} label="아이" /></div>}
       {more && <Upload paste sendRef={sendRef} label="📷 사진 · 📄 파일" hint="붙여넣기(Ctrl+V)도 돼요" compact />}
       {err && <p className="note" role="alert" style={{ margin: "6px 0 0", color: "var(--miss)" }}>{err}</p>}
       {msg && <p className="note" data-g="quick-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}

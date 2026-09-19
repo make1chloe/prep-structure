@@ -61,7 +61,7 @@ console.log("\n■ 어느 화면에서나 · 표를 안 읽는다");
 ok("퀵 메모 단추는 학원 사람 화면 어디에나(껍질) · 아이·학부모에겐 없다",
   /isStaff\(me\.role\) && <QuickMemo \/>/.test(shell));
 ok("띠에서는 **표를 한 줄도 안 읽는다**(속도-4 · 모든 화면이 내는 세금) — 아이 고르개는 명단을 이미 읽은 05 에서만",
-  !/db\(|\.from\(|\.rpc\(/.test(strip(qm)) && /students = null/.test(qm) && /<QuickMemo inline students=\{b\.students/.test(b05));
+  !/db\(|\.from\(|\.rpc\(/.test(strip(qm)) && /students = null/.test(qm) && /whoPicks\(b\)/.test(b05) && /<QuickMemo inline students=\{picks\}/.test(b05));   /* (어95) 05 는 **이미 읽은** 명단을 고르개 꼴로만 옮겨 내려준다(whoPicks · 조회 0) */
 ok("그림은 ACT 한 곳에서(📌) · 단추 이름은 「퀵 메모」", /quick: "📌"/.test(emoji) && /\{ACT\.quick\}/.test(qm) && /icon\("퀵 메모"\)/.test(qm));
 ok("한 줄 적고 **Enter 면 끝**(날짜·아이·첨부는 「자세히」를 펴야 나온다)",
   /e\.key === "Enter"/.test(qm) && /const \[more, setMore\] = useState\(Boolean\(edit\)\)/.test(qm)   /* (어80) 넣기는 접힌 채 · **고치기는 펴진 채**(이미 적힌 것을 보여야 고친다) */);

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import Photo from "@/app/_shell/photo.js";
 import { isImage } from "@/lib/files-plan";
 import { doneAct, undoAct, dueAct, dropAct, manyAct, unitTestAct, unitTestMadeAct, unitTestDueAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct, retestTakeAct, restoreAct, addKindAct, editKindAct, dropKindAct, restoreKindAct, kindOrderAct, moveKindAct, materialFormAct, addMaterialAct } from "./actions.js";
-import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
+import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, kindList, SHOW_ON, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText, whoPicks } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 import { ACT, FACE } from "@/lib/emoji";
 import { icon } from "@/app/_shell/icon.js";   // (어80) 아이콘만 있는 손의 이름·툴팁 한 벌
@@ -31,6 +31,7 @@ export default function Board({ d }) {
   const [ut, setUt] = useState({ studentId: "", topicId: "", qCount: "25" }); const [rp, setRp] = useState({ name: "", every: "month", day: "25", weekday: "1", lead: String(b.rules?.["todo.repeat_lead"] ?? 3), days: "7", left: "5" });
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const all = useMemo(() => cardsOf(b), [b]);                       // 한 번 센다 — 보기·거르개·차례는 이 목록을 다르게 그릴 뿐(재조회 0)
+  const picks = useMemo(() => whoPicks(b), [b]);                    // (어95) 「누구에게」 고르개가 먹는 꼴 — 판이 이미 읽은 명단이라 조회 0(속도-1)
   const [only, setOnly] = useState(d.only ?? []);   // 04 「단계 👉」 — 그 자료만((가)-④) · 「전체 보기 ✕」로 푼다
   const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), "due"), [all, only, school]);   // (어10) 늘 마감 순 — 「만든 순」으로 보실 날이 없어 단추를 뺐다(대전제-14)
   const todoIds = useMemo(() => cards.filter((x) => x.todoId).map((x) => x.id), [cards]); const pk = usePick(todoIds);   /* 고른 업무 줄(자료 단계 카드는 ☑ 로 · 여기선 안 고른다) */
@@ -98,6 +99,7 @@ export default function Board({ d }) {
         ? <Photo key={f.id} id={f.id} name={f.name} size={56} />
         : <a key={f.id} className="tag" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">{f.name}</a>))}
     </span></div>}
+    {(c.students ?? []).length > 0 && <div className="nb-prop"><span className="nb-pi">🎒</span><span className="nb-pv" data-g="card-who">{c.students.map((s) => <span key={s.id} className="nb-pill">{s.name}</span>)}</span></div>}{/* (어95) 이은 아이 — 「3명」만 적고 누구인지 안 적으면 화면이 덜 말한다(대전제-0) */}
     {(c.school || c.n != null) && <div className="nb-prop"><span className="nb-pi">🏛️</span><span className="nb-pv">{c.school && <span className={"nb-pill " + (c.level === "high" ? "nb-blue" : c.level === "middle" ? "nb-green" : "")}>{schoolTag(c)}</span>}{c.n != null && <span className="nb-pill">{c.kind === "print" ? `${c.pages}장 · ` : ""}{c.n}명</span>}</span></div>}
     {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.map((s) => { const tid = stepTodoOf(all, c.material?.id, s.step); return <button key={s.step} type="button" className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"} disabled={pending || !tid} style={{ border: 0, background: "none", padding: 0, font: "inherit", cursor: tid ? "pointer" : "default" }} onClick={(x) => { x.stopPropagation(); if (!tid) return; run(() => (s.done ? undoAct(tid) : doneAct(tid)), s.done ? `${s.name} 취소 · 카드가 제 칸으로 돌아갑니다` : `${s.name} ✓ · 카드가 다음 칸으로 갑니다`); }}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</button>; })}</span></div>}
     {c.kind === "solve" && <div className="nb-prop"><span className="nb-pi">✍️</span><span className="nb-pv" data-g="submit">제출 {c.submitted ?? 0}/{c.n}{c.waiting?.length ? ` · 아직: ${c.waiting.join(", ")}` : " · 다 냈습니다"}</span></div>}
@@ -137,7 +139,7 @@ export default function Board({ d }) {
       <button className="btn sm gho" type="button" data-act="retest-cancel" onClick={() => { setTaking(null); setWrong(""); }}>취소</button>
     </div>}
     {editing === c.id && <div data-g="card-edit-form" onClick={(x) => x.stopPropagation()} style={{ marginTop: 6 }}>
-      <QuickMemo inline edit={c} students={b.students ?? []} kinds={kinds} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
+      <QuickMemo inline edit={c} students={picks} kinds={kinds} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
     </div>}{/* (어80) 넣기 양식이 그대로 **고치기** 양식이다(원칙-1) · 그 자리에서 편다(대전제-22) */}
   </div>;
   return <>
@@ -162,7 +164,7 @@ export default function Board({ d }) {
       <button type="button" className="btn sm gho" disabled={pending || !pickedCards.length} data-act="drop-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "drop"), (r) => `삭제 ✓ · ${r.n}개 · 복구 가능`, pk.clear)}>삭제 {pickedCards.length}</button>
     </PickBar>
     <div className="wv" style={{ margin: "0 0 8px" }}><span className="spacer" /><Sibs here="/schedule/todo" /></div>
-    <div className="card" data-g="quick-card" style={{ marginBottom: 8 }}><QuickMemo inline students={b.students ?? []} kinds={kinds} /></div>{/* (어78) 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」 — 상단 띠 📌 와 **같은 부품**이다(원칙-1) */}
+    <div className="card" data-g="quick-card" style={{ marginBottom: 8 }}><QuickMemo inline students={picks} kinds={kinds} /></div>{/* (어78) 원장님 2026-09-17 「업무페이지 상단에 바로 내용입력할 수 있게, 현재는 1클릭필요함」 — 상단 띠 📌 와 **같은 부품**이다(원칙-1) */}
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -286,7 +288,7 @@ export default function Board({ d }) {
               : <a key={f.id} className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">{FACE.files} {f.name}</a>))}
           </div>}
           {dCard.todoId && !dCard.material && (dCard.state === "todo" || dCard.state === "doing")
-            && <div style={{ marginTop: 10 }}><QuickMemo inline edit={dCard} students={b.students ?? []} kinds={kinds} onSaved={() => setDetail(null)} onCancel={() => setDetail(null)} /></div>}
+            && <div style={{ marginTop: 10 }}><QuickMemo inline edit={dCard} students={picks} kinds={kinds} onSaved={() => setDetail(null)} onCancel={() => setDetail(null)} /></div>}
         </div>
         <div className="mdlf">
           {dCard.todoId && (dCard.state === "todo" || dCard.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="detail-done" onClick={() => run(() => doneAct(dCard.todoId), "끝냄 ✓", () => setDetail(null))}>✓ 끝냄</button>}

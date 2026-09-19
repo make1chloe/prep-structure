@@ -2641,6 +2641,36 @@ console.log("■ (어84) ⏰ 마감 필요 — 판이 선 뒤의 실제 목록 �
     Number((await colCount("make")).replace(/\D/g, "")) === madeBefore,
     `만들기 ${await colCount("make")} · 기대 ${madeBefore}`); }
 
+/* (어95) 업무 한 줄에 아이를 **여럿** — 원장님 2026-09-19 여쭌 54 「b」 · 55 「b + 체크박스」.
+   ⚠️ **맨 끝에 두고 세운 것은 치운다** — (어93)·(어94) 에서 두 번 같은 실수를 했다(판을 바꿔 놓고 가면 뒤 걸음이 어긋난다). */
+{ await p.goto(`${APP}/schedule/todo`); await p.waitForLoadState("networkidle").catch(() => {});
+  const qc = td.locator("[data-g=quick-card]"), wp = qc.locator("[data-g=whopick]");
+  await qc.locator("[data-g=quick-title]").fill("zz_95_아이 여럿");
+  await qc.locator("[data-act=quick-more]").click(); await p.waitForTimeout(500);
+  const all = await wp.locator("[data-g=who-row]").count();
+  ok("(어95) 「자세히」를 펴면 아이 고르개가 **결석·보강과 같은 부품**으로 뜬다(고르개 하나가 아니라 체크박스 여럿)",
+    (await wp.count()) === 1 && all >= 3 && (await qc.locator("select[aria-label=아이]").count()) === 0, `아이 ${all}`);
+  await wp.locator("[data-g=who-find]").fill("중학교"); await p.waitForTimeout(400);
+  const few = await wp.locator("[data-g=who-row]").count();
+  ok("(어95) 찾기 한 줄이 **학교로도** 줄인다 — 이름을 모르셔도 학교로 좁힌다", few > 0 && few < all, `${all}명 → ${few}명`);
+  await wp.locator("[data-act=who-all]").click(); await p.waitForTimeout(300);
+  ok("(어95) 거른 채 「전체」는 **보이는 아이**만 집는다", (await wp.locator("[data-g=who-n]").textContent()).includes(`고른 ${few}명`), await wp.locator("[data-g=who-n]").textContent());
+  await wp.locator("[data-g=who-find]").fill(""); await p.waitForTimeout(400);
+  await qc.locator("[data-act=quick-save]").click(); await p.waitForSelector("[data-g=quick-msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  const mine = () => td.locator("[data-g=col] [data-g=card]").filter({ hasText: "zz_95_아이 여럿" }).first();
+  const who = () => mine().locator("[data-g=card-who] .nb-pill");
+  ok("(어95) 카드가 이은 아이를 **이름으로** 말한다 — 「2명」만 적으면 누구인지 모른다(대전제-0)", (await who().count()) === few, `알약 ${await who().count()} · 기대 ${few}`);
+  await mine().locator("button[data-act=card-edit]").click(); await p.waitForTimeout(600);
+  const ed = mine().locator("[data-g=card-edit-form]");
+  ok("(어95) ✎ 로 열면 이미 이은 아이가 **골라진 채**로 나온다(안 보여 주면 도로 다 고르시게 된다)",
+    (await ed.locator("[data-g=whopick] [data-g=who-n]").textContent()).includes(`고른 ${few}명`), await ed.locator("[data-g=whopick] [data-g=who-n]").textContent());
+  await ed.locator("[data-g=whopick] [data-g=who-row] input.ck:checked").first().uncheck(); await p.waitForTimeout(300);   // 거르개를 비워 둔 채라 **골라진 것** 중에서 뗀다
+  await ed.locator("[data-act=quick-save]").click(); await p.waitForTimeout(2000); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어95) 한 명을 떼면 카드도 한 명 준다 — 뗀 줄은 **안 지우고 내린다**(대전제-6)", (await who().count()) === few - 1, `알약 ${await who().count()} · 기대 ${few - 1}`);
+  await mine().locator("button[data-act=drop]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어95) 걷기가 세운 업무는 걷기가 치운다 — 판을 바꿔 놓고 가지 않는다", (await td.locator("[data-g=col] [data-g=card]").filter({ hasText: "zz_95_아이 여럿" }).count()) === 0); }
+
 await b.close();
 ok(`화면 안 JS 오류 0 · ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

@@ -111,5 +111,16 @@ ok("다 제출·다 채점하면 둘 다 ✓ 끝냄(숨긴 그룹) · 체크 글
     ["done", "reuse", "dropped"].every((k) => 판.includes(`hidden.${k}.length > 0 && <button`)),
     ["done", "reuse", "dropped"].filter((k) => !판.includes(`hidden.${k}.length > 0 && <button`)).join());
 }
+/* (어96)-A 배부 날짜는 **사실이어야 한다** — 원장님 2026-09-19 「생각없이 체크누르면 큰 문제가 돼. 크로스체크가 필요하다는거야」.
+   「전부 배부」 한 번이 먼저 준 아이의 handed_at 까지 오늘로 덮어써서, 04 에서 따로 준 날짜가 조용히 사라지고 있었다(대전제-0).
+   크로스체크는 **언제 줬나**가 밑감이라 이것이 거짓이면 그 위에 아무것도 못 세운다. */
+{ const t = strip(readFileSync("lib/todo.js", "utf8"));
+  ok("(어96) 배부는 **안 준 아이만** 채운다 — 먼저 준 날짜를 안 덮어쓴다",
+     /if \(step === "hand" && !back\) changed\(await db\(sb\)\.from\("material_give"\)\.update\(\{ handed_at: now\(\) \}\)\.eq\("material_id", materialId\)\.is\("handed_at", null\)/.test(t)
+     && !/update\(\{ handed_at: back \? null : now\(\) \}\)/.test(t));
+  ok("(어96) 무를 때만 통째로 비운다(잘못 누른 것을 되돌리는 자리) · 죽은 줄 0",
+     /if \(step === "hand" && back\) changed\(await db\(sb\)\.from\("material_give"\)\.update\(\{ handed_at: null \}\)/.test(t)
+     && (t.match(/from\("material_give"\)\.update\(\{ handed_at/g) ?? []).length === 3);   /* 무르기 · 채우기 · handOut */ }
+
 console.log(`\ncheck-todo ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

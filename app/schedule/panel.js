@@ -44,7 +44,7 @@ export const ADD_KINDS = Object.freeze([["exam", "📝 시험", "open-exam"], ["
 export function AddTop({ d }) {
   const { run, pending, err, msg } = useRun();
   const [form, setForm] = useState(null);
-  const [hol, setHol] = useState({ classId: "", reason: "" }); const [todo, setTodo] = useState({ title: "", dueTime: "" }); const [abs, setAbs] = useState(() => emptyAbs(d.sel));
+  const [hol, setHol] = useState({ classId: "", reason: "" }); const [todo, setTodo] = useState({ title: "", dueTime: "", ids: [] }); const [abs, setAbs] = useState(() => emptyAbs(d.sel));
   return <div className="card" style={{ marginBottom: 8 }} data-g="add-top">
     <div className="wv">
       <span className="fl" style={{ margin: 0 }}>+ 일정</span>
@@ -59,7 +59,9 @@ export function AddTop({ d }) {
       <button className="btn pri sm" type="button" disabled={pending} data-act="holiday-save" onClick={() => run(() => holidayAct({ date: d.sel, classId: hol.classId, reason: hol.reason }), "휴강을 넣었습니다. 회차에서 빠집니다", () => { setForm(null); setHol({ classId: "", reason: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="holiday-close" onClick={() => setForm(null)}>닫기</button></div>}
     {form === "todo" && <div className="wv" style={{ marginTop: 8 }} data-g="todo-form"><span className="tag">📋 {d.sel}</span>
       <input value={todo.title} onChange={(e) => setTodo({ ...todo, title: e.target.value })} placeholder="업무 (예: 11월 수납 안내)" aria-label="업무" name="title" style={{ flex: "1 1 200px" }} /><select value={todo.kind ?? "note"} aria-label="업무 종류" data-g="sched-kind" onChange={(e) => setTodo({ ...todo, kind: e.target.value })} style={{ width: "auto" }}>{kindList(d.kinds ?? null).filter((k) => k.state === "active" && k.showOn !== "schedule").map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>{/* (어88) 12 도 kind:"note" 가 박혀 있던 같은 구멍이다 */}<DateBox type="time" value={todo.dueTime} onChange={(e) => setTodo({ ...todo, dueTime: e.target.value })} aria-label="시각" style={{ width: "auto" }} />
-      <button className="btn pri sm" type="button" disabled={pending} data-act="todo-save" onClick={() => run(() => todoAct({ title: todo.title, kind: todo.kind || null, dueOn: d.sel, dueTime: todo.dueTime || null }), "업무를 넣었습니다", () => { setForm(null); setTodo({ title: "", dueTime: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="todo-close" onClick={() => setForm(null)}>닫기</button></div>}
+      <button className="btn pri sm" type="button" disabled={pending} data-act="todo-save" onClick={() => run(() => todoAct({ title: todo.title, kind: todo.kind || null, dueOn: d.sel, dueTime: todo.dueTime || null, studentIds: todo.ids }), "업무를 넣었습니다", () => { setForm(null); setTodo({ title: "", dueTime: "", ids: [] }); })}>저장</button><button className="btn sm gho" type="button" data-act="todo-close" onClick={() => setForm(null)}>닫기</button>
+      {/* (어95) 12 에서도 아이를 **여럿** 잇는다 — 여태 12 의 업무는 아이를 아예 못 이었다(05 와 같은 줄인데 한쪽만 되던 자리) */}
+      <div style={{ flexBasis: "100%" }}><WhoPick students={d.students ?? []} classes={d.classes ?? []} value={todo.ids} onChange={(ids) => setTodo({ ...todo, ids })} label="아이" /></div></div>}
     {form === "mk" && <div style={{ marginTop: 8 }} data-g="makeup-top"><ClassMakeup ym={d.ym} classes={d.classes} students={d.students ?? []} always /></div>}
     {form === "abs" && <div style={{ marginTop: 8 }} data-g="absence-form">{/* (어83) 아이 하나 고르개 → 여럿 · 날짜도 고른다(원장님 2026-09-18) */}
       <div className="wv"><span className="fl" style={{ margin: 0 }}>언제</span>
