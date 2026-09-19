@@ -39,7 +39,7 @@ export default function DueCard({ due, date }) {
       <div className="duel">{todos.map((t) => <div key={t.id} className="duer" data-g="due-todo">
         <Link prefetch={false} href="/schedule/todo" style={{ flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}><b>{t.title}</b></Link>
         <span className="spacer" /><i className="tag">{t.kind_name ?? kindName(t.kind)}</i>{t.due_on < date && <i className="tag now">지남</i>}
-        <button type="button" className="btn sm" disabled={busy} data-act="due-todo-done" onClick={() => finish(t.id)}>✓ 끝냄</button>
+        <button type="button" className="btn sm" disabled={busy} data-act="due-todo-done" onClick={() => finish(t.id)}>완료</button>
       </div>)}</div>
     </div>}
     {open && <DueModal row={open} onClose={() => setOpen(null)} onDone={() => router.refresh()} />}

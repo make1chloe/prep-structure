@@ -58,7 +58,7 @@ export default function Board({ d }) {
       <button className="btn pri sm" type="button" disabled={pending || !kf.name.trim()} data-act={col ? "kind-save" : "kind-add"} onClick={() => run(() => (col ? editKindAct(col.kind, kf) : addKindAct(kf)), col ? "수정했어요" : `분류 ✓ · ${kf.name.trim()}`, () => setKindOpen(null))}>{col ? "수정" : "넣기"}</button>
 
       {col && !col.app && col.state === "active" && <button className="btn sm gho" type="button" disabled={pending} data-act="kind-drop" onClick={() => run(() => dropKindAct(col.kind), `삭제 ✓ · ${col.name}`, () => setKindOpen(null))}>삭제</button>}
-      {col && col.state === "off" && <button className="btn sm" type="button" disabled={pending} data-act="kind-restore" onClick={() => run(() => restoreKindAct(col.kind), `복구 ✓ · ${col.name}`)}>{ACT.restore} 복구</button>}
+      {col && col.state === "off" && <button className="btn sm" type="button" disabled={pending} data-act="kind-restore" onClick={() => run(() => restoreKindAct(col.kind), `복구 ✓ · ${col.name}`)}>복구</button>}
       <span className="spacer" /><button className="btn sm gho" type="button" data-act="kind-cancel" onClick={() => setKindOpen(null)}>취소</button>
     </div></div>;
   /** (어88) 카드를 누르면 세부 내용(원장님 2026-09-18 「추가한 업무를 눌러서 세부내용확인 불가능」).
@@ -124,22 +124,22 @@ export default function Board({ d }) {
     {c.why && c.kind !== "score" && <div className="nb-prop"><span className="nb-pi">🧾</span><span className="nb-pv">{c.why}</span></div>}
     {c.note && <div className="nb-prop"><span className="nb-pi">✎</span><span className="nb-pv">{c.note}</span></div>}
     <div className="wv" style={{ marginTop: 6, gap: 4 }}>
-      {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm pri" type="button" disabled={pending || Boolean(crossOf(c)?.locked)} data-act="done" onClick={() => { run(() => doneAct(c.todoId), (r) => (r?.state === "doing" ? `배부 ✓ · ${r.handed}명 · 다 받아 가면 닫힘` : `끝냈습니다. ${c.title}`)); }}>✓ 끝냄</button>}
+      {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm pri" type="button" disabled={pending || Boolean(crossOf(c)?.locked)} data-act="done" onClick={() => { run(() => doneAct(c.todoId), (r) => (r?.state === "doing" ? `배부 ✓ · ${r.handed}명 · 다 받아 가면 닫힘` : `완료했습니다. ${c.title}`)); }}>완료</button>}
       {crossOf(c)?.locked && <span className="note" data-g="cross-locked" style={{ margin: 0 }}>아직 안 받아 간 아이 {crossOf(c).left.length}명</span>}{/* (어96) 잠긴 까닭을 그 자리에서 말한다(대전제-0) */}
-      {c.todoId && !c.material && (c.state === "todo" || c.state === "doing") && <button className="btn sm gho icb" type="button" disabled={pending} data-act="card-edit" {...icon("수정")} onClick={() => { setEditing(editing === c.id ? null : c.id); }}>{ACT.edit}</button>}{/* (어80) 원장님 2026-09-18 「입력한 세부내용자체도 추가수정삭제가 안됨」 */}
-      {c.todoId && c.state === "dropped" && <button className="btn sm" type="button" disabled={pending} data-act="restore" onClick={() => { run(() => restoreAct(c.todoId), `복구 ✓ · ${c.title}`); }}>{ACT.restore} 복구</button>}
+      {c.todoId && !c.material && (c.state === "todo" || c.state === "doing") && <button className="btn sm gho" type="button" disabled={pending} data-act="card-edit" onClick={() => { setEditing(editing === c.id ? null : c.id); }}>수정</button>}{/* (어80) 원장님 2026-09-18 「입력한 세부내용자체도 추가수정삭제가 안됨」 */}
+      {c.todoId && c.state === "dropped" && <button className="btn sm" type="button" disabled={pending} data-act="restore" onClick={() => { run(() => restoreAct(c.todoId), `복구 ✓ · ${c.title}`); }}>복구</button>}
       {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => { run(() => dropAct(c.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능")); }}>삭제</button>}
       {c.todoId && (c.state === "done" || c.state === "dropped") && <button className="btn sm" type="button" disabled={pending} data-act="undo" onClick={() => { run(() => undoAct(c.todoId), "되돌렸습니다"); }}>되돌리기</button>}
       {c.todoId && (c.state === "todo" || c.state === "doing") && <DateBox type="date" className="dt" value={c.due ?? ""} aria-label={`${c.title} 마감`} onClick={(x) => x.stopPropagation()} onChange={(x) => run(() => dueAct(c.todoId, x.target.value), "마감을 바꿨습니다")} style={{ width: "auto" }} />}
       {c.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => { run(() => unitTestMadeAct(c.unitTestId), "출제했습니다. 오늘 수업 카드에 섭니다"); }}>출제 완료</button>}
       {c.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => { run(() => unitTestDueAct(c.dueUnitTest), "출제했습니다. 오늘 수업 카드에 섭니다(같은 것은 다시 안 생깁니다)"); }}>출제 완료</button>}
-      {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={() => { run(() => quizPaperAct(c.quizId, true), "종이 ✓ · 다음은 「✓ 끝냄」"); }}>🖨 재시험지 만들었음</button>}
+      {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={() => { run(() => quizPaperAct(c.quizId, true), "종이 ✓ · 다음은 「완료」"); }}>🖨 재시험지 만들었음</button>}
       {c.quizId && c.paperAt && <><span className="tag on" data-g="paper">🖨 종이 ✓</span><button className="btn sm" type="button" disabled={pending} data-act="paper-undo" onClick={() => { run(() => quizPaperAct(c.quizId, false), "취소 ✓"); }}>취소</button></>}
       {/* (어89) 재시험도 **끝난다** — 원장님 2026-09-18 「재시함지는 왜 완료가 없어?」.
           종이는 중간 표시일 뿐이고, 카드를 사라지게 하는 것은 **아이가 그날 남아서 보는 것**이었는데
           그 자리가 01 에만 있어 05 에서는 끝낼 길이 없었다(다른 카드는 다 「✓ 끝냄」이 있다).
           여기서 틀린 개수만 적으면 **01 과 같은 손**(takeQuiz)이 그 아이 그날 일지에 적는다 — 새 손 0 */}
-      {c.quizId && c.sheetId && !c.closed && <button className="btn sm pri" type="button" disabled={pending} data-act="retest-done" aria-pressed={taking === c.id} onClick={() => setTaking(taking === c.id ? null : c.id)}>✓ 끝냄</button>}
+      {c.quizId && c.sheetId && !c.closed && <button className="btn sm pri" type="button" disabled={pending} data-act="retest-done" aria-pressed={taking === c.id} onClick={() => setTaking(taking === c.id ? null : c.id)}>완료</button>}
       {c.quizId && c.closed && <span className="pill" data-g="retest-locked">마감함 · 잠김</span>}{/* 마감한 판은 못 고친다(검사-⑤) — 안 눌리는 단추를 그리지 않는다(원장님 9/18 「눌리지도않음」) */}
       {c.quizId && <Link prefetch={false} className="btn sm goto" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업</Link>}
       {c.kind === "score" && <Link prefetch={false} className="btn sm goto" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적</Link>}
@@ -169,11 +169,11 @@ export default function Board({ d }) {
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 업무에 한 번에 · 완료 · 되돌리기 · 미루기(날짜) · 내림(지우지 않는다) */}
-      <button type="button" className="btn sm pri" disabled={pending || !toDone.length} data-act="done-picked" onClick={() => run(() => manyAct(toDone.map((x) => x.todoId), "done"), (r) => `${r.n}개 끝냈습니다`, pk.clear)}>✓ 완료 {toDone.length}</button>
+      <button type="button" className="btn sm pri" disabled={pending || !toDone.length} data-act="done-picked" onClick={() => run(() => manyAct(toDone.map((x) => x.todoId), "done"), (r) => `${r.n}개 완료했습니다`, pk.clear)}>✓ 완료 {toDone.length}</button>
       <button type="button" className="btn sm" disabled={pending || !toUndo.length} data-act="undo-picked" onClick={() => run(() => manyAct(toUndo.map((x) => x.todoId), "undo"), (r) => `${r.n}개 되돌렸습니다`, pk.clear)}>↩ 되돌리기 {toUndo.length}</button>
       <DateBox type="date" className="dt" value={dueTo} aria-label="미룰 마감" onChange={(e) => setDueTo(e.target.value)} style={{ width: "auto" }} />
       <button type="button" className="btn sm" disabled={pending || !dueTo || !pickedCards.length} data-act="due-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "due", dueTo), (r) => `${r.n}개 마감을 ${dueTo} 로`, () => { pk.clear(); setDueTo(""); })}>📅 미루기</button>
-      <button type="button" className="btn sm" disabled={pending || !toRestore.length} data-act="restore-picked" onClick={() => run(() => manyAct(toRestore.map((x) => x.todoId), "restore"), (r) => `복구 ✓ · ${r.n}개`, pk.clear)}>{ACT.restore} 복구 {toRestore.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !toRestore.length} data-act="restore-picked" onClick={() => run(() => manyAct(toRestore.map((x) => x.todoId), "restore"), (r) => `복구 ✓ · ${r.n}개`, pk.clear)}>복구 {toRestore.length}</button>
       <select value={moveTo} aria-label="옮길 분류" onChange={(e) => setMoveTo(e.target.value)} style={{ width: "auto" }}><option value="">분류</option>{klist.filter((k) => k.state === "active").map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>
       <button type="button" className="btn sm" disabled={pending || !moveTo || !pickedCards.length} data-act="move-kind" onClick={() => run(() => moveKindAct(pickedCards.map((x) => x.todoId), moveTo), (r) => `옮김 ✓ · ${r.n}개`, () => { pk.clear(); setMoveTo(""); })}>↔ 분류 옮기기</button>{/* (어80) 원장님 「세부내용의 일괄처리 · 분류 옮기기가능하게」 */}
       <button type="button" className="btn sm gho" disabled={pending || !pickedCards.length} data-act="drop-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "drop"), (r) => `삭제 ✓ · ${r.n}개 · 복구 가능`, pk.clear)}>삭제 {pickedCards.length}</button>
@@ -235,7 +235,7 @@ export default function Board({ d }) {
       </div>}{/* (어80) 원장님 2026-09-18 「업무 칸반보드에 분류자체를 추가/수정/삭제가 되게해줘」 */}
       <div className="nb-hidden" data-g="hidden">
         <div className="nb-hh">숨긴 그룹</div>
-        {hidden.done.length > 0 && <button type="button" className="nb-hg" data-act="show-done" aria-pressed={Boolean(show.done)} onClick={() => setShow({ ...show, done: !show.done })}>👁 <span className="nb-pill nb-green">✓ 끝냄</span><span className="nb-cnt" data-g="done-count">{hidden.done.length}</span></button>}
+        {hidden.done.length > 0 && <button type="button" className="nb-hg" data-act="show-done" aria-pressed={Boolean(show.done)} onClick={() => setShow({ ...show, done: !show.done })}>👁 <span className="nb-pill nb-green">완료</span><span className="nb-cnt" data-g="done-count">{hidden.done.length}</span></button>}
         {hidden.reuse.length > 0 && <button type="button" className="nb-hg" data-act="show-reuse" aria-pressed={Boolean(show.reuse)} onClick={() => setShow({ ...show, reuse: !show.reuse })}>👁 <span className="nb-pill">♻️ 이미 있는 것</span><span className="nb-cnt" data-g="reuse-count">{hidden.reuse.length}</span></button>}
         {hidden.dropped.length > 0 && <button type="button" className="nb-hg" data-act="show-dropped" aria-pressed={Boolean(show.dropped)} onClick={() => setShow({ ...show, dropped: !show.dropped })}>👁 <span className="nb-pill">삭제한 것</span><span className="nb-cnt">{hidden.dropped.length}</span></button>}
         {hidden.reuse.length > 0 && <div className="nb-hh" style={{ paddingTop: 8 }}>이미 있는 것 {hidden.reuse.length} · {hidden.reuse.map((x) => x.title).join(" · ")}. 「만들기」가 <b>체크된 채로</b> 섰습니다(㊵)</div>}
@@ -251,8 +251,8 @@ export default function Board({ d }) {
         <td>{x.todoId ? <PickBox pick={pk} id={x.id} label={`${x.title} 고르기`} /> : null}</td>
         <td><span className={"nb-pill " + (cols.find((cl) => cl.kind === x.kind)?.cls ?? "")}>{kindName(x.kind, klist)}</span></td><td className="sch">{x.title}{x.extra ? ` · ${x.extra}` : ""}</td><td>{dueLine(x, today)}</td><td>{x.school ? schoolTag(x) : ""}</td><td className="num">{x.n ?? ""}</td>
         <td>{x.checks ? x.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => `${s.done ? "✓" : "·"}${s.name}`).join(" ") : ""}</td><td>{x.why ?? ""}</td>
-        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), "끝냄 ✓")}>✓ 끝냄</button>}
-          {x.todoId && !x.material && <button className="btn sm gho icb" type="button" disabled={pending} data-act="row-edit" {...icon("수정")} onClick={() => { setView("board"); setDetail(x.id); setSel(x.id); }}>{ACT.edit}</button>}
+        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), "완료 ✓")}>완료</button>}
+          {x.todoId && !x.material && <button className="btn sm gho" type="button" disabled={pending} data-act="row-edit" onClick={() => { setView("board"); setDetail(x.id); setSel(x.id); }}>수정</button>}
           {x.todoId && <DateBox type="date" className="dt" value={x.due ?? ""} aria-label={`${x.title} 마감`} disabled={pending} onChange={(e) => run(() => dueAct(x.todoId, e.target.value || null), "마감 ✓")} style={{ width: "auto" }} />}
           {x.todoId && <button className="btn sm gho" type="button" disabled={pending} data-act="row-drop" onClick={() => run(() => dropAct(x.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능"))}>삭제</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제 완료</button>}{x.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => run(() => unitTestDueAct(x.dueUnitTest), "출제했습니다")}>출제 완료</button>}</td>
       </tr>)}
@@ -306,7 +306,7 @@ export default function Board({ d }) {
             && <div style={{ marginTop: 10 }}><QuickMemo inline edit={dCard} students={picks} classes={b.classes ?? []} kinds={kinds} onSaved={() => setDetail(null)} onCancel={() => setDetail(null)} /></div>}
         </div>
         <div className="mdlf">
-          {dCard.todoId && (dCard.state === "todo" || dCard.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="detail-done" onClick={() => run(() => doneAct(dCard.todoId), "끝냄 ✓", () => setDetail(null))}>✓ 끝냄</button>}
+          {dCard.todoId && (dCard.state === "todo" || dCard.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="detail-done" onClick={() => run(() => doneAct(dCard.todoId), "완료 ✓", () => setDetail(null))}>완료</button>}
           {dCard.todoId && dCard.state === "dropped" && <button className="btn sm" type="button" disabled={pending} data-act="detail-restore" onClick={() => run(() => restoreAct(dCard.todoId), "복구 ✓", () => setDetail(null))}>복구</button>}
           <span className="spacer" />
           {dCard.todoId && (dCard.state === "todo" || dCard.state === "doing") && <button className="btn sm gho" type="button" disabled={pending} data-act="detail-drop" onClick={() => run(() => dropAct(dCard.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능"), () => setDetail(null))}>삭제</button>}

@@ -7,7 +7,7 @@ import { TRI as T2 } from "../lib/progress-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 부호·말 한 곳");
-ok("부호 넷(○ ◐ · ⏭) · 원장 말(끝냄 · 하는 중 · 아직 · 건너뜀) · 아이 말(다 했어요 · 하고 있어요 · 아직 · 건너뛰었어요) · 모르는 값은 아직", markCh("done") === "○" && markCh("doing") === "◐" && markCh("none") === "·" && markCh("skip") === "⏭" && markText("done") === "끝냄" && markText("done", "kid") === "다 했어요" && markText("doing", "kid") === "하고 있어요" && markText("skip", "kid") === "건너뛰었어요" && markText("zzz") === "아직" && markCh(undefined) === "·" && Object.keys(MARK).join() === "done,doing,none,skip");
+ok("부호 넷(○ ◐ · ⏭) · 원장 말(완료 · 하는 중 · 아직 · 건너뜀) · 아이 말(다 했어요 · 하고 있어요 · 아직 · 건너뛰었어요) · 모르는 값은 아직", markCh("done") === "○" && markCh("doing") === "◐" && markCh("none") === "·" && markCh("skip") === "⏭" && markText("done") === "완료" && markText("done", "kid") === "다 했어요" && markText("doing", "kid") === "하고 있어요" && markText("skip", "kid") === "건너뛰었어요" && markText("zzz") === "아직" && markCh(undefined) === "·" && Object.keys(MARK).join() === "done,doing,none,skip");
 ok("TRI(○ ◐ ·)는 mark 한 곳 · progress-plan 이 같은 것을 내보낸다 · 01 진도 점(○ ◐ ✕)도 여기", TRI === T2 && TRI.map(([k, c]) => `${k}${c}`).join() === "done○,doing◐,none·" && CHECK_DOT.done === "○" && CHECK_DOT.weak === "◐" && CHECK_DOT.missing === "✕");
 console.log("■ 화면 · 부호를 제 손으로 적는 자리 0 · 08 은 한 줄 목록");
 const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 주석은 먼저 지운다

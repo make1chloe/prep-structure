@@ -821,7 +821,7 @@ function GiveModal({ sheet, slot: at, fail, start, onClose }) {
               {chOpen && g.us.map((u) => <div key={u.id} className="ckl" data-g="give-unit" data-unit={u.id} data-chapter={g.name} data-done={stOf(u) === "done" ? "1" : "0"} data-st={stOf(u)}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, flex: "1 1 auto", minWidth: 0, ...(stOf(u) === "done" ? { color: "var(--mute)" } : null) }}><input type="checkbox" className="ck" checked={units.includes(u.id)} onChange={() => flip(units, setUnits, u.id)} /> <b>{u.short}</b> <small>{[u.pages ? `p.${u.pages}` : null, u.qs ? `${u.qs}문항` : null].filter(Boolean).join(" · ")}</small></label>
                 {stOf(u) === "skip" && <span className="tag" data-g="unit-skip">건너뜀</span>}
-                <button type="button" className="btn sm gho" data-act="unit-upto" aria-label={`${u.short} 까지 모두 끝냄`} onClick={() => upTo(u)}>여기까지 ○</button>
+                <button type="button" className="btn sm gho" data-act="unit-upto" aria-label={`${u.short} 까지 모두 완료`} onClick={() => upTo(u)}>여기까지 ○</button>
                 <span className="tri" data-g="unit-prog">{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(stOf(u) === "skip" ? "none" : stOf(u)) === k} {...icon(markText(k))} onClick={() => setSt(u, k)}>{ch}</button>)}</span>
               </div>)}
             </Fragment>; })}</div></>}

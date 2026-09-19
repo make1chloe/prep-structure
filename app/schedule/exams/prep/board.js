@@ -81,7 +81,7 @@ export default function Board({ d }) {
       <div className="ctitle" style={{ marginTop: 8 }}><span className="cemo">📋</span>여기서 생긴 업무 <span className="tag" data-g="todo-count">{todos.filter((t) => t.state !== "done").length}</span></div>
       <div className="left" data-g="todos">
         {!todos.length && <p className="note" style={{ margin: 0 }}>자료를 넣으면 만들기·인쇄·배부가 여기 섭니다</p>}
-        {todos.map((t) => { const l = todoLine(t, today); return <div className="lf" key={t.id} data-g="todo-row" data-state={t.state}><span className="ln">{l.done ? "✓" : "·"}</span><div><b>{l.text}</b><small>{l.small}{l.why ? ` · ${l.why}` : ""}</small></div>{!l.done && <button className="btn sm" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => todoDoneAct(t.id), "끝냈습니다")}>✓ 끝냄</button>}</div>; })}
+        {todos.map((t) => { const l = todoLine(t, today); return <div className="lf" key={t.id} data-g="todo-row" data-state={t.state}><span className="ln">{l.done ? "✓" : "·"}</span><div><b>{l.text}</b><small>{l.small}{l.why ? ` · ${l.why}` : ""}</small></div>{!l.done && <button className="btn sm" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => todoDoneAct(t.id), "완료했습니다")}>완료</button>}</div>; })}
       </div>
       <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
         <span className="pill" data-g="tree-count">자료 {tree.counts.sources} · 유형 {tree.counts.materials} · 항목 {tree.counts.items}</span>

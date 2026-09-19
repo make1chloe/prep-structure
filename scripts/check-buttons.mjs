@@ -53,5 +53,15 @@ ok(`④ 모달(.mdlov) 조각 ${modalChunks.length}개 중 손을 부르는 것�
   ok("⑥ 「'started_at' 칸이 없다」 → docs/sql-paste/0167.sql 을 안 넣은 것 · attend_reason → 0166 · 모르는 칸도 「붙여넣기 SQL」을 가리킨다(schema cache 글보다 먼저)", a.includes("0167") && /안 넣/.test(a) && b.includes("0166") && /sql-paste/.test(c) && !/옛 표 모양/.test(a), `${a.slice(0, 80)} | ${c.slice(0, 80)}`);
   const missing = Object.values(COL_PASTE).filter((v) => !existsSync(`docs/sql-paste/${v}.sql`));
   ok(`⑥b 칸 → 붙여넣기 번호 표(COL_PASTE ${Object.keys(COL_PASTE).length}칸)의 파일이 다 있다`, missing.length === 0, missing.join(", ")); }
+/* ⑦ (어97) **한 손 줄에서 그림과 글을 섞지 않는다** — 원장님 2026-09-19 사진(05 카드: 「✓ 끝냄(글) · ✏️(그림) · 삭제(글)」):
+   「아이콘이든 텍스트든 통일해줘 텍스트할거먄 완료/수정/삭제」. 한 줄이 그림 단추(icb)와 글 단추를 같이 내면 실패.
+   ⚠️ 한 단추 안의 「🖨 6장 뽑기」는 섞임이 아니다 — **나란히 선 단추끼리** 꼴이 다른 것이 눈에 걸린다. */
+{ const 섞인 = [];
+  for (const f of files("app").filter((p) => !p.includes("/api/"))) strip(readFileSync(f, "utf8")).split("\n").forEach((l, i) => {
+    const icb = (l.match(/icb"/g) ?? []).length, txt = [...l.matchAll(/>([가-힣][^<>{}]{0,8})<\/button>/g)].map((m) => m[1]);
+    if (icb > 0 && txt.length) 섞인.push(`${f}:${i + 1} · 그림 ${icb} · 글 ${txt.join("·")}`);
+  });
+  ok("⑦ (어97) 한 손 줄에 그림 단추와 글 단추가 섞이지 않는다(그림이면 다 그림 · 글이면 다 글)", 섞인.length === 0, 섞인.slice(0, 4).join(" | ")); }
+
 console.log(`\n■ 단추 전수 검사 ${n}건 · 실패 ${bad} · <button ${allTags.length} · 서버 손 onClick ${awaits.length} · aria-pressed 서버 손 ${pressed.length} · 모달 조각 ${modalChunks.length}`);
 process.exit(bad ? 1 : 0);

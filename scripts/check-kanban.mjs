@@ -80,18 +80,18 @@ console.log("\n■ (어88) 업무 05 — 눌리는 것만 눌리게 · 끌 수 �
      /data-act="due-todo-done"/.test(due) && /doneAct/.test(due)); }
 
 /* (어89) 원장님 2026-09-18 「재시험지 만들면 할일이뭐야 · 재시함지는 왜 완료가 없어?」 —
-   🔁 재시험 카드만 「✓ 끝냄」이 없어 종이만 찍고 영영 서 있었다(끝내는 자리가 01 에만 있었다). */
-console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄이 따로");
+   🔁 재시험 카드만 「완료」가 없어 종이만 찍고 영영 서 있었다(끝내는 자리가 01 에만 있었다). */
+console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 완료가 따로");
 { const plan = readFileSync("lib/todo-plan.js", "utf8"), acts = readFileSync("app/schedule/todo/actions.js", "utf8");
   ok("재시험 카드가 **판 열쇠**를 들고 다닌다(0183 sheet_id) — 그 아이 그날 일지에 적어야 한다",
      /sheetId: q\.sheet_id \?\? null/.test(plan));
-  ok("카드에 「✓ 끝냄」이 있다(다른 카드와 같다 · 종이 ✓ 는 중간 표시일 뿐)",
-     /data-act="retest-done"/.test(board) && /✓ 끝냄<\/button>\}/.test(board));
+  ok("카드에 「완료」가 있다(다른 카드와 같다 · 종이 ✓ 는 중간 표시일 뿐)",
+     /data-act="retest-done"/.test(board) && />완료<\/button>\}/.test(board));
   ok("끝낼 때 **틀린 개수만** 그 자리에서 묻는다(대전제-22 · 페이지를 안 떠난다)",
      /data-g="retest-take"/.test(board) && /data-g="retest-wrong"/.test(board) && /data-act="retest-save"/.test(board));
   ok("쓰는 손은 **01 과 같은 것**(lib/quiz takeQuiz) · 새 손 0(원칙-1) — 넘김·못 넘김 판단도 같다",
      /import \{ takeQuiz \} from "@\/lib\/quiz"/.test(acts) && /takeQuiz\(sb, sheetId, quizId, \{ wrong \}\)/.test(acts) && !/from\("quiz"\)\.update/.test(acts));
-  ok("**마감한 판이면 「✓ 끝냄」을 안 그린다** · 「마감함 · 잠김」이라 말한다(검사-⑤ assertOpen · 안 눌리는 단추 0 · 원장님 9/18 「눌리지도않음」)",
+  ok("**마감한 판이면 「완료」를 안 그린다** · 「마감함 · 잠김」이라 말한다(검사-⑤ assertOpen · 안 눌리는 단추 0 · 원장님 9/18 「눌리지도않음」)",
      /!c\.closed && <button className="btn sm pri"[\s\S]{0,200}data-act="retest-done"/.test(board) && /data-g="retest-locked"/.test(board)
      && /closed: Boolean\(q\.closed\)/.test(readFileSync("lib/todo-plan.js", "utf8")));
   ok("결과를 말한다 — 넘김 ✓ / 못 넘김이면 재시험이 다시 선다(대전제-0)",
@@ -138,15 +138,28 @@ console.log("\n■ (어89) 재시험도 끝난다 — 종이는 중간, 끝냄�
      /set notify_way = 'list' where kind = 'hand' and notify_way = 'none'/.test(sql) && !/confirm_got = true/.test(sql));
   ok("(어96) 카드가 「받음 n/N」과 **누가 안 받아 갔나**를 말하고, 손은 ✅ 채점 줄과 같은 꼴이다(새 꼴 0 · 원칙-1)",
      /data-g="cross"/.test(board) && /data-act="give-check"/.test(board) && /data-act="give-check-all"/.test(board) && /data-act="give-uncheck"/.test(board));
-  ok("(어96) 다 안 받아 가면 ✓ 끝냄이 **잠기고 까닭을 그 자리에서** 말한다(대전제-0) · 잠금은 서버도 건다",
+  ok("(어96) 다 안 받아 가면 완료가 **잠기고 까닭을 그 자리에서** 말한다(대전제-0) · 잠금은 서버도 건다",
      /disabled=\{pending \|\| Boolean\(crossOf\(c\)\?\.locked\)\}/.test(board) && /data-g="cross-locked"/.test(board)
      && /아직 안 받아 간 아이 \$\{left\.length\}명/.test(todoLib));
-  ok("(어96) 첫 「✓ 끝냄」은 **나눠 주고 카드를 남긴다**(state doing) — 받아 가야 닫힌다",
+  ok("(어96) 첫 「완료」는 **나눠 주고 카드를 남긴다**(state doing) — 받아 가야 닫힌다",
      /update\(\{ state: "doing" \}\)/.test(todoLib) && /return \{ kind: t\.kind, state: "doing"/.test(todoLib));
   ok("(어96) 알림은 **큐를 지나간다** — 그래야 방해금지에 함께 걸린다(바로 notify 를 부르면 밤에 운다)",
      /enqueue\(sb, "give_notice"/.test(todoLib) && !/\bnotify\(/.test(todoLib) && /handlers\[KINDS\.give\] = family\(/.test(sendLib));
   ok("(어96) 「어플 목록」을 끄면 아이 07 의 📚 카드가 아예 안 선다 · 표·칸이 없는 DB 면 여태처럼 보인다(대전제-27)",
      /const listOn = noKindTbl/.test(meLib) && /groupGives\(listOn \?/.test(meLib) && /could not find the table\|PGRST205\|does not exist/.test(meLib)); }
+
+/* (어97) 손 줄은 **한 꼴로** — 원장님 2026-09-19 사진(카드 손 줄에 「✓ 끝냄(글) · ✏️(그림) · 삭제(글)」):
+   「아이콘이든 텍스트든 통일해줘 텍스트할거먄 완료/수정/삭제」. 같은 줄에서 그림과 글을 섞지 않는다. */
+{ ok("(어97) 카드·표의 손은 **글**이다 — 완료 · 수정 · 삭제 · 복구(그림 0)",
+     (board.match(/>완료<\/button>/g) ?? []).length >= 4 && (board.match(/>수정<\/button>/g) ?? []).length === 2
+     && /data-act="drop"[\s\S]{0,400}>삭제<\/button>/.test(board) && /data-act="restore"[\s\S]{0,300}>복구<\/button>/.test(board),
+     `완료 ${(board.match(/>완료<\/button>/g) ?? []).length} · 수정 ${(board.match(/>수정<\/button>/g) ?? []).length}`);
+  ok("(어97) 그림 단추는 **칸 머리 한 줄에만** 남는다(◀ ▶ ✏️ — 그 줄은 그림으로 통일돼 있다)",
+     (board.match(/\{ACT\.edit\}/g) ?? []).length === 1 && /data-act="kind-edit"[\s\S]{0,200}\{ACT\.edit\}/.test(board)
+     && !/\{ACT\.restore\}/.test(board),
+     `ACT.edit ${(board.match(/\{ACT\.edit\}/g) ?? []).length} · ACT.restore ${(board.match(/\{ACT\.restore\}/g) ?? []).length}`);
+  ok("(어97) 말은 사전 한 곳에서 지킨다 — 「끝냄 → 완료」가 올라 있다(대전제-23)",
+     /\| 끝냄 \| 완료 \|/.test(read("docs/말-사전.md"))); }
 
 console.log(`\n■ (어80)-A 업무 칸반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -103,7 +103,7 @@ export default function Panel({ d }) {
           {it.state !== "waived" && <button className="btn sm gho" type="button" disabled={pending} data-act="makeup-waive" onClick={() => run(() => makeupAct({ studentId: it.student_id, ofDate: d.sel, waived: true }), "보강 안 잡음으로 두었습니다")}>안 잡음</button>}</div>)}</div>}
       </div>
       {r.kind === "hol" && <button className="btn sm gho" type="button" disabled={pending} data-act="holiday-undo" onClick={() => run(() => undoHolidayAct(r.id), "휴강을 물렀습니다(지우지 않았습니다)")}>취소</button>}
-      {r.kind === "todo" && <button className="btn sm gho" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => doneTodoAct(r.id), "끝냈습니다")}>끝냄</button>}
+      {r.kind === "todo" && <button className="btn sm gho" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => doneTodoAct(r.id), "완료했습니다")}>완료</button>}
       {r.kind === "mk" && r.ids && <button className="btn sm gho" type="button" disabled={pending} data-act="class-makeup-cancel" onClick={() => run(() => cancelClassMakeupAct(r.ids), "반 보강일을 물렀습니다")}>취소</button>}
       {(r.kind === "exam" || r.kind === "exam2") && <span className="wv" style={{ gap: 4 }}><span className="tag">{r.tag}</span>{r.kind === "exam" && <><DateBox type="date" value={eng[r.id] ?? ""} onChange={(e) => setEng({ ...eng, [r.id]: e.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !eng[r.id]} data-act="english-on" onClick={() => run(() => englishOnAct(r.id, eng[r.id]), "영어 시험일을 적었습니다")}>영어 시험일</button></>}<button className="btn sm gho" type="button" disabled={pending} data-act="exam-cancel" onClick={() => run(() => cancelExamAct(r.id), "시험을 물렀습니다")}>취소</button></span>}
     </div>)}

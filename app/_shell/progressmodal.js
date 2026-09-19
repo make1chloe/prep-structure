@@ -62,13 +62,13 @@ export default function ProgressModal({ b, api, closed = false, fail, start, onC
               머리(.acch)는 button 이라 그 **안**에 네모를 넣으면 단추 속 단추가 된다 → 옆(형제)에 둔다. */}
           {!closed && <span className="wv" data-g="chapter-pick" style={{ gap: 4, margin: 0, padding: "0 0 0 8px" }}><PickGroup pick={pk} ids={c.units.map((u) => u.id)} label={`${c.chapter} 전체`} /></span>}
           <button type="button" className="acch" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : c.chapter)}><span className="ar">›</span><b>{c.chapter}</b><span className="spacer" />
-            {fin ? <span className="tag on">{c.done}/{c.total} 끝냄{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : c.chapter === t.now ? <span className="tag act">지금 · {c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : <span className="tag">{c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span>}</button>
+            {fin ? <span className="tag on">{c.done}/{c.total} 완료{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : c.chapter === t.now ? <span className="tag act">지금 · {c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : <span className="tag">{c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span>}</button>
           {isOpen && <div className="accb">
             {c.units.map((u) => { const auto = t.today.includes(u.id) && t.memo; return (
               <div key={u.id} className="ur" data-g="prog-unit" data-unit={u.id} style={auto ? { background: "var(--sunk)", borderLeft: "3px solid var(--amber)", margin: "0 -8px", padding: "8px 8px", borderRadius: 8 } : undefined}>
                 {!closed && <PickBox pick={pk} id={u.id} label={`${u.short} 고르기`} />}
                 <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pagesText(u) ? ` · ${pagesText(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{t.partsOf?.[u.id] ? <> · <span data-g="parts">{t.partsOf[u.id]}</span></> : null}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
-                {!closed && <button type="button" className="btn sm gho" data-act="done-upto" aria-label={`${u.short} 까지 모두 끝냄`} onClick={() => upTo(u)}>여기까지 ○</button>}
+                {!closed && <button type="button" className="btn sm gho" data-act="done-upto" aria-label={`${u.short} 까지 모두 완료`} onClick={() => upTo(u)}>여기까지 ○</button>}
                 <div className="tri" data-g={u.id}>{TRI.map(([k, ch, css]) => <button key={k} type="button" data-p={css} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{ch}</button>)}</div>
               </div>); })}
             <div style={{ marginTop: 12 }}><label className="fl">학습 메모</label><input type="text" value={t.memo} readOnly placeholder="(없음)" /></div>
