@@ -93,5 +93,22 @@ console.log("\n■ (어90) 진도 체크 — 접힌 채 고르기 · 전체 · �
      && /k === "done" \|\| k === "skip"\); if \(had\) unpick\(\[u\.id\]\)/.test(r) && /if \(had\.length\) unpick\(had\)/.test(r)
      && (r.match(/repick\(/g) ?? []).length === 2); }
 
+/* (어99) 잘못 배정한 숙제를 **없애고 다시 배정** — 원장님 2026-09-19 「잘못배정한 숙제를 없애고 다시 배정가능하게해줘」.
+   없애는 길이 세 곳 다 막혀 있었다: ① 숙제 줄에 삭제가 없다(「건너뛰기」는 오늘만 안 하는 것이라 다른 일)
+   ② 단원이 하나뿐이면 단원째 뺄 단추도 안 그렸다 ③ 배정 창에서 다 풀면 저장이 안 눌리는데 **까닭을 안 말했다**.
+   다시 배정은 이미 됐다 — applyGive 가 내려간 줄(off)을 되살린다(두 줄이 안 생긴다). */
+{ const r = strip(read("app/today/row.js")), rt = strip(read("lib/routine.js"));
+  ok("(어99) 학습·숙제 **줄마다 삭제**가 있다 — 「건너뛰기(오늘만 안 함)」와 다른 손이다",
+     (r.match(/data-act="line-del"/g) ?? []).length === 2 && /icon\("삭제", "이 줄 삭제 · 밑의 「삭제한 줄」에서 복구"\)/.test(r)
+     && /data-act="line-del"[\s\S]{0,260}itemRemove\(it\.id\)/.test(r));
+  ok("(어99) 단원이 **하나뿐이어도** 단원째 뺀다(전에는 nUnits > 1 이라 못 뺐다)",
+     !/slot !== "class" && nUnits > 1 && g\.id/.test(r) && /slot !== "class" && g\.id && <button[\s\S]{0,120}data-act="item-del"/.test(r));
+  ok("(어99) 지운 줄은 **언제나** 「삭제한 줄」에 남아 복구된다(대전제-6 의 짝) — 그 단원의 마지막 줄을 지워도 사라지지 않는다",
+     /const offOf = \(slot\) => \(sheet\.off \?\? \[\]\)\.filter\(\(it\) => it\.slot === slot\);/.test(r) && /data-act="item-restore"/.test(r));
+  ok("(어99) 배정 창이 **왜 저장이 안 눌리는지**와 없애는 자리를 말한다(대전제-0)",
+     /data-g="give-none"/.test(r) && /이미 나간 숙제는 줄의 📥 로 삭제\(복구 가능\)/.test(r));
+  ok("(어99) 다시 배정하면 **내려간 줄이 되살아난다**(두 줄이 안 생긴다 · lib/routine applyGive)",
+     /if \(ex\.off\) back\.push\(ex\.id\)/.test(rt) && /update\(\{ off: false \}/.test(rt)); }
+
 console.log(`\n■ (어79) 매일 누르는 자리 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

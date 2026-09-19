@@ -299,6 +299,20 @@ ok("학원 항목 수는 줄×소단원 = 6", (await row.locator(".load .ldn").f
   ok(`줄 「${t0}」 숙제로 → 학습 1-5 활동 2 · 숙제 줄에 서거나(옮김) 같은 활동이 이미 숙제에 있어 뺀 줄로(합침)`, (await cls5().locator(".li").count()) === 2 && (movedHome || merged), `moved ${movedHome} · merged ${merged}`);
   if (movedHome) await homeH.locator(`.li[data-id='${id0}'] button[data-act=line-class]`).click(); else await offC().locator(`button[data-act=item-restore][data-id='${id0}']`).click(); await p.waitForTimeout(1200);
   ok("「학습으로」(또는 복구) → 1-5 활동 3", (await cls5().locator(".li").count()) === 3);
+  /* (어99) 잘못 배정한 숙제를 **없애고 다시 배정** — 원장님 2026-09-19.
+     여태 숙제 줄에는 「건너뛰기·다음 시간·오늘 학습」뿐이라 **없애는 손이 없었다**(단원이 하나뿐이면 단원째 뺄 길도 없었다).
+     걷기가 지운 줄은 걷기가 복구한다. */
+  { const li = homeH.locator(".li").first();
+    if (await li.count()) {
+      const hid = await li.getAttribute("data-id"), n0 = await homeH.locator(".li").count();
+      ok("(어99) 숙제 줄마다 **삭제**가 있다(건너뛰기와 다른 손 · 그림 줄이라 그림으로)", (await li.locator("button[data-act=line-del]").count()) === 1);
+      await li.locator("button[data-act=line-del]").click(); await p.waitForTimeout(1300);
+      const offBtn = () => row.locator(`button[data-act=item-restore][data-id='${hid}']`);
+      ok("(어99) 삭제하면 그 줄이 사라지고 **「삭제한 줄」에 남는다**(지우지 않는다 · 복구가 짝 · 대전제-6)",
+        (await homeH.locator(`.li[data-id='${hid}']`).count()) === 0 && (await offBtn().count()) === 1,
+        `숙제 줄 ${n0} → ${await homeH.locator(".li").count()} · 복구 단추 ${await offBtn().count()}`);
+      await offBtn().first().click(); await p.waitForTimeout(1300);
+      ok("(어99) 복구 → 줄이 제자리로(걷기가 지운 것은 걷기가 되돌린다)", (await homeH.locator(".li").count()) === n0); } }
   await cls5().locator("[data-g=tree-head] button[data-act=unit-next]").click(); await p.waitForTimeout(1500);
   ok("단원 1-5 통째로 다음 시간으로 → 학습에서 1-5 머리 사라짐 · 「다음 시간에 3」", (await cls5().count()) === 0 && (await row.locator("[data-g=next-lines]").textContent()).includes("다음 시간에 3"), await row.locator("[data-g=next-lines]").textContent().catch(() => "없음"));
   for (let i = 0; i < 3; i++) { await row.locator("[data-g=next-lines] button[data-act=next-back]").first().click(); await p.waitForTimeout(1000); }
