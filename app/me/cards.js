@@ -18,6 +18,7 @@ import { md } from "@/lib/dash-plan";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
 import { STEPS, LEAVE, timerText } from "@/lib/arrival-plan";
 import { seoulTime } from "@/lib/day-plan";
+import { DateBox } from "../_shell/datebox.js";
 export function ArrivalCard({ arrival, choice, off }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [cls, setCls] = useState(choice.classId ?? null);
   const go = (step) => start(async () => { setErr(""); const r = await arrive(step, cls); if (!r.ok) setErr(r.msg); });
@@ -105,7 +106,7 @@ export function MaterialCard({ gives, today, fold = null, folded = false }) {
         {it.stage === "done" && <span className="tag on">제출함</span>}</div>
       <div className="stage" data-g="stage">{STAGES.map(([k, name]) => <button key={k} type="button" aria-pressed={it.stage === k} disabled={pending} onClick={() => run(() => setStageAct(it.material_id, k))}>{name}</button>)}</div>
       {it.stage !== "done" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><label className="fl" style={{ margin: 0 }}>내가 정한 마감</label>
-        <input type="date" defaultValue={it.due_on ?? ""} min={today} aria-label="내가 정한 마감" style={{ width: "auto" }} onChange={(e) => run(() => setDueAct(it.material_id, e.target.value))} />
+        <DateBox type="date" defaultValue={it.due_on ?? ""} min={today} aria-label="내가 정한 마감" style={{ width: "auto" }} onChange={(e) => run(() => setDueAct(it.material_id, e.target.value))} />
         </div>}
     </div>);
   return (

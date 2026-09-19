@@ -5,6 +5,7 @@
 import { useState } from "react";
 import SchoolAdd from "./schooladd.js";
 import { examAct } from "../schedule/actions.js";
+import { DateBox } from "./datebox.js";
 export const SCOPES = Object.freeze([["school", "학교(중간·기말)"], ["national", "전국(수능·모의)"]]);
 export const SAVED = "시험을 넣었습니다(손으로 · 가져와도 안 덮습니다)";   /* 저장 뒤 글도 한 벌 — 세 화면이 같은 말을 한다 */
 export const emptyExam = (schoolId = "", date = "") => ({ scope: "school", schoolId, grade: "", name: "", termFrom: date, termTo: date, englishOn: "" });
@@ -17,8 +18,8 @@ export default function ExamForm({ schools = [], date, pending, run, onDone = nu
     {x.scope === "school" && <SchoolAdd open={!schools.length} onAdded={(id) => setX((v) => ({ ...v, schoolId: id }))} />}
     <input value={x.grade} onChange={set("grade")} placeholder="학년(비면 전체)" aria-label="학년" inputMode="numeric" style={{ width: 110 }} />
     <input value={x.name} onChange={set("name")} placeholder="이름 (예: 2학기 중간)" aria-label="시험 이름" name="exam-name" style={{ flex: "1 1 160px" }} />
-    <span className="note" style={{ margin: 0 }}>기간</span><input type="date" value={x.termFrom} onChange={set("termFrom")} aria-label="시작" style={{ width: "auto" }} /><input type="date" value={x.termTo} onChange={set("termTo")} aria-label="끝" style={{ width: "auto" }} />
-    <span className="note" style={{ margin: 0 }}>영어 시험일</span><input type="date" value={x.englishOn} onChange={set("englishOn")} aria-label="영어 시험일" style={{ width: "auto" }} />
+    <span className="note" style={{ margin: 0 }}>기간</span><DateBox type="date" value={x.termFrom} onChange={set("termFrom")} aria-label="시작" style={{ width: "auto" }} /><DateBox type="date" value={x.termTo} onChange={set("termTo")} aria-label="끝" style={{ width: "auto" }} />
+    <span className="note" style={{ margin: 0 }}>영어 시험일</span><DateBox type="date" value={x.englishOn} onChange={set("englishOn")} aria-label="영어 시험일" style={{ width: "auto" }} />
     <button className="btn pri sm" type="button" disabled={pending} data-act="exam-save" onClick={() => run(() => examAct(x), done, () => { setX(emptyExam(schools[0]?.id ?? "", date)); onDone?.(); })}>저장</button>
     {onDone && <button className="btn sm gho" type="button" data-act="exam-close" onClick={() => onDone()}>닫기</button>}
   </div></div>;

@@ -14,6 +14,7 @@ import Upload from "./upload.js";
 import { ACT } from "@/lib/emoji";
 import { kindList } from "@/lib/todo-plan";
 import { icon } from "./icon.js";
+import { DateBox } from "./datebox.js";
 const EMPTY = { title: "", kind: "note", dueOn: "", startOn: "", dueTime: "", studentId: "" };
 /** (어80) `edit` 를 주면 **같은 양식이 고치기**가 된다 — 넣기와 고치기를 두 벌로 그리지 않는다(원칙-1 · 대전제-19) */
 const formOf = (c) => (c ? { title: c.title ?? "", kind: c.kind ?? "note", dueOn: c.due ?? "", startOn: c.startOn ?? "", dueTime: c.dueTime ?? "", studentId: c.studentId ?? "" } : EMPTY);
@@ -54,9 +55,9 @@ export default function QuickMemo({ students = null, kinds = null, inline = fals
       {bar}
       {more && <div className="wv" data-g="quick-more" style={{ marginTop: 6 }}>
         <label className="fl" style={{ margin: 0 }}>종류</label><select value={f.kind} aria-label="업무 종류" data-g="quick-kind" onChange={up("kind")} style={{ width: "auto" }}>{kindOpts.map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>
-        <label className="fl" style={{ margin: 0 }}>시작일</label><input type="date" className="dt" value={f.startOn} aria-label="시작일" onChange={up("startOn")} style={{ width: "auto" }} />
-        <label className="fl" style={{ margin: 0 }}>마감</label><input type="date" className="dt" value={f.dueOn} aria-label="마감" onChange={up("dueOn")} style={{ width: "auto" }} />
-        <input type="time" value={f.dueTime} aria-label="시각" onChange={up("dueTime")} style={{ width: "auto" }} />
+        <label className="fl" style={{ margin: 0 }}>시작일</label><DateBox type="date" className="dt" value={f.startOn} aria-label="시작일" onChange={up("startOn")} style={{ width: "auto" }} />
+        <label className="fl" style={{ margin: 0 }}>마감</label><DateBox type="date" className="dt" value={f.dueOn} aria-label="마감" onChange={up("dueOn")} style={{ width: "auto" }} />
+        <DateBox type="time" value={f.dueTime} aria-label="시각" onChange={up("dueTime")} style={{ width: "auto" }} />
         {students && <select value={f.studentId} aria-label="아이" onChange={up("studentId")} style={{ width: "auto" }}><option value="">아이 없음</option>{students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
       </div>}
       {more && <Upload paste sendRef={sendRef} label="📷 사진 · 📄 파일" hint="붙여넣기(Ctrl+V)도 돼요" compact />}

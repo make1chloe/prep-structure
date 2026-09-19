@@ -9,6 +9,7 @@ import { addAct, scheduleAct, nameAct, closeAct, closeManyAct, memberAct, remove
 import { KIND, kindName, weekdayText, timeText, feeText, candidates, classLine } from "@/lib/class-plan";
 import { W, sessionsOf } from "@/lib/schedule-plan";
 import { icon } from "../../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
+import { DateBox } from "../../_shell/datebox.js";
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 function Weekdays({ value, onChange, disabled }) {
   return <div className="seg sm" data-g="weekdays">{DAYS.map((d) => <button key={d} type="button" aria-pressed={value.includes(d)} disabled={disabled} onClick={() => onChange(value.includes(d) ? value.filter((x) => x !== d) : [...value, d])}>{W[d]}</button>)}</div>;
@@ -19,7 +20,7 @@ function ScheduleForm({ init, on, disabled, onSave, label = "이 날부터 바�
     <Weekdays value={f.weekdays} onChange={(w) => setF({ ...f, weekdays: w })} disabled={disabled} />
     <input type="text" value={f.start} aria-label="시작" placeholder="16:00" inputMode="numeric" style={{ maxWidth: 80 }} disabled={disabled} onChange={(e) => setF({ ...f, start: e.target.value })} />
     <span>~</span><input type="text" value={f.end} aria-label="끝" placeholder="17:30" inputMode="numeric" style={{ maxWidth: 80 }} disabled={disabled} onChange={(e) => setF({ ...f, end: e.target.value })} />
-    <input type="date" className="dt" value={f.fromDate} aria-label="이 날부터" style={{ width: "auto" }} disabled={disabled} onChange={(e) => setF({ ...f, fromDate: e.target.value })} />
+    <DateBox type="date" className="dt" value={f.fromDate} aria-label="이 날부터" style={{ width: "auto" }} disabled={disabled} onChange={(e) => setF({ ...f, fromDate: e.target.value })} />
     <button type="button" className="btn sm pri" disabled={disabled} data-act="schedule-save" onClick={() => onSave(f)}>{label}</button></div>;
 }
 export default function Board({ d }) {
@@ -74,7 +75,7 @@ export default function Board({ d }) {
           <div className="lf" style={{ marginTop: 8 }} data-g="fee-edit"><span className="ln">💳</span><div><b>반 단가 · {feeText(c.fee)}</b><small>13 수강료의 단가 줄과 같은 표(fee_rule.class_id) · 학생별 금액이 있으면 그것이 먼저</small></div>
             <input type="text" inputMode="numeric" value={fee[c.id]?.amount ?? ""} aria-label="금액" placeholder="금액(원)" style={{ maxWidth: 120 }} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), amount: e.target.value } })} />
             <label className="ckl"><input type="checkbox" className="ck" checked={Boolean(fee[c.id]?.perSession)} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), perSession: e.target.checked } })} />회차제</label>
-            <input type="date" className="dt" value={fee[c.id]?.fromDate ?? d.on} aria-label="단가 이 날부터" style={{ width: "auto" }} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), fromDate: e.target.value } })} />
+            <DateBox type="date" className="dt" value={fee[c.id]?.fromDate ?? d.on} aria-label="단가 이 날부터" style={{ width: "auto" }} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), fromDate: e.target.value } })} />
             <button type="button" className="btn sm" disabled={pending || !fee[c.id]?.amount} data-act="fee-save" onClick={() => run(() => feeAct(c.id, { ...fee[c.id], fromDate: fee[c.id]?.fromDate ?? d.on }), "단가 줄을 적었습니다. 13 에서 이 달부터 셉니다", () => setFee({ ...fee, [c.id]: undefined }))}>단가 줄 적기</button></div>
           <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><span className="spacer" /><button type="button" className="btn sm" disabled={pending} data-act="close-class" onClick={() => sure.ask("close:" + c.id)}>반 닫기</button><Sure on={sure.is("close:" + c.id)} text={`「${c.nickname}」 반을 오늘부터 없는 반으로 닫을까요? 시간표·명단·단가 줄이 어제까지로 닫히고 옛 기록은 남습니다.`} yes="반 닫기" pending={pending} onYes={() => { sure.off(); run(() => closeAct(c.id, d.on), "반을 닫았습니다", () => setOpen(null)); }} onNo={sure.off} style={{ flexBasis: "100%" }} /></div>
         </>}

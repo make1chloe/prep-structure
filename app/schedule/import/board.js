@@ -9,6 +9,7 @@ import { md, seoulDate, changeText } from "@/lib/dash-plan";
 import { weekdayName } from "@/lib/day-plan";
 import { LEVEL_CHAR } from "@/lib/neis-plan";
 import { staleText } from "@/lib/site-plan";   // (버2) 「N일째 못 받았습니다」 — 학교가 홈페이지를 바꾸면 조용히 멈춘다
+import { DateBox } from "../../_shell/datebox.js";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 const srcTag = (e) => (e.source === "neis" ? <span className="tag on">나이스</span> : e.source === "site" ? <span className="tag act">홈페이지에서</span> : <span className="tag" style={MISS}>손으로</span>);
 export default function Board({ d }) {
@@ -43,7 +44,7 @@ export default function Board({ d }) {
         {!sch.length && <p className="note">아직 없음 · 가져오기 · 손으로</p>}
         {sch.map((e) => { const s = (b.schools ?? []).find((x) => x.id === e.school_id); return <div key={e.id} className={"nrow" + (e.english_on ? "" : " warnrow2")} data-g="school-row" data-exam={e.id}><span className="nd2">{e.term_from ? `${md(e.term_from)}~${md(e.term_to)}` : ""}</span>
           <div><b>{e.school ?? "?"} {e.name}</b><small>{gradeText(e, s)} · {e.english_on ? `영어 ${md(e.english_on)}` : <b>영어 시험일 없음</b>}
-            {!e.english_on && <span className="wv" style={{ display: "inline-flex", marginLeft: 6, gap: 4 }}><input type="date" value={eng[e.id] ?? ""} onChange={(x) => setEng({ ...eng, [e.id]: x.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !eng[e.id]} data-act="english-on" onClick={() => run(() => englishOnAct(e.id, eng[e.id]), "영어 시험일을 적었습니다. 전날 등원·안내·마감이 섭니다")}>영어 시험일</button></span>}</small></div>
+            {!e.english_on && <span className="wv" style={{ display: "inline-flex", marginLeft: 6, gap: 4 }}><DateBox type="date" value={eng[e.id] ?? ""} onChange={(x) => setEng({ ...eng, [e.id]: x.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !eng[e.id]} data-act="english-on" onClick={() => run(() => englishOnAct(e.id, eng[e.id]), "영어 시험일을 적었습니다. 전날 등원·안내·마감이 섭니다")}>영어 시험일</button></span>}</small></div>
           {srcTag(e)}<button className="btn sm gho" type="button" disabled={pending} data-act="exam-cancel" onClick={() => run(() => cancelExamAct(e.id), "시험을 물렀습니다")}>취소</button></div>; })}
       </div>
     </div>

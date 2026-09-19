@@ -11,6 +11,7 @@ import { whenLabel } from "@/lib/send-plan";
 import { won, parseWon, totals, STATE, GRADE_KEYS, METHODS, prevUnpaidText, payAllEdits } from "@/lib/fee-plan";
 import { monthLabel, nextYm } from "@/lib/schedule-plan";
 import { md } from "@/lib/dash-plan";
+import { DateBox } from "../_shell/datebox.js";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Fee({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -45,7 +46,7 @@ export default function Fee({ d }) {
         <td><PickBox pick={pk} id={r.student_id} label={`${r.name} 고르기`} /></td><td className="sch">{r.name}</td>
         <td>{r.classText}{r.special.map((n, i) => <span key={i} className="tag" style={{ marginLeft: 4 }}>{n}회</span>)}{r.source && r.amount === r.suggested && <div className="meta">{r.source}</div>}</td>
         <td><input type="text" inputMode="numeric" className="fee" value={edit[r.student_id] && "amount" in edit[r.student_id] ? edit[r.student_id].amount : (r.amount == null ? "" : Number(r.amount).toLocaleString("ko-KR"))} placeholder="아직 안 적음" aria-label={`${r.name} 금액`} onChange={(e) => setA(r.student_id, e.target.value)} /></td>
-        <td><span className="wv" style={{ gap: 4, marginBottom: 0, flexWrap: "nowrap" }}><input type="date" className="dt" value={r.paid_on ?? ""} aria-label={`${r.name} 받은 날`} onChange={(e) => setP(r.student_id, e.target.value)} /><select value={r.method ?? ""} aria-label={`${r.name} 수납 방법`} data-g="method" style={{ width: "auto", flex: "0 0 auto" }} onChange={(e) => setM(r.student_id, e.target.value)}><option value="">방법</option>{METHODS.map((mth) => <option key={mth} value={mth}>{mth}</option>)}</select></span></td>
+        <td><span className="wv" style={{ gap: 4, marginBottom: 0, flexWrap: "nowrap" }}><DateBox type="date" className="dt" value={r.paid_on ?? ""} aria-label={`${r.name} 받은 날`} onChange={(e) => setP(r.student_id, e.target.value)} /><select value={r.method ?? ""} aria-label={`${r.name} 수납 방법`} data-g="method" style={{ width: "auto", flex: "0 0 auto" }} onChange={(e) => setM(r.student_id, e.target.value)}><option value="">방법</option>{METHODS.map((mth) => <option key={mth} value={mth}>{mth}</option>)}</select></span></td>
         <td><span className={"v " + (r.state === "paid" ? "y" : r.state === "unpaid" ? "m" : "n")} data-g="state">{STATE[r.state]}</span></td>
       </tr>)}
       {!rows.length && <tr><td colSpan={6} className="note">이 달 재원생이 없습니다</td></tr>}

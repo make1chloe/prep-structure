@@ -14,6 +14,7 @@ import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf
 import { examOn } from "@/lib/exam-plan";
 import { ACT, FACE } from "@/lib/emoji";
 import { icon } from "@/app/_shell/icon.js";   // (어80) 아이콘만 있는 손의 이름·툴팁 한 벌
+import { DateBox } from "../../_shell/datebox.js";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 /** (어80) 분류 색 — 목업 CSS 의 칸 색 그대로(nb-*). 「기본」은 색 없음 */
 const COLORS = [["", "기본"], ["nb-orange", "주황"], ["nb-blue", "파랑"], ["nb-yellow", "노랑"], ["nb-green", "초록"], ["nb-red", "빨강"]];
@@ -111,7 +112,7 @@ export default function Board({ d }) {
       {c.todoId && c.state === "dropped" && <button className="btn sm" type="button" disabled={pending} data-act="restore" onClick={() => { run(() => restoreAct(c.todoId), `복구 ✓ · ${c.title}`); }}>{ACT.restore} 복구</button>}
       {c.todoId && (c.state === "todo" || c.state === "doing") && <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => { run(() => dropAct(c.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능")); }}>삭제</button>}
       {c.todoId && (c.state === "done" || c.state === "dropped") && <button className="btn sm" type="button" disabled={pending} data-act="undo" onClick={() => { run(() => undoAct(c.todoId), "되돌렸습니다"); }}>되돌리기</button>}
-      {c.todoId && (c.state === "todo" || c.state === "doing") && <input type="date" className="dt" value={c.due ?? ""} aria-label={`${c.title} 마감`} onClick={(x) => x.stopPropagation()} onChange={(x) => run(() => dueAct(c.todoId, x.target.value), "마감을 바꿨습니다")} style={{ width: "auto" }} />}
+      {c.todoId && (c.state === "todo" || c.state === "doing") && <DateBox type="date" className="dt" value={c.due ?? ""} aria-label={`${c.title} 마감`} onClick={(x) => x.stopPropagation()} onChange={(x) => run(() => dueAct(c.todoId, x.target.value), "마감을 바꿨습니다")} style={{ width: "auto" }} />}
       {c.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => { run(() => unitTestMadeAct(c.unitTestId), "출제했습니다. 오늘 수업 카드에 섭니다"); }}>출제 완료</button>}
       {c.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => { run(() => unitTestDueAct(c.dueUnitTest), "출제했습니다. 오늘 수업 카드에 섭니다(같은 것은 다시 안 생깁니다)"); }}>출제 완료</button>}
       {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={() => { run(() => quizPaperAct(c.quizId, true), "종이 ✓ · 다음은 「✓ 끝냄」"); }}>🖨 재시험지 만들었음</button>}
@@ -152,7 +153,7 @@ export default function Board({ d }) {
     <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 업무에 한 번에 · 완료 · 되돌리기 · 미루기(날짜) · 내림(지우지 않는다) */}
       <button type="button" className="btn sm pri" disabled={pending || !toDone.length} data-act="done-picked" onClick={() => run(() => manyAct(toDone.map((x) => x.todoId), "done"), (r) => `${r.n}개 끝냈습니다`, pk.clear)}>✓ 완료 {toDone.length}</button>
       <button type="button" className="btn sm" disabled={pending || !toUndo.length} data-act="undo-picked" onClick={() => run(() => manyAct(toUndo.map((x) => x.todoId), "undo"), (r) => `${r.n}개 되돌렸습니다`, pk.clear)}>↩ 되돌리기 {toUndo.length}</button>
-      <input type="date" className="dt" value={dueTo} aria-label="미룰 마감" onChange={(e) => setDueTo(e.target.value)} style={{ width: "auto" }} />
+      <DateBox type="date" className="dt" value={dueTo} aria-label="미룰 마감" onChange={(e) => setDueTo(e.target.value)} style={{ width: "auto" }} />
       <button type="button" className="btn sm" disabled={pending || !dueTo || !pickedCards.length} data-act="due-picked" onClick={() => run(() => manyAct(pickedCards.map((x) => x.todoId), "due", dueTo), (r) => `${r.n}개 마감을 ${dueTo} 로`, () => { pk.clear(); setDueTo(""); })}>📅 미루기</button>
       <button type="button" className="btn sm" disabled={pending || !toRestore.length} data-act="restore-picked" onClick={() => run(() => manyAct(toRestore.map((x) => x.todoId), "restore"), (r) => `복구 ✓ · ${r.n}개`, pk.clear)}>{ACT.restore} 복구 {toRestore.length}</button>
       <select value={moveTo} aria-label="옮길 분류" onChange={(e) => setMoveTo(e.target.value)} style={{ width: "auto" }}><option value="">분류</option>{klist.filter((k) => k.state === "active").map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>
@@ -232,7 +233,7 @@ export default function Board({ d }) {
         <td>{x.checks ? x.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => `${s.done ? "✓" : "·"}${s.name}`).join(" ") : ""}</td><td>{x.why ?? ""}</td>
         <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), "끝냄 ✓")}>✓ 끝냄</button>}
           {x.todoId && !x.material && <button className="btn sm gho icb" type="button" disabled={pending} data-act="row-edit" {...icon("수정")} onClick={() => { setView("board"); setDetail(x.id); setSel(x.id); }}>{ACT.edit}</button>}
-          {x.todoId && <input type="date" className="dt" value={x.due ?? ""} aria-label={`${x.title} 마감`} disabled={pending} onChange={(e) => run(() => dueAct(x.todoId, e.target.value || null), "마감 ✓")} style={{ width: "auto" }} />}
+          {x.todoId && <DateBox type="date" className="dt" value={x.due ?? ""} aria-label={`${x.title} 마감`} disabled={pending} onChange={(e) => run(() => dueAct(x.todoId, e.target.value || null), "마감 ✓")} style={{ width: "auto" }} />}
           {x.todoId && <button className="btn sm gho" type="button" disabled={pending} data-act="row-drop" onClick={() => run(() => dropAct(x.todoId, "05 에서 삭제"), (r) => (r?.material ? "삭제 ✓ · 자료와 남은 업무도 함께 · 복구 가능" : "삭제 ✓ · 복구 가능"))}>삭제</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제 완료</button>}{x.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => run(() => unitTestDueAct(x.dueUnitTest), "출제했습니다")}>출제 완료</button>}</td>
       </tr>)}
       {!cards.filter((x) => x.state === "todo" || x.state === "doing").length && <tr><td colSpan={8} className="note">업무가 없습니다</td></tr>}

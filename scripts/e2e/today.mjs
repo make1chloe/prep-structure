@@ -1493,6 +1493,20 @@ const gradeCard = td.locator("[data-g=col][data-kind=grade] [data-g=card]").firs
 ok("채점 카드 · 「zz_너른터 · 대의파악」 · 채점 0/1 · 제출한 아이 「zz_시험_학생 ✓」 단추 · 풀이 카드 「zz_클카 문장훈련 · 2과 단어」 「제출 0/1 · 아직: zz_시험_학생」", (await gradeCard.locator(".nb-title").textContent()).includes("대의파악") && (await gradeCard.locator("[data-g=grade]").textContent()).includes("채점 0/1") && (await gradeCard.locator("button[data-act=scored]").count()) === 1 && (await td.locator("[data-g=col][data-kind=solve] [data-g=card] [data-g=submit]").first().textContent()).includes("아직: zz_시험_학생"), (await gradeCard.textContent()) + " / " + (await td.locator("[data-g=col][data-kind=solve]").textContent()));
 await gradeCard.locator("button[data-act=scored]").click(); await p.waitForFunction(() => (document.querySelector("[data-g=msg]")?.textContent ?? "").includes("채점 ✓"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("「zz_시험_학생 ✓」 → 「채점 ✓ · zz_시험_학생」 · 채점 칸 0(다 채점하면 ✓ 끝냄 그룹으로) · ✓ 끝냄 그룹에 「대의파악」 채점 카드(「zz_시험_학생 채점함」 · 누르면 무름)", (await colCount("grade")) === "0" && (await td.locator("[data-g=msg]").textContent()).includes("채점 ✓ · zz_시험_학생"), await td.locator("[data-g=msg]").textContent());
+/* (어93) 날짜는 비울 수 있다 — 원장님 2026-09-19 「시간 날짜를 한번 선택하면 삭제가 안돼 되게해」.
+   브라우저 날짜 상자에는 비우는 손이 없어 한 번 고르면 폰에서는 지울 길이 아예 없었다. 값이 있을 때만 ✕ 가 선다(app/_shell/datebox.js 한 벌). */
+{ const dueCard = td.locator("[data-g=col] [data-g=card]").filter({ has: p.locator("input[type=date]") }).first();
+  const title = (await dueCard.locator(".nb-title").first().textContent()).trim();
+  const again = () => td.locator("[data-g=col] [data-g=card]").filter({ hasText: title }).first();
+  const was = await dueCard.locator("input[type=date]").inputValue();   /* ⚠️ 원래 마감을 적어 둔다 — **끝에 되돌려 놓는다**. 뒤 걸음이 「🔥 마감 지남」 수를 센다(2026-09-19 실측: 안 돌려놓아 그 걸음이 깨졌다). */
+  ok("(어93) 마감이 비면 ✕ 가 없고 차 있으면 ✕ 가 있다 — 빈 칸에 선 ✕ 는 무엇을 지우는지 말해주지 못한다", (await dueCard.locator("button[data-act=dt-clear]").count()) === (was ? 1 : 0), `마감 「${was || "빔"}」 · ✕ ${await dueCard.locator("button[data-act=dt-clear]").count()}`);
+  if (!was) { await dueCard.locator("input[type=date]").fill("2026-12-25"); await p.waitForTimeout(1500);
+    ok("(어93) 마감을 넣으면 그 옆에 ✕ 가 선다", (await again().locator("button[data-act=dt-clear]").count()) === 1, await again().locator("input[type=date]").inputValue()); }
+  await again().locator("button[data-act=dt-clear]").click(); await p.waitForTimeout(1500);
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어93) ✕ 를 누르면 마감이 비고 새로 고쳐도 빈 채다(모달이 열리지 않는다 — ✕ 는 단추라 카드 열기에 안 번진다)", (await again().locator("input[type=date]").inputValue()) === "" && (await p.locator(".mdlov").count()) === 0, await again().locator("input[type=date]").inputValue());
+  if (was) { await again().locator("input[type=date]").fill(was); await p.waitForTimeout(1500);
+    ok("(어93) 지운 마감을 도로 넣어 판을 원래대로 돌려놓았다(뒤 걸음이 이 판을 그대로 본다)", (await again().locator("input[type=date]").inputValue()) === was, await again().locator("input[type=date]").inputValue()); } }
 const openBefore = Number((await td.locator("[data-g=count]").textContent()).replace(/\D/g, ""));
 let at05 = mark(); await td.locator("button[data-act=view-table]").click(); await p.waitForTimeout(1200);
 const q05a = requestsSince(at05), rows05 = await td.locator("[data-g=table] [data-g=row]").count();

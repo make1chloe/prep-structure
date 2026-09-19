@@ -10,6 +10,7 @@ import { useModalErr, call } from "./modalerr.js";
 import { markCh } from "@/lib/mark";
 import { assignChoices, assignBooksFor } from "./assign-actions.js";
 import { icon } from "./icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
+import { DateBox } from "./datebox.js";
 export default function AssignModal({ studentId, name = "", date, sheetId = null, onClose, onDone = null }) {
   const router = useRouter(); const [pending, start] = useTransition();
   const [rows, setRows] = useState(null); const [total, setTotal] = useState(0); const [on, setOn] = useState(date); const [failM, errNode] = useModalErr();
@@ -45,7 +46,7 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
               <div key={r.book_id} className={"lf pick" + (pk.has(r.book_id) ? " on" : "")} data-g="assign-row" data-book={r.book_id} data-progressed={r.progressed ? "1" : "0"} onClick={() => pk.toggle(r.book_id)}>
                 <PickBox pick={pk} id={r.book_id} label={r.name} /><span className="ln">{r.progressed ? markCh("doing") : "📕"}</span><div><b>{r.name}</b><small>{r.area}{r.progressed ? ` · 진도 ${r.done}` : ""}</small></div>
               </div>))}</div>}
-          {why == null && <div className="wv" style={{ marginTop: 8 }}><span className="lm">이 날부터</span><input type="date" className="dt" value={on} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setOn(e.target.value)} /></div>}
+          {why == null && <div className="wv" style={{ marginTop: 8 }}><span className="lm">이 날부터</span><DateBox type="date" className="dt" value={on} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setOn(e.target.value)} /></div>}
         </div>
         <div className="mdlf">{why == null && <button type="button" className="btn pri" data-act="assign-save" disabled={pending || !pk.count || !on} onClick={save}>배정{pk.count > 1 ? ` ${pk.count}권` : ""}</button>}<button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
       </div>

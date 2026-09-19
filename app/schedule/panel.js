@@ -11,6 +11,7 @@ import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, englishOnAct, cancelE
 import { dayTitle, classText } from "@/lib/schedule-plan";
 import { kindList } from "@/lib/todo-plan";   // (어88) 업무 종류 고르개 — 05 와 같은 목록 한 벌(원칙-1)
 import WhoPick from "../_shell/whopick.js";   // (어83) 학교 단추 · 반 단추 · 학생 목록 — 결석 예정과 보강이 같은 부품(원칙-1)
+import { DateBox } from "../_shell/datebox.js";
 const emptyAbs = (date) => ({ ids: [], from: date, to: "", range: false, reason: "" });
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 function useRun() {
@@ -33,7 +34,7 @@ export function ClassMakeup({ classId = null, ym, short = 0, classes = null, stu
     {shown && <div style={{ marginTop: always ? 0 : 4 }} data-g="class-makeup">
       {canPick && <WhoPick students={students} classes={classes ?? []} value={ids} onChange={setIds} label="누구 보강" />}
       <div className="wv" style={{ marginTop: canPick ? 4 : 0 }}>
-        <input type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
+        <DateBox type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><DateBox type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
         <button className="btn pri sm" type="button" disabled={pending || !ok} data-act="class-makeup-save" onClick={() => run(() => (canPick ? makeupManyAct({ studentIds: ids, onDate: on, atTime: at || null }) : classMakeupAct({ classId, onDate: on, atTime: at || null })), (r) => `보강일을 잡았습니다. ${r.made}명(이미 있던 ${r.had}명)${short ? ` · ${short}회 중 1회` : ""}`, () => { setOpen(false); setOn(`${ym}-`); setAt(""); setIds([]); })}>잡기</button></div></div>}
     <Note err={err} msg={msg} />
   </div>;
@@ -57,14 +58,14 @@ export function AddTop({ d }) {
       <input value={hol.reason} onChange={(e) => setHol({ ...hol, reason: e.target.value })} placeholder="사유 (예: 개천절 · 원장 연수)" aria-label="사유" name="reason" style={{ flex: "1 1 200px" }} />
       <button className="btn pri sm" type="button" disabled={pending} data-act="holiday-save" onClick={() => run(() => holidayAct({ date: d.sel, classId: hol.classId, reason: hol.reason }), "휴강을 넣었습니다. 회차에서 빠집니다", () => { setForm(null); setHol({ classId: "", reason: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="holiday-close" onClick={() => setForm(null)}>닫기</button></div>}
     {form === "todo" && <div className="wv" style={{ marginTop: 8 }} data-g="todo-form"><span className="tag">📋 {d.sel}</span>
-      <input value={todo.title} onChange={(e) => setTodo({ ...todo, title: e.target.value })} placeholder="업무 (예: 11월 수납 안내)" aria-label="업무" name="title" style={{ flex: "1 1 200px" }} /><select value={todo.kind ?? "note"} aria-label="업무 종류" data-g="sched-kind" onChange={(e) => setTodo({ ...todo, kind: e.target.value })} style={{ width: "auto" }}>{kindList(d.kinds ?? null).filter((k) => k.state === "active" && k.showOn !== "schedule").map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>{/* (어88) 12 도 kind:"note" 가 박혀 있던 같은 구멍이다 */}<input type="time" value={todo.dueTime} onChange={(e) => setTodo({ ...todo, dueTime: e.target.value })} aria-label="시각" style={{ width: "auto" }} />
+      <input value={todo.title} onChange={(e) => setTodo({ ...todo, title: e.target.value })} placeholder="업무 (예: 11월 수납 안내)" aria-label="업무" name="title" style={{ flex: "1 1 200px" }} /><select value={todo.kind ?? "note"} aria-label="업무 종류" data-g="sched-kind" onChange={(e) => setTodo({ ...todo, kind: e.target.value })} style={{ width: "auto" }}>{kindList(d.kinds ?? null).filter((k) => k.state === "active" && k.showOn !== "schedule").map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}</select>{/* (어88) 12 도 kind:"note" 가 박혀 있던 같은 구멍이다 */}<DateBox type="time" value={todo.dueTime} onChange={(e) => setTodo({ ...todo, dueTime: e.target.value })} aria-label="시각" style={{ width: "auto" }} />
       <button className="btn pri sm" type="button" disabled={pending} data-act="todo-save" onClick={() => run(() => todoAct({ title: todo.title, kind: todo.kind || null, dueOn: d.sel, dueTime: todo.dueTime || null }), "업무를 넣었습니다", () => { setForm(null); setTodo({ title: "", dueTime: "" }); })}>저장</button><button className="btn sm gho" type="button" data-act="todo-close" onClick={() => setForm(null)}>닫기</button></div>}
     {form === "mk" && <div style={{ marginTop: 8 }} data-g="makeup-top"><ClassMakeup ym={d.ym} classes={d.classes} students={d.students ?? []} always /></div>}
     {form === "abs" && <div style={{ marginTop: 8 }} data-g="absence-form">{/* (어83) 아이 하나 고르개 → 여럿 · 날짜도 고른다(원장님 2026-09-18) */}
       <div className="wv"><span className="fl" style={{ margin: 0 }}>언제</span>
-        <input type="date" value={abs.from} onChange={(e) => setAbs({ ...abs, from: e.target.value })} aria-label="결석 시작일" style={{ width: "auto" }} />
+        <DateBox type="date" value={abs.from} onChange={(e) => setAbs({ ...abs, from: e.target.value })} aria-label="결석 시작일" style={{ width: "auto" }} />
         <label className="ckl"><input type="checkbox" className="ck" data-g="absence-range" checked={abs.range} onChange={(e) => setAbs({ ...abs, range: e.target.checked, to: e.target.checked ? abs.to || abs.from : "" })} />여러 날</label>
-        {abs.range && <input type="date" value={abs.to} onChange={(e) => setAbs({ ...abs, to: e.target.value })} aria-label="결석 종료일" style={{ width: "auto" }} />}
+        {abs.range && <DateBox type="date" value={abs.to} onChange={(e) => setAbs({ ...abs, to: e.target.value })} aria-label="결석 종료일" style={{ width: "auto" }} />}
         <span className="note" style={{ margin: 0 }}>그 아이 수업일만</span></div>
       <WhoPick students={d.students ?? []} classes={d.classes ?? []} value={abs.ids} onChange={(ids) => setAbs({ ...abs, ids })} />
       <div className="wv" style={{ marginTop: 4 }}>
@@ -95,14 +96,14 @@ export default function Panel({ d }) {
       <div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{r.title}</b><small>{r.small}</small>
         {r.kind === "abs" && <div style={{ marginTop: 4 }} data-g="makeup-forms">{r.items.map((it) => <div key={it.id} className="wv" style={{ margin: "2px 0" }} data-g="makeup-form" data-student={it.student_id}><span className="tag">{it.name}</span>
           {it.state === "set" ? <span className="tag on">보강 {String(it.on_date ?? "").slice(5)}{it.at_time ? " " + String(it.at_time).slice(0, 5) : ""}</span> : it.state === "waived" ? <span className="tag">보강 안 잡음</span> : <span className="tag" style={MISS}>보강 안 잡힘</span>}
-          <input type="date" value={mk[it.student_id]?.onDate ?? ""} onChange={(e) => setMk({ ...mk, [it.student_id]: { ...(mk[it.student_id] ?? {}), onDate: e.target.value } })} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={mk[it.student_id]?.atTime ?? ""} onChange={(e) => setMk({ ...mk, [it.student_id]: { ...(mk[it.student_id] ?? {}), atTime: e.target.value } })} aria-label="보강 시각" style={{ width: "auto" }} />
+          <DateBox type="date" value={mk[it.student_id]?.onDate ?? ""} onChange={(e) => setMk({ ...mk, [it.student_id]: { ...(mk[it.student_id] ?? {}), onDate: e.target.value } })} aria-label="보강 날짜" style={{ width: "auto" }} /><DateBox type="time" value={mk[it.student_id]?.atTime ?? ""} onChange={(e) => setMk({ ...mk, [it.student_id]: { ...(mk[it.student_id] ?? {}), atTime: e.target.value } })} aria-label="보강 시각" style={{ width: "auto" }} />
           <button className="btn sm pri" type="button" disabled={pending || !mk[it.student_id]?.onDate} data-act="makeup-save" onClick={() => run(() => makeupAct({ studentId: it.student_id, ofDate: d.sel, onDate: mk[it.student_id].onDate, atTime: mk[it.student_id].atTime || null }), "보강을 잡았습니다")}>📅 보강 잡기</button>
           {it.state !== "waived" && <button className="btn sm gho" type="button" disabled={pending} data-act="makeup-waive" onClick={() => run(() => makeupAct({ studentId: it.student_id, ofDate: d.sel, waived: true }), "보강 안 잡음으로 두었습니다")}>안 잡음</button>}</div>)}</div>}
       </div>
       {r.kind === "hol" && <button className="btn sm gho" type="button" disabled={pending} data-act="holiday-undo" onClick={() => run(() => undoHolidayAct(r.id), "휴강을 물렀습니다(지우지 않았습니다)")}>취소</button>}
       {r.kind === "todo" && <button className="btn sm gho" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => doneTodoAct(r.id), "끝냈습니다")}>끝냄</button>}
       {r.kind === "mk" && r.ids && <button className="btn sm gho" type="button" disabled={pending} data-act="class-makeup-cancel" onClick={() => run(() => cancelClassMakeupAct(r.ids), "반 보강일을 물렀습니다")}>취소</button>}
-      {(r.kind === "exam" || r.kind === "exam2") && <span className="wv" style={{ gap: 4 }}><span className="tag">{r.tag}</span>{r.kind === "exam" && <><input type="date" value={eng[r.id] ?? ""} onChange={(e) => setEng({ ...eng, [r.id]: e.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !eng[r.id]} data-act="english-on" onClick={() => run(() => englishOnAct(r.id, eng[r.id]), "영어 시험일을 적었습니다")}>영어 시험일</button></>}<button className="btn sm gho" type="button" disabled={pending} data-act="exam-cancel" onClick={() => run(() => cancelExamAct(r.id), "시험을 물렀습니다")}>취소</button></span>}
+      {(r.kind === "exam" || r.kind === "exam2") && <span className="wv" style={{ gap: 4 }}><span className="tag">{r.tag}</span>{r.kind === "exam" && <><DateBox type="date" value={eng[r.id] ?? ""} onChange={(e) => setEng({ ...eng, [r.id]: e.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !eng[r.id]} data-act="english-on" onClick={() => run(() => englishOnAct(r.id, eng[r.id]), "영어 시험일을 적었습니다")}>영어 시험일</button></>}<button className="btn sm gho" type="button" disabled={pending} data-act="exam-cancel" onClick={() => run(() => cancelExamAct(r.id), "시험을 물렀습니다")}>취소</button></span>}
     </div>)}
     <Note err={err} msg={msg} />
   </>;

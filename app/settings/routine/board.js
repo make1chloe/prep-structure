@@ -10,6 +10,7 @@ import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd }
 import { icon } from "../../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
 import { APP_CC } from "@/lib/item-plan";   // (어77) 이 항목을 하는 앱 한 곳
 import { FACE } from "@/lib/emoji";
+import { DateBox } from "../../_shell/datebox.js";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
   const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required), byApp: init.byApp ?? null });
@@ -171,7 +172,7 @@ export default function Board({ d }) {
       })}
       {student && <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="assign">
         <select value={bookPick} aria-label="이을 교재" data-g="book-pick" style={{ width: "auto" }} onChange={(e) => setBookPick(e.target.value)}><option value="">이을 교재 고르기</option>{(b.books_free ?? []).map((x) => <option key={x.id} value={x.id}>{x.area ?? ""} · {x.name}{x.code ? ` (${x.code})` : ""}</option>)}</select>
-        <input type="date" className="dt" value={assignDate} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setAssignDate(e.target.value)} />
+        <DateBox type="date" className="dt" value={assignDate} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setAssignDate(e.target.value)} />
         <button className="btn pri sm" type="button" disabled={pending || !bookPick || !assignDate} data-act="assign" onClick={() => run(() => assignBookAct(sid, bookPick, assignDate), `이었습니다. ${assignDate}부터 · 그 교재의 영역 루틴이 저절로 붙습니다`)}>+ 교재 배정</button>
         </div>}
     </div>

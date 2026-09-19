@@ -9,13 +9,14 @@ import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridShareAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAllAct } from "./actions.js";
 import { TEMPLATES, COL_TYPES, PICK_OF, SORT_DIRS, typeName, pickName, parseCol, cellText, toggleItem, addItem, removeItem, rowTitle, rowSub, alive, liveOf, jumpTargets, jumpStep, unitGroups, unitPick, focusRows, sortRows, boardOf, calendarOf, nextOption, cardTitle, watchSummary, visibleGrids, dateFrom, dateTo, monthLabel, nextYm } from "@/lib/grid-plan";
 import { icon } from "../../_shell/icon.js";   // (어51) 아이콘만 있는 손의 이름·툴팁 한 벌
+import { DateBox } from "../../_shell/datebox.js";
 function Cell({ r, col, ctx }) {
   const { pending, save, quick, val, setV, chk, setChk, chkNew, setChkNew, units, refs } = ctx;
     const v = val(r, col);
     if (col.type === "text") return <input type="text" value={v ?? ""} placeholder="" aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => setV(r, col, x.target.value)} onBlur={(x) => { if ((x.target.value || null) !== (r.cells?.[col.id] ?? null)) save(r, col, x.target.value); }} />;
     if (col.type === "date") { const f = dateFrom(v), t = dateTo(v); return <span className="wv" style={{ gap: 4, marginBottom: 0 }} data-g="date-cell">
-      <input type="date" className="dt" value={f} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { from: x.target.value, to: t } : null)} style={{ width: "auto" }} />
-      {Boolean(t) && <input type="date" className="dt" value={t} min={f || undefined} aria-label={`${rowTitle(r)} ${col.label} 종료일`} onChange={(x) => save(r, col, { from: f, to: x.target.value })} style={{ width: "auto" }} />}
+      <DateBox type="date" className="dt" value={f} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { from: x.target.value, to: t } : null)} style={{ width: "auto" }} />
+      {Boolean(t) && <DateBox type="date" className="dt" value={t} min={f || undefined} aria-label={`${rowTitle(r)} ${col.label} 종료일`} onChange={(x) => save(r, col, { from: f, to: x.target.value })} style={{ width: "auto" }} />}
       {Boolean(f) && <label className="ckl"><input type="checkbox" className="ck" data-g="date-span" aria-label={`${rowTitle(r)} ${col.label} 종료일 쓰기`} checked={Boolean(t)} disabled={pending} onChange={() => save(r, col, { from: f, to: t ? "" : f })} /> 종료일</label>}
     </span>; }
     if (col.type === "select") return <select value={v ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value)} style={{ width: "auto" }}><option value=""></option>{(col.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}</select>;

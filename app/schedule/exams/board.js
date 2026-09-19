@@ -12,6 +12,7 @@ import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, hiddenManyAct
 import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
 import { englishOnAct } from "../actions.js";
 import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, stopDone, releaseDone, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
+import { DateBox } from "../../_shell/datebox.js";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -77,7 +78,7 @@ function ExamCard({ e, b, today, pending, run, stName, pk }) {
       <button className="btn sm" type="button" disabled={pending} data-act="hide" onClick={() => run(() => hiddenAct(e.id, true), "숨겼습니다. 대비·알림·교재 보류에서 빠집니다")}>🙈 숨김</button></div>
     <div className="note" style={{ margin: "0 0 8px" }}>{e.name} · 시험 기간 {mdDot(e.term_from)}{e.term_to && e.term_to !== e.term_from ? `~${mdDot(e.term_to)}` : ""}{e.source === "neis" ? " · 나이스가 주인(덮지 않습니다)" : ""}</div>
     {!e.english_on && <div className="lf over"><span className="ln">!</span><div><b>영어 시험일 없음</b><small>교재 보류가 안 생깁니다</small></div>
-      <input type="date" value={eng} onChange={(x) => setEng(x.target.value)} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm pri" type="button" disabled={pending || !eng} data-act="english-save" onClick={() => run(() => englishOnAct(e.id, eng), "영어 시험일을 넣었습니다. 교재 보류 창이 섰습니다")}>넣기</button></div>}
+      <DateBox type="date" value={eng} onChange={(x) => setEng(x.target.value)} aria-label="영어 시험일" style={{ width: "auto" }} /><button className="btn sm pri" type="button" disabled={pending || !eng} data-act="english-save" onClick={() => run(() => englishOnAct(e.id, eng), "영어 시험일을 넣었습니다. 교재 보류 창이 섰습니다")}>넣기</button></div>}
     <div className="rng" data-g="rng">
       {!groups.length && <span className="note" style={{ margin: 0 }} data-g="no-scope">범위가 아직 없습니다</span>}
       {groups.map((g) => <span key={g.key} className={"rg1" + (g.state === "add" ? " add" : g.state === "del" ? " del" : "")} data-g="scope" data-state={g.state}>{g.state === "del" ? <s>{g.title}</s> : <b>{g.title}</b>}<i>{g.sub}</i>
